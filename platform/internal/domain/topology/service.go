@@ -3,8 +3,10 @@ package topology
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
+	"gopkg.in/yaml.v3"
 )
 
 // ResolveUUID maps an internal ID to an external UUID string.
@@ -25,10 +27,15 @@ func NewService(repo *TopologyRepository, resolveCollectionUUID, resolveUserUUID
 }
 
 func (s *TopologyService) Create(creatorID uint, collectionID uint, req CreateRequest) (Response, error) {
+	return s.CreateWithOrg(creatorID, collectionID, 0, req)
+}
+
+func (s *TopologyService) CreateWithOrg(creatorID uint, collectionID uint, orgID uint, req CreateRequest) (Response, error) {
 	topology := &Topology{
 		UUID:         uuid.New().String(),
 		Name:         req.Name,
 		Definition:   req.Definition,
+		OrgID:        orgID,
 		CollectionID: collectionID,
 		CreatorID:    creatorID,
 	}
@@ -38,6 +45,18 @@ func (s *TopologyService) Create(creatorID uint, collectionID uint, req CreateRe
 	}
 
 	return s.buildResponse(topology, nil)
+}
+
+// CheckOrgOwnership verifies that a topology belongs to the given org.
+func (s *TopologyService) CheckOrgOwnership(topoUUID string, orgID uint) error {
+	t, err := s.repo.GetByUUID(topoUUID)
+	if err != nil {
+		return fmt.Errorf("topology not found: %w", err)
+	}
+	if t.OrgID != orgID {
+		return errors.New("topology does not belong to this organization")
+	}
+	return nil
 }
 
 func (s *TopologyService) GetByUUID(topologyUUID string) (Response, error) {
@@ -52,6 +71,14 @@ func (s *TopologyService) GetByUUID(topologyUUID string) (Response, error) {
 	}
 
 	return s.buildResponse(topology, files)
+}
+
+func (s *TopologyService) GetAllByOrg(orgID uint) ([]Response, error) {
+	topologies, err := s.repo.GetAllByOrgID(orgID)
+	if err != nil {
+		return nil, errors.New("failed to retrieve topologies")
+	}
+	return s.buildResponses(topologies)
 }
 
 func (s *TopologyService) GetAll(collectionIDs []uint) ([]Response, error) {
@@ -203,6 +230,95 @@ func (s *TopologyService) buildResponses(topologies []Topology) ([]Response, err
 		responses[i] = resp
 	}
 	return responses, nil
+}
+
+// Validate checks a containerlab YAML definition for errors and warnings.
+func (s *TopologyService) Validate(definition string) (errs []string, warnings []string) {
+	var raw map[string]interface{}
+	if err := yaml.Unmarshal([]byte(definition), &raw); err != nil {
+		return []string{fmt.Sprintf("invalid YAML: %v", err)}, nil
+	}
+
+	if _, ok := raw["name"]; !ok {
+		errs = append(errs, "missing required field: name")
+	}
+
+	topo, ok := raw["topology"]
+	if !ok {
+		errs = append(errs, "missing required field: topology")
+		return errs, warnings
+	}
+
+	topoMap, ok := topo.(map[string]interface{})
+	if !ok {
+		errs = append(errs, "topology must be a map")
+		return errs, warnings
+	}
+
+	nodes, ok := topoMap["nodes"]
+	if !ok {
+		errs = append(errs, "missing required field: topology.nodes")
+		return errs, warnings
+	}
+
+	nodesMap, ok := nodes.(map[string]interface{})
+	if !ok {
+		errs = append(errs, "topology.nodes must be a map")
+		return errs, warnings
+	}
+
+	nodeNames := make(map[string]bool)
+	for name, v := range nodesMap {
+		nodeNames[name] = true
+		node, ok := v.(map[string]interface{})
+		if !ok {
+			errs = append(errs, fmt.Sprintf("node %q must be a map", name))
+			continue
+		}
+		if _, ok := node["kind"]; !ok {
+			warnings = append(warnings, fmt.Sprintf("node %q missing kind (defaults to linux)", name))
+		}
+		if _, ok := node["image"]; !ok {
+			errs = append(errs, fmt.Sprintf("node %q missing required field: image", name))
+		}
+	}
+
+	// Validate links reference valid nodes
+	if links, ok := topoMap["links"]; ok {
+		linksList, ok := links.([]interface{})
+		if !ok {
+			errs = append(errs, "topology.links must be a list")
+		} else {
+			for i, link := range linksList {
+				linkMap, ok := link.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				endpoints, ok := linkMap["endpoints"]
+				if !ok {
+					errs = append(errs, fmt.Sprintf("link %d missing endpoints", i))
+					continue
+				}
+				epList, ok := endpoints.([]interface{})
+				if !ok || len(epList) != 2 {
+					errs = append(errs, fmt.Sprintf("link %d endpoints must be a list of 2", i))
+					continue
+				}
+				for _, ep := range epList {
+					epStr, ok := ep.(string)
+					if !ok {
+						continue
+					}
+					parts := strings.SplitN(epStr, ":", 2)
+					if len(parts) >= 1 && !nodeNames[parts[0]] {
+						errs = append(errs, fmt.Sprintf("link %d references unknown node %q", i, parts[0]))
+					}
+				}
+			}
+		}
+	}
+
+	return errs, warnings
 }
 
 func buildBindFileResponse(f *BindFile) BindFileResponse {

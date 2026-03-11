@@ -19,6 +19,7 @@ import (
 	"github.com/labbed/platform/internal/config"
 	"github.com/labbed/platform/internal/domain/collection"
 	"github.com/labbed/platform/internal/domain/lab"
+	"github.com/labbed/platform/internal/domain/organization"
 	"github.com/labbed/platform/internal/domain/topology"
 	"github.com/labbed/platform/internal/domain/user"
 	"github.com/labbed/platform/internal/domain/worker"
@@ -44,6 +45,8 @@ func main() {
 	// Auto-migrate all models
 	if err := db.AutoMigrate(
 		&user.User{},
+		&organization.Organization{},
+		&organization.OrganizationMember{},
 		&collection.Collection{},
 		&collection.CollectionMember{},
 		&topology.Topology{},
@@ -51,6 +54,7 @@ func main() {
 		&worker.Worker{},
 		&lab.Lab{},
 		&lab.LabNode{},
+		&lab.LabEvent{},
 	); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
@@ -58,6 +62,7 @@ func main() {
 
 	// Initialize repositories
 	userRepo := user.NewRepository(db)
+	orgRepo := organization.NewRepository(db)
 	collectionRepo := collection.NewRepository(db)
 	topologyRepo := topology.NewRepository(db)
 	workerRepo := worker.NewRepository(db)
@@ -116,6 +121,20 @@ func main() {
 
 	// Initialize services (resolvers defined above)
 	userService := user.NewService(userRepo)
+
+	resolveUser := func(uuid string) (*user.User, error) {
+		return userRepo.GetByUUID(uuid)
+	}
+
+	resolveUserInfo := func(id uint) (string, string, string, error) {
+		var u user.User
+		if err := db.First(&u, id).Error; err != nil {
+			return "", "", "", err
+		}
+		return u.UUID, u.Email, u.DisplayName, nil
+	}
+
+	orgService := organization.NewService(orgRepo, userService, resolveUser)
 	collectionService := collection.NewService(collectionRepo, resolveUserUUID)
 	topologyService := topology.NewService(topologyRepo, resolveCollectionUUID, resolveUserUUID)
 	workerService := worker.NewService(workerRepo)
@@ -123,15 +142,16 @@ func main() {
 	topoLoader := topology.NewLoader(topologyRepo)
 	labService := lab.NewService(labRepo, workerService, workerHTTPClient, topoLoader, config.AppConfig.Server.PlatformURL)
 
+	// Initialize WebSocket hub
+	hub := ws.NewHub(config.AppConfig.Server.CORSOrigins)
+
 	// Initialize handlers
 	userHandler := user.NewHandler(userService)
+	orgHandler := organization.NewHandler(orgService, resolveUserID, resolveUserInfo)
 	collectionHandler := collection.NewHandler(collectionService, resolveUserID)
 	topologyHandler := topology.NewHandler(topologyService, resolveCollectionID, resolveUserID, getUserCollectionIDs)
-	labHandler := lab.NewHandler(labService, resolveUserID, getUserCollectionIDs)
+	labHandler := lab.NewHandler(labService, hub, resolveUserID, getUserCollectionIDs)
 	workerHandler := worker.NewHandler(workerService)
-
-	// Initialize WebSocket hub
-	hub := ws.NewHub()
 
 	// Wire shell exec handler: channel format is "shell:{labUuid}:{nodeName}"
 	hub.SetShellHandler(func(channel string, input string) (string, error) {
@@ -202,7 +222,7 @@ func main() {
 	router := gin.Default()
 
 	// CORS middleware
-	router.Use(corsMiddleware())
+	router.Use(corsMiddleware(config.AppConfig.Server.CORSOrigins))
 
 	// Health check
 	router.GET("/health", func(c *gin.Context) {
@@ -212,23 +232,34 @@ func main() {
 	// Register user/auth routes (has its own public + authenticated groups)
 	user.RegisterRoutes(router, userHandler)
 
+	// Register public org routes (signup)
+	organization.RegisterPublicRoutes(router, orgHandler)
+
 	// Authenticated API group
 	apiV1 := router.Group("/api/v1")
 	apiV1.Use(auth.AuthRequired())
 	{
-		// Collections
-		collections := apiV1.Group("/collections")
-		collection.RegisterRoutes(collections, collectionHandler)
+		// Organization management (no org context needed)
+		organization.RegisterRoutes(apiV1, orgHandler)
 
-		// Topologies
-		topologies := apiV1.Group("/topologies")
-		topology.RegisterRoutes(topologies, topologyHandler)
+		// Org-scoped routes: require X-Org-ID header
+		orgScoped := apiV1.Group("")
+		orgScoped.Use(auth.OrgContext(orgService.CheckMembership, resolveUserID))
+		{
+			// Collections
+			collections := orgScoped.Group("/collections")
+			collection.RegisterRoutes(collections, collectionHandler)
 
-		// Labs
-		lab.RegisterRoutes(apiV1, labHandler)
+			// Topologies
+			topologies := orgScoped.Group("/topologies")
+			topology.RegisterRoutes(topologies, topologyHandler)
 
-		// Workers (admin only, handled in routes.go)
-		worker.RegisterRoutes(apiV1, workerHandler)
+			// Labs
+			lab.RegisterRoutes(orgScoped, labHandler)
+
+			// Workers (admin only, handled in routes.go)
+			worker.RegisterRoutes(orgScoped, workerHandler)
+		}
 	}
 
 	// Internal API group (worker-to-platform, shared-secret auth)
@@ -244,6 +275,9 @@ func main() {
 
 	// Start stale worker detection
 	go runStaleWorkerDetection(workerService)
+
+	// Start orphaned lab cleanup
+	go runOrphanedLabCleanup(labService)
 
 	// Start server
 	listenAddr := fmt.Sprintf("%s:%s", config.AppConfig.Server.Host, config.AppConfig.Server.Port)
@@ -280,11 +314,20 @@ func connectDB() (*gorm.DB, error) {
 	}
 }
 
-func corsMiddleware() gin.HandlerFunc {
+func corsMiddleware(allowedOrigins []string) gin.HandlerFunc {
+	allowed := make(map[string]bool, len(allowedOrigins))
+	for _, o := range allowedOrigins {
+		allowed[o] = true
+	}
+
 	return func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
+		origin := c.GetHeader("Origin")
+		if origin != "" && allowed[origin] {
+			c.Header("Access-Control-Allow-Origin", origin)
+			c.Header("Vary", "Origin")
+		}
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
+		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization, X-Org-ID")
 		c.Header("Access-Control-Max-Age", "86400")
 
 		if c.Request.Method == "OPTIONS" {
@@ -301,5 +344,14 @@ func runStaleWorkerDetection(workerService *worker.WorkerService) {
 
 	for range ticker.C {
 		workerService.MarkStaleWorkers(45 * time.Second)
+	}
+}
+
+func runOrphanedLabCleanup(labService *lab.LabService) {
+	ticker := time.NewTicker(60 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		labService.CleanupStuckLabs(5 * time.Minute)
 	}
 }

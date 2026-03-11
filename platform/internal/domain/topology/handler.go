@@ -66,7 +66,8 @@ func (h *TopologyHandler) HandleCreate(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.Create(userID, collectionID, req)
+	orgID := auth.GetOrgDBID(c)
+	resp, err := h.service.CreateWithOrg(userID, collectionID, orgID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -76,6 +77,20 @@ func (h *TopologyHandler) HandleCreate(c *gin.Context) {
 }
 
 func (h *TopologyHandler) HandleGetAll(c *gin.Context) {
+	orgID := auth.GetOrgDBID(c)
+
+	// Org-scoped: return topologies belonging to this org
+	if orgID > 0 {
+		resp, err := h.service.GetAllByOrg(orgID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, resp)
+		return
+	}
+
+	// Fallback: legacy behavior
 	userUUID := auth.GetUserID(c)
 	isAdmin := auth.IsAdmin(c)
 
@@ -110,8 +125,22 @@ func (h *TopologyHandler) HandleGetAll(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+// requireTopoOrg checks topology belongs to the request's org context.
+func (h *TopologyHandler) requireTopoOrg(c *gin.Context, topoUUID string) bool {
+	if orgID := auth.GetOrgDBID(c); orgID > 0 {
+		if err := h.service.CheckOrgOwnership(topoUUID, orgID); err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "topology not found"})
+			return true
+		}
+	}
+	return false
+}
+
 func (h *TopologyHandler) HandleGetByID(c *gin.Context) {
 	id := c.Param("id")
+	if h.requireTopoOrg(c, id) {
+		return
+	}
 
 	resp, err := h.service.GetByUUID(id)
 	if err != nil {
@@ -124,6 +153,9 @@ func (h *TopologyHandler) HandleGetByID(c *gin.Context) {
 
 func (h *TopologyHandler) HandleUpdate(c *gin.Context) {
 	id := c.Param("id")
+	if h.requireTopoOrg(c, id) {
+		return
+	}
 
 	var req UpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -142,6 +174,9 @@ func (h *TopologyHandler) HandleUpdate(c *gin.Context) {
 
 func (h *TopologyHandler) HandleDelete(c *gin.Context) {
 	id := c.Param("id")
+	if h.requireTopoOrg(c, id) {
+		return
+	}
 
 	if err := h.service.Delete(id); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -153,6 +188,9 @@ func (h *TopologyHandler) HandleDelete(c *gin.Context) {
 
 func (h *TopologyHandler) HandleCreateBindFile(c *gin.Context) {
 	topologyUUID := c.Param("id")
+	if h.requireTopoOrg(c, topologyUUID) {
+		return
+	}
 
 	var req CreateBindFileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -170,6 +208,11 @@ func (h *TopologyHandler) HandleCreateBindFile(c *gin.Context) {
 }
 
 func (h *TopologyHandler) HandleUpdateBindFile(c *gin.Context) {
+	topoUUID := c.Param("id")
+	if h.requireTopoOrg(c, topoUUID) {
+		return
+	}
+
 	fileUUID := c.Param("fileId")
 
 	var req UpdateBindFileRequest
@@ -188,6 +231,11 @@ func (h *TopologyHandler) HandleUpdateBindFile(c *gin.Context) {
 }
 
 func (h *TopologyHandler) HandleDeleteBindFile(c *gin.Context) {
+	topoUUID := c.Param("id")
+	if h.requireTopoOrg(c, topoUUID) {
+		return
+	}
+
 	fileUUID := c.Param("fileId")
 
 	if err := h.service.DeleteBindFile(fileUUID); err != nil {
@@ -196,6 +244,23 @@ func (h *TopologyHandler) HandleDeleteBindFile(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusNoContent, nil)
+}
+
+func (h *TopologyHandler) HandleValidate(c *gin.Context) {
+	var req struct {
+		Definition string `json:"definition" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "definition is required"})
+		return
+	}
+
+	errors, warnings := h.service.Validate(req.Definition)
+	c.JSON(http.StatusOK, gin.H{
+		"valid":    len(errors) == 0,
+		"errors":   errors,
+		"warnings": warnings,
+	})
 }
 
 func containsID(ids []uint, target uint) bool {

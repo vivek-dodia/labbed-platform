@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -92,6 +93,14 @@ func (h *Handler) HandleDeploy(c *gin.Context) {
 	go h.deployAsync(req.LabID, req.ClabName, topoPath)
 }
 
+func (h *Handler) pushLog(ctx context.Context, labID, line, level string) {
+	_ = h.platformClient.PushLog(ctx, platformclient.LogEntry{
+		LabID: labID,
+		Line:  line,
+		Level: level,
+	})
+}
+
 func (h *Handler) deployAsync(labID, clabName, topoPath string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
@@ -102,7 +111,10 @@ func (h *Handler) deployAsync(labID, clabName, topoPath string) {
 		State: "deploying",
 	})
 
+	h.pushLog(ctx, labID, "Preparing topology files...", "info")
+
 	// Deploy using containerlab library
+	h.pushLog(ctx, labID, "Deploying containerlab topology...", "info")
 	nodes, err := h.clabService.Deploy(ctx, clab.DeployOptions{
 		TopoPath: topoPath,
 		LabOwner: "labbed",
@@ -110,6 +122,7 @@ func (h *Handler) deployAsync(labID, clabName, topoPath string) {
 
 	if err != nil {
 		log.Printf("deploy failed for lab %s: %v", labID, err)
+		h.pushLog(ctx, labID, "Deployment failed: "+err.Error(), "error")
 		errMsg := err.Error()
 		h.platformClient.PushStatus(ctx, platformclient.StatusUpdate{
 			LabID:        labID,
@@ -122,6 +135,8 @@ func (h *Handler) deployAsync(labID, clabName, topoPath string) {
 		h.mu.Unlock()
 		return
 	}
+
+	h.pushLog(ctx, labID, fmt.Sprintf("Containers created, pushing node info (%d nodes)...", len(nodes)), "info")
 
 	// Convert to platform format and push nodes
 	var platformNodes []platformclient.NodeInfo
@@ -148,6 +163,7 @@ func (h *Handler) deployAsync(labID, clabName, topoPath string) {
 		State: "running",
 	})
 
+	h.pushLog(ctx, labID, "Lab deployed successfully", "info")
 	log.Printf("lab %s deployed successfully with %d nodes", labID, len(nodes))
 }
 
@@ -168,11 +184,13 @@ func (h *Handler) destroyAsync(labID, clabName string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 
+	h.pushLog(ctx, labID, "Stopping lab...", "info")
 	h.platformClient.PushStatus(ctx, platformclient.StatusUpdate{
 		LabID: labID,
 		State: "stopping",
 	})
 
+	h.pushLog(ctx, labID, "Destroying containerlab topology...", "info")
 	err := h.clabService.Destroy(ctx, clab.DestroyOptions{
 		LabName: clabName,
 		Cleanup: true,
@@ -186,6 +204,7 @@ func (h *Handler) destroyAsync(labID, clabName string) {
 
 	if err != nil {
 		log.Printf("destroy failed for lab %s: %v", labID, err)
+		h.pushLog(ctx, labID, "Destroy failed: "+err.Error(), "error")
 		errMsg := err.Error()
 		h.platformClient.PushStatus(ctx, platformclient.StatusUpdate{
 			LabID:        labID,
@@ -200,6 +219,7 @@ func (h *Handler) destroyAsync(labID, clabName string) {
 		State: "stopped",
 	})
 
+	h.pushLog(ctx, labID, "Lab destroyed successfully", "info")
 	log.Printf("lab %s destroyed successfully", labID)
 }
 

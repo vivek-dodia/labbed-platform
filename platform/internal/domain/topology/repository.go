@@ -32,6 +32,14 @@ func (r *TopologyRepository) GetAll() ([]Topology, error) {
 	return topologies, nil
 }
 
+func (r *TopologyRepository) GetAllByOrgID(orgID uint) ([]Topology, error) {
+	var topologies []Topology
+	if err := r.db.Where("org_id = ?", orgID).Find(&topologies).Error; err != nil {
+		return nil, err
+	}
+	return topologies, nil
+}
+
 func (r *TopologyRepository) GetByCollectionIDs(collectionIDs []uint) ([]Topology, error) {
 	var topologies []Topology
 	if err := r.db.Where("collection_id IN ?", collectionIDs).Find(&topologies).Error; err != nil {

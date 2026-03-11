@@ -34,7 +34,8 @@ func (h *CollectionHandler) HandleCreate(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.Create(userID, userUUID, req)
+	orgID := auth.GetOrgDBID(c)
+	resp, err := h.service.Create(userID, userUUID, orgID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -44,6 +45,20 @@ func (h *CollectionHandler) HandleCreate(c *gin.Context) {
 }
 
 func (h *CollectionHandler) HandleGetAll(c *gin.Context) {
+	orgID := auth.GetOrgDBID(c)
+
+	// If org context is set, scope to org
+	if orgID > 0 {
+		resp, err := h.service.GetAllByOrg(orgID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, resp)
+		return
+	}
+
+	// Fallback: legacy behavior without org context
 	userUUID := auth.GetUserID(c)
 	isAdmin := auth.IsAdmin(c)
 
@@ -65,6 +80,13 @@ func (h *CollectionHandler) HandleGetAll(c *gin.Context) {
 func (h *CollectionHandler) HandleGetByID(c *gin.Context) {
 	uuid := c.Param("id")
 
+	if orgID := auth.GetOrgDBID(c); orgID > 0 {
+		if err := h.service.CheckOrgOwnership(uuid, orgID); err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "collection not found"})
+			return
+		}
+	}
+
 	resp, err := h.service.GetByUUID(uuid)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -76,6 +98,13 @@ func (h *CollectionHandler) HandleGetByID(c *gin.Context) {
 
 func (h *CollectionHandler) HandleUpdate(c *gin.Context) {
 	uuid := c.Param("id")
+
+	if orgID := auth.GetOrgDBID(c); orgID > 0 {
+		if err := h.service.CheckOrgOwnership(uuid, orgID); err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "collection not found"})
+			return
+		}
+	}
 
 	var req UpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -112,6 +141,13 @@ func (h *CollectionHandler) HandleUpdate(c *gin.Context) {
 func (h *CollectionHandler) HandleDelete(c *gin.Context) {
 	uuid := c.Param("id")
 
+	if orgID := auth.GetOrgDBID(c); orgID > 0 {
+		if err := h.service.CheckOrgOwnership(uuid, orgID); err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "collection not found"})
+			return
+		}
+	}
+
 	userUUID := auth.GetUserID(c)
 	isAdmin := auth.IsAdmin(c)
 
@@ -140,6 +176,13 @@ func (h *CollectionHandler) HandleDelete(c *gin.Context) {
 
 func (h *CollectionHandler) HandleAddMember(c *gin.Context) {
 	collectionUUID := c.Param("id")
+
+	if orgID := auth.GetOrgDBID(c); orgID > 0 {
+		if err := h.service.CheckOrgOwnership(collectionUUID, orgID); err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "collection not found"})
+			return
+		}
+	}
 
 	var req AddMemberRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -175,6 +218,14 @@ func (h *CollectionHandler) HandleAddMember(c *gin.Context) {
 
 func (h *CollectionHandler) HandleRemoveMember(c *gin.Context) {
 	collectionUUID := c.Param("id")
+
+	if orgID := auth.GetOrgDBID(c); orgID > 0 {
+		if err := h.service.CheckOrgOwnership(collectionUUID, orgID); err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "collection not found"})
+			return
+		}
+	}
+
 	memberUserUUID := c.Param("userId")
 
 	userUUID := auth.GetUserID(c)

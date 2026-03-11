@@ -109,3 +109,74 @@ func (r *LabRepository) GetNodesByLabID(labID uint) ([]LabNode, error) {
 func (r *LabRepository) DeleteNodesByLabID(labID uint) error {
 	return r.db.Where("lab_id = ?", labID).Delete(&LabNode{}).Error
 }
+
+// --- Lab Events ---
+
+func (r *LabRepository) CreateEvent(event *LabEvent) error {
+	return r.db.Create(event).Error
+}
+
+func (r *LabRepository) GetEventsByLabID(labID uint, limit, offset int) ([]LabEvent, int64, error) {
+	var events []LabEvent
+	var total int64
+
+	r.db.Model(&LabEvent{}).Where("lab_id = ?", labID).Count(&total)
+
+	err := r.db.Where("lab_id = ?", labID).
+		Order("created_at desc").
+		Limit(limit).Offset(offset).
+		Find(&events).Error
+	return events, total, err
+}
+
+// --- Pagination ---
+
+func (r *LabRepository) GetAllPaginated(userID uint, isAdmin bool, state string, limit, offset int) ([]Lab, int64, error) {
+	var labs []Lab
+	var total int64
+
+	q := r.db.Model(&Lab{})
+	if !isAdmin {
+		q = q.Where("creator_id = ?", userID)
+	}
+	if state != "" {
+		q = q.Where("state = ?", state)
+	}
+
+	q.Count(&total)
+
+	err := q.Order("created_at desc").Limit(limit).Offset(offset).Find(&labs).Error
+	return labs, total, err
+}
+
+func (r *LabRepository) GetAllPaginatedByOrg(orgID uint, state string, limit, offset int) ([]Lab, int64, error) {
+	var labs []Lab
+	var total int64
+
+	q := r.db.Model(&Lab{}).Where("org_id = ?", orgID)
+	if state != "" {
+		q = q.Where("state = ?", state)
+	}
+
+	q.Count(&total)
+
+	err := q.Order("created_at desc").Limit(limit).Offset(offset).Find(&labs).Error
+	return labs, total, err
+}
+
+func (r *LabRepository) GetByOrgID(orgID uint) ([]Lab, error) {
+	var labs []Lab
+	if err := r.db.Where("org_id = ?", orgID).Find(&labs).Error; err != nil {
+		return nil, err
+	}
+	return labs, nil
+}
+
+// --- Orphan cleanup ---
+
+func (r *LabRepository) GetStuckLabs(threshold time.Duration) ([]Lab, error) {
+	var labs []Lab
+	cutoff := time.Now().Add(-threshold)
+	err := r.db.Where("state IN (?, ?) AND updated_at < ?", StateDeploying, StateStopping, cutoff).Find(&labs).Error
+	return labs, err
+}

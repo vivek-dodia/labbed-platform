@@ -17,7 +17,8 @@ const (
 type Worker struct {
 	gorm.Model
 	UUID          string      `gorm:"uniqueIndex;not null"`
-	Name          string      `gorm:"uniqueIndex;not null"`
+	Name          string      `gorm:"uniqueIndex:idx_worker_org_name;not null"`
+	OrgID         uint        `gorm:"uniqueIndex:idx_worker_org_name;index;not null;default:0"`
 	Address       string      `gorm:"not null"` // base URL, e.g. http://10.0.0.5:8081
 	Secret        string      `gorm:"not null"` // shared secret for auth
 	State         WorkerState `gorm:"not null;default:'offline'"`

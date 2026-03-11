@@ -11,6 +11,7 @@ type Topology struct {
 	UUID         string `gorm:"uniqueIndex;not null"`
 	Name         string `gorm:"index;not null"`
 	Definition   string `gorm:"type:text;not null"` // YAML content
+	OrgID        uint   `gorm:"index;not null;default:0"`
 	CollectionID uint   `gorm:"index;not null"`
 	CreatorID    uint   `gorm:"not null"`
 }

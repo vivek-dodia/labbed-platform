@@ -21,6 +21,7 @@ type Lab struct {
 	gorm.Model
 	UUID           string     `gorm:"uniqueIndex;not null"`
 	Name           string     `gorm:"index;not null"`
+	OrgID          uint       `gorm:"index;not null;default:0"`
 	State          LabState   `gorm:"not null;default:'scheduled'"`
 	TopologyID     string     `gorm:"index;not null"` // topology UUID
 	CreatorID      uint       `gorm:"not null"`
@@ -43,6 +44,14 @@ type LabNode struct {
 	IPv4        string
 	IPv6        string
 	State       string // running, exited, starting
+}
+
+// LabEvent tracks state transitions and deployment milestones.
+type LabEvent struct {
+	gorm.Model
+	LabID   uint   `gorm:"index;not null"`
+	Event   string `gorm:"not null"` // created, deploy_started, deploy_completed, deploy_failed, destroy_started, destroy_completed, state_changed, log
+	Details string
 }
 
 // --- DTOs ---
@@ -83,4 +92,25 @@ type Response struct {
 	StoppedAt      *time.Time     `json:"stoppedAt"`
 	ErrorMessage   *string        `json:"errorMessage"`
 	CreatedAt      time.Time      `json:"createdAt"`
+}
+
+type LabEventResponse struct {
+	Event     string    `json:"event"`
+	Details   string    `json:"details"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+// LogPushRequest is sent by workers to stream deployment logs.
+type LogPushRequest struct {
+	LabUUID string `json:"labUuid" binding:"required"`
+	Line    string `json:"line" binding:"required"`
+	Level   string `json:"level"` // info, warn, error
+}
+
+// PaginatedResponse wraps a list response with pagination metadata.
+type PaginatedResponse struct {
+	Data   interface{} `json:"data"`
+	Total  int64       `json:"total"`
+	Limit  int         `json:"limit"`
+	Offset int         `json:"offset"`
 }

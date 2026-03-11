@@ -9,7 +9,8 @@ import (
 type Collection struct {
 	gorm.Model
 	UUID         string `gorm:"uniqueIndex;not null"`
-	Name         string `gorm:"uniqueIndex;not null"`
+	Name         string `gorm:"uniqueIndex:idx_col_org_name;not null"`
+	OrgID        uint   `gorm:"uniqueIndex:idx_col_org_name;index;not null;default:0"`
 	CreatorID    uint   `gorm:"not null"`
 	PublicRead   bool   `gorm:"default:false"`
 	PublicDeploy bool   `gorm:"default:false"`

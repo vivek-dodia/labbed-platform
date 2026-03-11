@@ -117,6 +117,18 @@ func (c *Client) PushNodes(ctx context.Context, update NodeUpdate) error {
 	return c.post(ctx, "/api/internal/labs/nodes", update, nil)
 }
 
+// LogEntry represents a deployment log line.
+type LogEntry struct {
+	LabID string `json:"labUuid"`
+	Line  string `json:"line"`
+	Level string `json:"level"` // info, warn, error
+}
+
+// PushLog sends a deployment log line to the platform for WebSocket broadcast.
+func (c *Client) PushLog(ctx context.Context, entry LogEntry) error {
+	return c.post(ctx, "/api/internal/labs/logs", entry, nil)
+}
+
 func (c *Client) post(ctx context.Context, path string, body interface{}, result interface{}) error {
 	data, err := json.Marshal(body)
 	if err != nil {

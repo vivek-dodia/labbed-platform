@@ -32,12 +32,33 @@ func (r *CollectionRepository) GetAll() ([]Collection, error) {
 	return collections, nil
 }
 
+func (r *CollectionRepository) GetAllByOrgID(orgID uint) ([]Collection, error) {
+	var collections []Collection
+	if err := r.db.Where("org_id = ?", orgID).Find(&collections).Error; err != nil {
+		return nil, err
+	}
+	return collections, nil
+}
+
 func (r *CollectionRepository) GetByUserID(userID uint) ([]Collection, error) {
 	var collections []Collection
 	err := r.db.
 		Distinct().
 		Joins("LEFT JOIN collection_members ON collection_members.collection_id = collections.id AND collection_members.deleted_at IS NULL").
 		Where("collection_members.user_id = ? OR collections.public_read = ?", userID, true).
+		Find(&collections).Error
+	if err != nil {
+		return nil, err
+	}
+	return collections, nil
+}
+
+func (r *CollectionRepository) GetByUserIDAndOrgID(userID, orgID uint) ([]Collection, error) {
+	var collections []Collection
+	err := r.db.
+		Distinct().
+		Joins("LEFT JOIN collection_members ON collection_members.collection_id = collections.id AND collection_members.deleted_at IS NULL").
+		Where("collections.org_id = ? AND (collection_members.user_id = ? OR collections.public_read = ?)", orgID, userID, true).
 		Find(&collections).Error
 	if err != nil {
 		return nil, err

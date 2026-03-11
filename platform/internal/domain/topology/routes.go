@@ -6,6 +6,7 @@ import (
 
 func RegisterRoutes(r *gin.RouterGroup, handler *TopologyHandler) {
 	r.POST("", handler.HandleCreate)
+	r.POST("/validate", handler.HandleValidate)
 	r.GET("", handler.HandleGetAll)
 	r.GET("/:id", handler.HandleGetByID)
 	r.PUT("/:id", handler.HandleUpdate)

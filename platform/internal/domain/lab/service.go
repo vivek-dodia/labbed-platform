@@ -45,9 +45,15 @@ func NewService(repo *LabRepository, workerSelector WorkerSelector, wc *workercl
 
 // Create creates a new lab in the scheduled state.
 func (s *LabService) Create(creatorID uint, req CreateRequest) (Response, error) {
+	return s.CreateWithOrg(creatorID, 0, req)
+}
+
+// CreateWithOrg creates a new lab scoped to an organization.
+func (s *LabService) CreateWithOrg(creatorID uint, orgID uint, req CreateRequest) (Response, error) {
 	l := &Lab{
 		UUID:       uuid.New().String(),
 		Name:       req.Name,
+		OrgID:      orgID,
 		State:      StateScheduled,
 		TopologyID: req.TopologyID,
 		CreatorID:  creatorID,
@@ -74,6 +80,18 @@ func (s *LabService) Create(creatorID uint, req CreateRequest) (Response, error)
 	}
 
 	return s.buildResponse(l)
+}
+
+// CheckOrgOwnership verifies that a lab belongs to the given org.
+func (s *LabService) CheckOrgOwnership(labUUID string, orgID uint) error {
+	l, err := s.repo.GetByUUID(labUUID)
+	if err != nil {
+		return fmt.Errorf("lab not found: %w", err)
+	}
+	if l.OrgID != orgID {
+		return errors.New("lab does not belong to this organization")
+	}
+	return nil
 }
 
 // GetByUUID returns a lab with its nodes.
@@ -206,6 +224,8 @@ func (s *LabService) Deploy(labUUID string) error {
 		return fmt.Errorf("failed to update lab state: %w", err)
 	}
 
+	s.recordEvent(l.ID, "deploy_started", fmt.Sprintf("worker: %s", w.Name))
+
 	// Dispatch to worker asynchronously
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
@@ -246,6 +266,8 @@ func (s *LabService) Destroy(labUUID string) error {
 	if err := s.repo.Update(l); err != nil {
 		return fmt.Errorf("failed to update lab state: %w", err)
 	}
+
+	s.recordEvent(l.ID, "destroy_started", "")
 
 	// Dispatch destroy to worker if assigned
 	if l.WorkerID != nil && l.ClabName != nil {
@@ -289,6 +311,7 @@ func (s *LabService) UpdateState(uuid string, state LabState, errorMsg *string) 
 		return fmt.Errorf("lab not found: %w", err)
 	}
 
+	oldState := l.State
 	l.State = state
 	l.ErrorMessage = errorMsg
 
@@ -300,6 +323,21 @@ func (s *LabService) UpdateState(uuid string, state LabState, errorMsg *string) 
 	if err := s.repo.Update(l); err != nil {
 		return fmt.Errorf("failed to update lab state: %w", err)
 	}
+
+	// Record event
+	event := "state_changed"
+	details := fmt.Sprintf("%s -> %s", oldState, state)
+	if state == StateRunning {
+		event = "deploy_completed"
+	} else if state == StateFailed && (oldState == StateDeploying) {
+		event = "deploy_failed"
+		if errorMsg != nil {
+			details = *errorMsg
+		}
+	} else if state == StateStopped {
+		event = "destroy_completed"
+	}
+	s.recordEvent(l.ID, event, details)
 
 	return nil
 }
@@ -334,6 +372,146 @@ func (s *LabService) UpdateNodes(uuid string, nodes []NodeResponse) error {
 	}
 
 	return nil
+}
+
+// Clone creates a new lab from an existing lab's topology.
+func (s *LabService) Clone(labUUID string, creatorID uint) (Response, error) {
+	return s.CloneWithOrg(labUUID, creatorID, 0)
+}
+
+// CloneWithOrg creates a new lab from an existing lab's topology, scoped to an org.
+func (s *LabService) CloneWithOrg(labUUID string, creatorID uint, orgID uint) (Response, error) {
+	l, err := s.repo.GetByUUID(labUUID)
+	if err != nil {
+		return Response{}, fmt.Errorf("lab not found: %w", err)
+	}
+
+	return s.CreateWithOrg(creatorID, orgID, CreateRequest{
+		Name:       l.Name + " (copy)",
+		TopologyID: l.TopologyID,
+	})
+}
+
+// GetAllPaginated returns paginated labs with optional state filter.
+func (s *LabService) GetAllPaginated(userID uint, isAdmin bool, state string, limit, offset int) (PaginatedResponse, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	labs, total, err := s.repo.GetAllPaginated(userID, isAdmin, state, limit, offset)
+	if err != nil {
+		return PaginatedResponse{}, fmt.Errorf("failed to list labs: %w", err)
+	}
+
+	responses := make([]Response, 0, len(labs))
+	for _, l := range labs {
+		resp, err := s.buildResponse(&l)
+		if err != nil {
+			continue
+		}
+		responses = append(responses, resp)
+	}
+
+	return PaginatedResponse{
+		Data:   responses,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
+	}, nil
+}
+
+// GetAllPaginatedByOrg returns paginated labs scoped to an organization.
+func (s *LabService) GetAllPaginatedByOrg(orgID uint, state string, limit, offset int) (PaginatedResponse, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	labs, total, err := s.repo.GetAllPaginatedByOrg(orgID, state, limit, offset)
+	if err != nil {
+		return PaginatedResponse{}, fmt.Errorf("failed to list labs: %w", err)
+	}
+
+	responses := make([]Response, 0, len(labs))
+	for _, l := range labs {
+		resp, err := s.buildResponse(&l)
+		if err != nil {
+			continue
+		}
+		responses = append(responses, resp)
+	}
+
+	return PaginatedResponse{
+		Data:   responses,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
+	}, nil
+}
+
+// GetEvents returns paginated lab events.
+func (s *LabService) GetEvents(labUUID string, limit, offset int) (PaginatedResponse, error) {
+	l, err := s.repo.GetByUUID(labUUID)
+	if err != nil {
+		return PaginatedResponse{}, fmt.Errorf("lab not found: %w", err)
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+
+	events, total, err := s.repo.GetEventsByLabID(l.ID, limit, offset)
+	if err != nil {
+		return PaginatedResponse{}, err
+	}
+
+	responses := make([]LabEventResponse, len(events))
+	for i, e := range events {
+		responses[i] = LabEventResponse{
+			Event:     e.Event,
+			Details:   e.Details,
+			CreatedAt: e.CreatedAt,
+		}
+	}
+
+	return PaginatedResponse{
+		Data:   responses,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
+	}, nil
+}
+
+// CleanupStuckLabs marks labs stuck in transitional states as failed/stopped.
+func (s *LabService) CleanupStuckLabs(threshold time.Duration) {
+	labs, err := s.repo.GetStuckLabs(threshold)
+	if err != nil {
+		log.Printf("cleanup: failed to query stuck labs: %v", err)
+		return
+	}
+
+	for _, l := range labs {
+		if l.State == StateStopping {
+			log.Printf("cleanup: marking stuck lab %s as stopped", l.UUID)
+			_ = s.UpdateState(l.UUID, StateStopped, nil)
+		} else {
+			log.Printf("cleanup: marking stuck lab %s as failed", l.UUID)
+			msg := "Operation timed out — worker may have failed. Please retry."
+			_ = s.UpdateState(l.UUID, StateFailed, &msg)
+		}
+	}
+}
+
+func (s *LabService) recordEvent(labID uint, event, details string) {
+	_ = s.repo.CreateEvent(&LabEvent{
+		LabID:   labID,
+		Event:   event,
+		Details: details,
+	})
 }
 
 // buildResponse converts a Lab entity to a Response DTO, including nodes.

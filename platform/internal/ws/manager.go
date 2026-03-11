@@ -12,12 +12,6 @@ import (
 	"github.com/labbed/platform/internal/auth"
 )
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true // TODO: restrict in production
-	},
-}
-
 // Message types for the WebSocket protocol.
 type MessageType string
 
@@ -25,6 +19,7 @@ const (
 	MsgSubscribe   MessageType = "subscribe"
 	MsgUnsubscribe MessageType = "unsubscribe"
 	MsgLabState    MessageType = "lab:state"
+	MsgLabNodes    MessageType = "lab:nodes"
 	MsgLabLog      MessageType = "lab:log"
 	MsgShellData   MessageType = "shell:data"
 	MsgShellClose  MessageType = "shell:close"
@@ -55,13 +50,15 @@ type ShellHandler func(channel string, input string) (string, error)
 
 // Hub manages all active WebSocket clients and channel subscriptions.
 type Hub struct {
-	clients      map[*Client]bool
-	channels     map[string]map[*Client]bool // channel -> set of clients
-	register     chan *Client
-	unregister   chan *Client
-	broadcast    chan *channelMessage
-	mu           sync.RWMutex
-	shellHandler ShellHandler
+	clients        map[*Client]bool
+	channels       map[string]map[*Client]bool // channel -> set of clients
+	register       chan *Client
+	unregister     chan *Client
+	broadcast      chan *channelMessage
+	mu             sync.RWMutex
+	shellHandler   ShellHandler
+	allowedOrigins []string
+	upgrader       websocket.Upgrader
 }
 
 type channelMessage struct {
@@ -69,15 +66,31 @@ type channelMessage struct {
 	data    []byte
 }
 
-// NewHub creates a new WebSocket hub.
-func NewHub() *Hub {
-	return &Hub{
-		clients:    make(map[*Client]bool),
-		channels:   make(map[string]map[*Client]bool),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
-		broadcast:  make(chan *channelMessage, 256),
+// NewHub creates a new WebSocket hub with allowed origins for CORS/WebSocket checks.
+func NewHub(allowedOrigins []string) *Hub {
+	h := &Hub{
+		clients:        make(map[*Client]bool),
+		channels:       make(map[string]map[*Client]bool),
+		register:       make(chan *Client),
+		unregister:     make(chan *Client),
+		broadcast:      make(chan *channelMessage, 256),
+		allowedOrigins: allowedOrigins,
 	}
+	h.upgrader = websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			origin := r.Header.Get("Origin")
+			if origin == "" {
+				return true
+			}
+			for _, allowed := range h.allowedOrigins {
+				if origin == allowed {
+					return true
+				}
+			}
+			return false
+		},
+	}
+	return h
 }
 
 // SetShellHandler registers a handler for shell exec requests.
@@ -195,7 +208,7 @@ func (h *Hub) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
-	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Printf("ws: upgrade failed: %v", err)
 		return

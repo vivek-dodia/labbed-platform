@@ -28,10 +28,11 @@ func (s *CollectionService) resolveCreator(creatorID uint) string {
 	return ""
 }
 
-func (s *CollectionService) Create(creatorID uint, creatorUUID string, req CreateRequest) (Response, error) {
+func (s *CollectionService) Create(creatorID uint, creatorUUID string, orgID uint, req CreateRequest) (Response, error) {
 	col := &Collection{
 		UUID:         uuid.New().String(),
 		Name:         req.Name,
+		OrgID:        orgID,
 		CreatorID:    creatorID,
 		PublicRead:   req.PublicRead,
 		PublicDeploy: req.PublicDeploy,
@@ -71,6 +72,31 @@ func (s *CollectionService) GetAll(userID uint, isAdmin bool) ([]Response, error
 		responses[i] = col.ToResponse(s.resolveCreator(col.CreatorID))
 	}
 	return responses, nil
+}
+
+func (s *CollectionService) GetAllByOrg(orgID uint) ([]Response, error) {
+	collections, err := s.repo.GetAllByOrgID(orgID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list collections: %w", err)
+	}
+
+	responses := make([]Response, len(collections))
+	for i, col := range collections {
+		responses[i] = col.ToResponse(s.resolveCreator(col.CreatorID))
+	}
+	return responses, nil
+}
+
+// CheckOrgOwnership verifies that a collection belongs to the given org.
+func (s *CollectionService) CheckOrgOwnership(colUUID string, orgID uint) error {
+	col, err := s.repo.GetByUUID(colUUID)
+	if err != nil {
+		return fmt.Errorf("collection not found: %w", err)
+	}
+	if col.OrgID != orgID {
+		return errors.New("collection does not belong to this organization")
+	}
+	return nil
 }
 
 func (s *CollectionService) GetByUUID(uuid string) (Response, error) {

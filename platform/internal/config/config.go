@@ -16,7 +16,8 @@ type Config struct {
 type ServerConfig struct {
 	Host        string
 	Port        string
-	PlatformURL string // External URL for worker callbacks, e.g. http://localhost:8080
+	PlatformURL string   // External URL for worker callbacks, e.g. http://localhost:8080
+	CORSOrigins []string // Allowed CORS origins
 }
 
 type DatabaseConfig struct {
@@ -51,6 +52,7 @@ func Load() error {
 	viper.SetDefault("server.host", "0.0.0.0")
 	viper.SetDefault("server.port", "8080")
 	viper.SetDefault("server.platform_url", "http://localhost:8080")
+	viper.SetDefault("server.cors_origins", []string{"http://localhost:3000"})
 
 	viper.SetDefault("database.driver", "postgres")
 	viper.SetDefault("database.host", "localhost")
@@ -90,6 +92,7 @@ func Load() error {
 			Host:        viper.GetString("server.host"),
 			Port:        viper.GetString("server.port"),
 			PlatformURL: viper.GetString("server.platform_url"),
+			CORSOrigins: viper.GetStringSlice("server.cors_origins"),
 		},
 		Database: DatabaseConfig{
 			Driver:   viper.GetString("database.driver"),

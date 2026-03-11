@@ -15,7 +15,9 @@ func RegisterRoutes(apiGroup *gin.RouterGroup, handler *LabHandler) {
 		labs.DELETE("/:id", handler.HandleDelete)
 		labs.POST("/:id/deploy", handler.HandleDeploy)
 		labs.POST("/:id/destroy", handler.HandleDestroy)
+		labs.POST("/:id/clone", handler.HandleClone)
 		labs.GET("/:id/nodes", handler.HandleGetNodes)
+		labs.GET("/:id/events", handler.HandleGetEvents)
 	}
 }
 
@@ -23,4 +25,5 @@ func RegisterRoutes(apiGroup *gin.RouterGroup, handler *LabHandler) {
 func RegisterInternalRoutes(internalGroup *gin.RouterGroup, handler *LabHandler) {
 	internalGroup.POST("/labs/status", handler.HandleStatusUpdate)
 	internalGroup.POST("/labs/nodes", handler.HandleNodeUpdate)
+	internalGroup.POST("/labs/logs", handler.HandleLogPush)
 }

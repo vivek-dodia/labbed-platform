@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/labbed/platform/internal/domain/collection"
+	"github.com/labbed/platform/internal/domain/organization"
 	"github.com/labbed/platform/internal/domain/topology"
 )
 
@@ -23,12 +24,15 @@ type BindFile struct {
 	Content  string
 }
 
-// SeedDefaults creates a "Sample Labs" public collection with starter topologies
-// if it doesn't already exist. Expects the admin user's internal ID.
+// SeedDefaults creates a default org, "Sample Labs" public collection, and starter
+// topologies if they don't already exist. Expects the admin user's internal ID.
 func SeedDefaults(db *gorm.DB, adminUserID uint) {
+	// Ensure a default org exists
+	defaultOrgID := ensureDefaultOrg(db, adminUserID)
+
 	// Check if sample collection already exists
 	var count int64
-	db.Model(&collection.Collection{}).Where("name = ?", "Sample Labs").Count(&count)
+	db.Model(&collection.Collection{}).Where("name = ? AND org_id = ?", "Sample Labs", defaultOrgID).Count(&count)
 	if count > 0 {
 		return
 	}
@@ -37,6 +41,7 @@ func SeedDefaults(db *gorm.DB, adminUserID uint) {
 	col := &collection.Collection{
 		UUID:       uuid.New().String(),
 		Name:       "Sample Labs",
+		OrgID:      defaultOrgID,
 		CreatorID:  adminUserID,
 		PublicRead: true,
 	}
@@ -59,6 +64,7 @@ func SeedDefaults(db *gorm.DB, adminUserID uint) {
 			UUID:         uuid.New().String(),
 			Name:         tmpl.Name,
 			Definition:   tmpl.Definition,
+			OrgID:        defaultOrgID,
 			CollectionID: col.ID,
 			CreatorID:    adminUserID,
 		}
@@ -79,6 +85,45 @@ func SeedDefaults(db *gorm.DB, adminUserID uint) {
 	}
 
 	log.Printf("seed: created 'Sample Labs' collection with %d sample topologies", len(templates))
+}
+
+// ensureDefaultOrg creates the "Default" organization if it doesn't exist and
+// makes the admin user its owner. Returns the org's database ID.
+func ensureDefaultOrg(db *gorm.DB, adminUserID uint) uint {
+	var org organization.Organization
+	if err := db.Where("slug = ?", "default").First(&org).Error; err == nil {
+		return org.ID
+	}
+
+	org = organization.Organization{
+		UUID:       uuid.New().String(),
+		Name:       "Default",
+		Slug:       "default",
+		Plan:       "free",
+		MaxLabs:    0, // unlimited for default org
+		MaxWorkers: 0,
+	}
+	if err := db.Create(&org).Error; err != nil {
+		log.Printf("seed: failed to create default org: %v", err)
+		return 0
+	}
+
+	member := &organization.OrganizationMember{
+		OrgID:  org.ID,
+		UserID: adminUserID,
+		Role:   organization.RoleOwner,
+	}
+	db.Create(member)
+
+	log.Printf("seed: created default organization (id=%d)", org.ID)
+
+	// Assign any existing unscoped records to the default org
+	db.Model(&collection.Collection{}).Where("org_id = 0").Update("org_id", org.ID)
+	db.Table("topologies").Where("org_id = 0").Update("org_id", org.ID)
+	db.Table("labs").Where("org_id = 0").Update("org_id", org.ID)
+	db.Table("workers").Where("org_id = 0").Update("org_id", org.ID)
+
+	return org.ID
 }
 
 var templates = []Template{

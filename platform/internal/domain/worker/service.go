@@ -87,32 +87,6 @@ func (s *WorkerService) GetAll() ([]Response, error) {
 	return responses, nil
 }
 
-// GetAllByOrg returns workers scoped to an organization.
-func (s *WorkerService) GetAllByOrg(orgID uint) ([]Response, error) {
-	workers, err := s.repo.GetAllByOrgID(orgID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve workers: %w", err)
-	}
-
-	responses := make([]Response, len(workers))
-	for i, w := range workers {
-		responses[i] = w.ToResponse()
-	}
-	return responses, nil
-}
-
-// CheckOrgOwnership verifies that a worker belongs to the given org.
-func (s *WorkerService) CheckOrgOwnership(workerUUID string, orgID uint) error {
-	w, err := s.repo.GetByUUID(workerUUID)
-	if err != nil {
-		return fmt.Errorf("worker not found: %w", err)
-	}
-	if w.OrgID != orgID {
-		return errors.New("worker does not belong to this organization")
-	}
-	return nil
-}
-
 // GetByUUID returns a single worker by UUID.
 func (s *WorkerService) GetByUUID(uuid string) (Response, error) {
 	w, err := s.repo.GetByUUID(uuid)
@@ -124,11 +98,6 @@ func (s *WorkerService) GetByUUID(uuid string) (Response, error) {
 
 // Create pre-registers a worker (admin action).
 func (s *WorkerService) Create(req CreateRequest) (Response, error) {
-	return s.CreateWithOrg(req, 0)
-}
-
-// CreateWithOrg pre-registers a worker scoped to an organization.
-func (s *WorkerService) CreateWithOrg(req CreateRequest, orgID uint) (Response, error) {
 	secret, err := generateSecret()
 	if err != nil {
 		return Response{}, fmt.Errorf("failed to generate secret: %w", err)
@@ -137,7 +106,6 @@ func (s *WorkerService) CreateWithOrg(req CreateRequest, orgID uint) (Response, 
 	w := &Worker{
 		UUID:     uuid.New().String(),
 		Name:     req.Name,
-		OrgID:    orgID,
 		Address:  req.Address,
 		Secret:   secret,
 		State:    StateOffline,

@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/labbed/platform/internal/auth"
 )
 
 type WorkerHandler struct {
@@ -18,15 +17,7 @@ func NewHandler(service *WorkerService) *WorkerHandler {
 // --- Admin handlers ---
 
 func (h *WorkerHandler) HandleGetAll(c *gin.Context) {
-	orgID := auth.GetOrgDBID(c)
-
-	var workers []Response
-	var err error
-	if orgID > 0 {
-		workers, err = h.service.GetAllByOrg(orgID)
-	} else {
-		workers, err = h.service.GetAll()
-	}
+	workers, err := h.service.GetAll()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -35,23 +26,8 @@ func (h *WorkerHandler) HandleGetAll(c *gin.Context) {
 	c.JSON(http.StatusOK, workers)
 }
 
-// requireWorkerOrg checks worker belongs to the request's org context.
-func (h *WorkerHandler) requireWorkerOrg(c *gin.Context, workerUUID string) bool {
-	if orgID := auth.GetOrgDBID(c); orgID > 0 {
-		if err := h.service.CheckOrgOwnership(workerUUID, orgID); err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "worker not found"})
-			return true
-		}
-	}
-	return false
-}
-
 func (h *WorkerHandler) HandleGetByID(c *gin.Context) {
 	id := c.Param("id")
-	if h.requireWorkerOrg(c, id) {
-		return
-	}
-
 	resp, err := h.service.GetByUUID(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -68,8 +44,7 @@ func (h *WorkerHandler) HandleCreate(c *gin.Context) {
 		return
 	}
 
-	orgID := auth.GetOrgDBID(c)
-	resp, err := h.service.CreateWithOrg(req, orgID)
+	resp, err := h.service.Create(req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -80,10 +55,6 @@ func (h *WorkerHandler) HandleCreate(c *gin.Context) {
 
 func (h *WorkerHandler) HandleUpdate(c *gin.Context) {
 	id := c.Param("id")
-	if h.requireWorkerOrg(c, id) {
-		return
-	}
-
 	var req UpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
@@ -101,10 +72,6 @@ func (h *WorkerHandler) HandleUpdate(c *gin.Context) {
 
 func (h *WorkerHandler) HandleDelete(c *gin.Context) {
 	id := c.Param("id")
-	if h.requireWorkerOrg(c, id) {
-		return
-	}
-
 	if err := h.service.Delete(id); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return

@@ -32,12 +32,20 @@ type DatabaseConfig struct {
 }
 
 type AuthConfig struct {
-	JWTSecret         string
-	AccessTokenExpiry time.Duration
+	JWTSecret          string
+	AccessTokenExpiry  time.Duration
 	RefreshTokenExpiry time.Duration
-	EnableNative      bool
-	AdminEmail        string
-	AdminPassword     string
+	EnableNative       bool
+	AdminEmail         string
+	AdminPassword      string
+	Google             GoogleAuthConfig
+}
+
+type GoogleAuthConfig struct {
+	Enabled      bool
+	ClientID     string
+	ClientSecret string
+	RedirectURI  string
 }
 
 var AppConfig Config
@@ -69,6 +77,8 @@ func Load() error {
 	viper.SetDefault("auth.enable_native", true)
 	viper.SetDefault("auth.admin_email", "admin@labbed.local")
 	viper.SetDefault("auth.admin_password", "admin")
+	viper.SetDefault("auth.google.enabled", false)
+	viper.SetDefault("auth.google.redirect_uri", "http://localhost:3000/auth/google/callback")
 
 	// Environment variable overrides
 	viper.SetEnvPrefix("LABBED")
@@ -111,6 +121,12 @@ func Load() error {
 			EnableNative:       viper.GetBool("auth.enable_native"),
 			AdminEmail:         viper.GetString("auth.admin_email"),
 			AdminPassword:      viper.GetString("auth.admin_password"),
+			Google: GoogleAuthConfig{
+				Enabled:      viper.GetBool("auth.google.enabled"),
+				ClientID:     viper.GetString("auth.google.client_id"),
+				ClientSecret: viper.GetString("auth.google.client_secret"),
+				RedirectURI:  viper.GetString("auth.google.redirect_uri"),
+			},
 		},
 	}
 

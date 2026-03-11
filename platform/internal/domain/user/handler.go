@@ -9,11 +9,23 @@ import (
 )
 
 type UserHandler struct {
-	service *UserService
+	service    *UserService
+	googleAuth *auth.GoogleOAuth
+	createOrg  func(userDBID uint, name string) error // callback to create personal org on first Google login
 }
 
 func NewHandler(service *UserService) *UserHandler {
 	return &UserHandler{service: service}
+}
+
+// SetGoogleAuth configures Google OAuth on the handler.
+func (h *UserHandler) SetGoogleAuth(g *auth.GoogleOAuth) {
+	h.googleAuth = g
+}
+
+// SetCreateOrgCallback sets the callback for creating a personal org on first Google login.
+func (h *UserHandler) SetCreateOrgCallback(fn func(userDBID uint, name string) error) {
+	h.createOrg = fn
 }
 
 func (h *UserHandler) HandleLogin(c *gin.Context) {
@@ -51,7 +63,74 @@ func (h *UserHandler) HandleRefresh(c *gin.Context) {
 func (h *UserHandler) HandleGetAuthConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, AuthConfigResponse{
 		EnableNative: config.AppConfig.Auth.EnableNative,
-		EnableOIDC:   false,
+		EnableGoogle: config.AppConfig.Auth.Google.Enabled,
+	})
+}
+
+// HandleGoogleAuthorize returns the Google OAuth2 authorization URL.
+func (h *UserHandler) HandleGoogleAuthorize(c *gin.Context) {
+	if h.googleAuth == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "google auth not enabled"})
+		return
+	}
+
+	url, state := h.googleAuth.AuthURL()
+	c.JSON(http.StatusOK, gin.H{"url": url, "state": state})
+}
+
+// HandleGoogleCallback exchanges the authorization code for tokens.
+// The frontend sends the code after Google redirects back.
+func (h *UserHandler) HandleGoogleCallback(c *gin.Context) {
+	if h.googleAuth == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "google auth not enabled"})
+		return
+	}
+
+	var req struct {
+		Code string `json:"code" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "code is required"})
+		return
+	}
+
+	info, err := h.googleAuth.Exchange(c.Request.Context(), req.Code)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "google authentication failed"})
+		return
+	}
+
+	u, isNew, err := h.service.FindOrCreateByGoogle(info.Sub, info.Email, info.Name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Create personal org for new Google users
+	if isNew && h.createOrg != nil {
+		orgName := u.DisplayName + "'s Org"
+		if err := h.createOrg(u.ID, orgName); err != nil {
+			// Log but don't fail the login
+			_ = err
+		}
+	}
+
+	accessToken, err := auth.GenerateAccessToken(u.UUID, u.Email, u.IsAdmin)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate access token"})
+		return
+	}
+
+	refreshToken, err := auth.GenerateRefreshToken(u.UUID, u.Email, u.IsAdmin)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate refresh token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, LoginResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		User:         u.ToResponse(),
 	})
 }
 

@@ -11,9 +11,10 @@ import (
 )
 
 type OrgService struct {
-	repo        *OrgRepository
-	userService *user.UserService
-	resolveUser func(uuid string) (*user.User, error)
+	repo         *OrgRepository
+	userService  *user.UserService
+	resolveUser  func(uuid string) (*user.User, error)
+	onOrgCreated func(orgDBID uint, creatorDBID uint) // called after a new org is created
 }
 
 func NewService(repo *OrgRepository, userService *user.UserService, resolveUser func(uuid string) (*user.User, error)) *OrgService {
@@ -22,6 +23,11 @@ func NewService(repo *OrgRepository, userService *user.UserService, resolveUser 
 		userService: userService,
 		resolveUser: resolveUser,
 	}
+}
+
+// SetOnOrgCreated registers a callback invoked after a new org is created (e.g. to seed sample data).
+func (s *OrgService) SetOnOrgCreated(fn func(orgDBID uint, creatorDBID uint)) {
+	s.onOrgCreated = fn
 }
 
 var slugRegex = regexp.MustCompile(`[^a-z0-9]+`)
@@ -77,6 +83,11 @@ func (s *OrgService) Signup(req SignupRequest) (*Response, string, error) {
 		return nil, "", fmt.Errorf("failed to add owner: %w", err)
 	}
 
+	// Seed sample data for the new org
+	if s.onOrgCreated != nil {
+		s.onOrgCreated(org.ID, u.ID)
+	}
+
 	resp := s.buildResponse(org, RoleOwner)
 	return &resp, userResp.UUID, nil
 }
@@ -102,6 +113,11 @@ func (s *OrgService) Create(creatorDBID uint, req CreateRequest) (Response, erro
 		Role:   RoleOwner,
 	}); err != nil {
 		return Response{}, fmt.Errorf("failed to add owner: %w", err)
+	}
+
+	// Seed sample data for the new org
+	if s.onOrgCreated != nil {
+		s.onOrgCreated(org.ID, creatorDBID)
 	}
 
 	return s.buildResponse(org, RoleOwner), nil

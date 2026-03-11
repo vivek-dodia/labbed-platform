@@ -168,11 +168,12 @@ func (s *Service) Deploy(ctx context.Context, opts DeployOptions) ([]NodeInfo, e
 		return nil, fmt.Errorf("failed to create containerlab instance: %w", err)
 	}
 
-	// Deploy
+	// Deploy with reconfigure to handle stale containers
 	deployOpts, err := clabcore.NewDeployOptions(0)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create deploy options: %w", err)
 	}
+	deployOpts.SetReconfigure(true)
 
 	containers, err := clab.Deploy(ctx, deployOpts)
 	if err != nil {

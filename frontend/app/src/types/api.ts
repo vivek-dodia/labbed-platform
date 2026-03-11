@@ -20,7 +20,52 @@ export interface RefreshResponse {
 
 export interface AuthConfigResponse {
   enableNative: boolean;
-  enableOidc: boolean;
+  enableGoogle: boolean;
+}
+
+export interface SignupRequest {
+  email: string;
+  password: string;
+  name: string;
+  orgName: string;
+}
+
+export interface GoogleAuthorizeResponse {
+  url: string;
+  state: string;
+}
+
+// ── Organizations ──
+export type OrgRole = "owner" | "admin" | "member";
+
+export interface OrgResponse {
+  uuid: string;
+  name: string;
+  slug: string;
+  plan: string;
+  maxLabs: number;
+  maxWorkers: number;
+  role?: OrgRole;
+  createdAt: string;
+}
+
+export interface OrgMemberResponse {
+  userId: string;
+  email: string;
+  name: string;
+  role: OrgRole;
+  joinedAt: string;
+}
+
+export interface CreateOrgRequest {
+  name: string;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 // ── Users ──

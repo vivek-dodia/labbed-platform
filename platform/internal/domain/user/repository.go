@@ -40,6 +40,14 @@ func (r *UserRepository) GetByEmail(email string) (*User, error) {
 	return &user, nil
 }
 
+func (r *UserRepository) GetBySub(sub string) (*User, error) {
+	var user User
+	if err := r.db.Where("sub = ?", sub).First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
 func (r *UserRepository) GetAll() ([]User, error) {
 	var users []User
 	if err := r.db.Find(&users).Error; err != nil {

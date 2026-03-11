@@ -135,6 +135,9 @@ func main() {
 	}
 
 	orgService := organization.NewService(orgRepo, userService, resolveUser)
+	orgService.SetOnOrgCreated(func(orgDBID uint, creatorDBID uint) {
+		seed.SeedSampleTopologies(db, orgDBID, creatorDBID)
+	})
 	collectionService := collection.NewService(collectionRepo, resolveUserUUID)
 	topologyService := topology.NewService(topologyRepo, resolveCollectionUUID, resolveUserUUID)
 	workerService := worker.NewService(workerRepo)
@@ -145,8 +148,26 @@ func main() {
 	// Initialize WebSocket hub
 	hub := ws.NewHub(config.AppConfig.Server.CORSOrigins)
 
+	// Initialize Google OAuth (if enabled)
+	var googleOAuth *auth.GoogleOAuth
+	if config.AppConfig.Auth.Google.Enabled {
+		googleOAuth = auth.NewGoogleOAuth(
+			config.AppConfig.Auth.Google.ClientID,
+			config.AppConfig.Auth.Google.ClientSecret,
+			config.AppConfig.Auth.Google.RedirectURI,
+		)
+		log.Println("google OAuth enabled")
+	}
+
 	// Initialize handlers
 	userHandler := user.NewHandler(userService)
+	if googleOAuth != nil {
+		userHandler.SetGoogleAuth(googleOAuth)
+		userHandler.SetCreateOrgCallback(func(userDBID uint, name string) error {
+			_, err := orgService.Create(userDBID, organization.CreateRequest{Name: name})
+			return err
+		})
+	}
 	orgHandler := organization.NewHandler(orgService, resolveUserID, resolveUserInfo)
 	collectionHandler := collection.NewHandler(collectionService, resolveUserID)
 	topologyHandler := topology.NewHandler(topologyService, resolveCollectionID, resolveUserID, getUserCollectionIDs)
@@ -224,16 +245,31 @@ func main() {
 	// CORS middleware
 	router.Use(corsMiddleware(config.AppConfig.Server.CORSOrigins))
 
-	// Health check
+	// Global body size limit (1MB default, topology routes override)
+	router.Use(auth.MaxBodySize(1 << 20))
+
+	// Health check with DB connectivity
 	router.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
+		sqlDB, err := db.DB()
+		if err != nil {
+			c.JSON(503, gin.H{"status": "error", "database": "unavailable"})
+			return
+		}
+		if err := sqlDB.Ping(); err != nil {
+			c.JSON(503, gin.H{"status": "error", "database": "unreachable"})
+			return
+		}
+		c.JSON(200, gin.H{"status": "ok", "database": "connected"})
 	})
 
+	// Rate limiter for auth endpoints: 20 requests per minute per IP
+	authRateLimit := auth.RateLimit(20, time.Minute)
+
 	// Register user/auth routes (has its own public + authenticated groups)
-	user.RegisterRoutes(router, userHandler)
+	user.RegisterRoutes(router, userHandler, authRateLimit)
 
 	// Register public org routes (signup)
-	organization.RegisterPublicRoutes(router, orgHandler)
+	organization.RegisterPublicRoutes(router, orgHandler, authRateLimit)
 
 	// Authenticated API group
 	apiV1 := router.Group("/api/v1")

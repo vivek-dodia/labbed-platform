@@ -52,6 +52,7 @@ type DestroyRequest struct {
 	LabID       string `json:"labId" binding:"required"`
 	ClabName    string `json:"clabName" binding:"required"`
 	CallbackURL string `json:"callbackUrl"`
+	CleanupOnly bool   `json:"cleanupOnly"` // if true, skip status callbacks
 }
 
 // InspectRequest is received from the platform.
@@ -123,6 +124,18 @@ func (h *Handler) deployAsync(labID, clabName, topoPath string) {
 	if err != nil {
 		log.Printf("deploy failed for lab %s: %v", labID, err)
 		h.pushLog(ctx, labID, "Deployment failed: "+err.Error(), "error")
+
+		// Clean up any partially-created containers
+		h.pushLog(ctx, labID, "Cleaning up partial deployment...", "info")
+		cleanupErr := h.clabService.Destroy(ctx, clab.DestroyOptions{
+			LabName: clabName,
+			Cleanup: true,
+		})
+		if cleanupErr != nil {
+			log.Printf("cleanup after failed deploy for lab %s: %v", labID, cleanupErr)
+		}
+		clab.CleanupTopologyFiles(labID)
+
 		errMsg := err.Error()
 		h.platformClient.PushStatus(ctx, platformclient.StatusUpdate{
 			LabID:        labID,
@@ -177,26 +190,28 @@ func (h *Handler) HandleDestroy(c *gin.Context) {
 
 	c.JSON(http.StatusAccepted, gin.H{"message": "destroy started"})
 
-	go h.destroyAsync(req.LabID, req.ClabName)
+	go h.destroyAsync(req.LabID, req.ClabName, req.CleanupOnly)
 }
 
-func (h *Handler) destroyAsync(labID, clabName string) {
+func (h *Handler) destroyAsync(labID, clabName string, cleanupOnly bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 
-	h.pushLog(ctx, labID, "Stopping lab...", "info")
-	h.platformClient.PushStatus(ctx, platformclient.StatusUpdate{
-		LabID: labID,
-		State: "stopping",
-	})
+	if !cleanupOnly {
+		h.pushLog(ctx, labID, "Stopping lab...", "info")
+		h.platformClient.PushStatus(ctx, platformclient.StatusUpdate{
+			LabID: labID,
+			State: "stopping",
+		})
+	}
 
-	h.pushLog(ctx, labID, "Destroying containerlab topology...", "info")
+	log.Printf("destroying containers for lab %s (clab: %s, cleanupOnly: %v)", labID, clabName, cleanupOnly)
 	err := h.clabService.Destroy(ctx, clab.DestroyOptions{
 		LabName: clabName,
 		Cleanup: true,
 	})
 
-	// Always clean up tracking regardless of success/failure
+	// Always clean up tracking and files regardless of success/failure
 	clab.CleanupTopologyFiles(labID)
 	h.mu.Lock()
 	delete(h.activeLabs, labID)
@@ -204,23 +219,26 @@ func (h *Handler) destroyAsync(labID, clabName string) {
 
 	if err != nil {
 		log.Printf("destroy failed for lab %s: %v", labID, err)
-		h.pushLog(ctx, labID, "Destroy failed: "+err.Error(), "error")
-		errMsg := err.Error()
-		h.platformClient.PushStatus(ctx, platformclient.StatusUpdate{
-			LabID:        labID,
-			State:        "failed",
-			ErrorMessage: &errMsg,
-		})
+		if !cleanupOnly {
+			h.pushLog(ctx, labID, "Destroy failed: "+err.Error(), "error")
+			errMsg := err.Error()
+			h.platformClient.PushStatus(ctx, platformclient.StatusUpdate{
+				LabID:        labID,
+				State:        "failed",
+				ErrorMessage: &errMsg,
+			})
+		}
 		return
 	}
 
-	h.platformClient.PushStatus(ctx, platformclient.StatusUpdate{
-		LabID: labID,
-		State: "stopped",
-	})
-
-	h.pushLog(ctx, labID, "Lab destroyed successfully", "info")
-	log.Printf("lab %s destroyed successfully", labID)
+	if !cleanupOnly {
+		h.platformClient.PushStatus(ctx, platformclient.StatusUpdate{
+			LabID: labID,
+			State: "stopped",
+		})
+		h.pushLog(ctx, labID, "Lab destroyed successfully", "info")
+	}
+	log.Printf("lab %s destroyed successfully (cleanupOnly: %v)", labID, cleanupOnly)
 }
 
 // HandleInspect handles lab inspection requests.

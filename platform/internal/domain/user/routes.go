@@ -5,13 +5,21 @@ import (
 	"github.com/labbed/platform/internal/auth"
 )
 
-func RegisterRoutes(r *gin.Engine, handler *UserHandler) {
+func RegisterRoutes(r *gin.Engine, handler *UserHandler, authRateLimit gin.HandlerFunc) {
 	// Public auth routes
 	authGroup := r.Group("/api/v1/auth")
 	{
-		authGroup.POST("/login", handler.HandleLogin)
-		authGroup.POST("/refresh", handler.HandleRefresh)
 		authGroup.GET("/config", handler.HandleGetAuthConfig)
+
+		// Rate-limited auth endpoints
+		limited := authGroup.Group("")
+		limited.Use(authRateLimit)
+		{
+			limited.POST("/login", handler.HandleLogin)
+			limited.POST("/refresh", handler.HandleRefresh)
+			limited.GET("/google/authorize", handler.HandleGoogleAuthorize)
+			limited.POST("/google/callback", handler.HandleGoogleCallback)
+		}
 	}
 
 	// Authenticated user routes

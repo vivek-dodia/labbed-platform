@@ -2,7 +2,7 @@ name: worker-1
 port: 8081
 
 platform_url: http://localhost:8080
-platform_secret: change-me
+platform_secret: change-me-in-production
 
 clab_runtime: docker
 work_dir: /tmp/labbed-worker

@@ -30,9 +30,15 @@ func SeedDefaults(db *gorm.DB, adminUserID uint) {
 	// Ensure a default org exists
 	defaultOrgID := ensureDefaultOrg(db, adminUserID)
 
-	// Check if sample collection already exists
+	SeedSampleTopologies(db, defaultOrgID, adminUserID)
+}
+
+// SeedSampleTopologies creates a "Sample Labs" collection with starter topologies
+// for the given org, skipping if it already exists.
+func SeedSampleTopologies(db *gorm.DB, orgID uint, creatorID uint) {
+	// Check if sample collection already exists for this org
 	var count int64
-	db.Model(&collection.Collection{}).Where("name = ? AND org_id = ?", "Sample Labs", defaultOrgID).Count(&count)
+	db.Model(&collection.Collection{}).Where("name = ? AND org_id = ?", "Sample Labs", orgID).Count(&count)
 	if count > 0 {
 		return
 	}
@@ -41,19 +47,19 @@ func SeedDefaults(db *gorm.DB, adminUserID uint) {
 	col := &collection.Collection{
 		UUID:       uuid.New().String(),
 		Name:       "Sample Labs",
-		OrgID:      defaultOrgID,
-		CreatorID:  adminUserID,
+		OrgID:      orgID,
+		CreatorID:  creatorID,
 		PublicRead: true,
 	}
 	if err := db.Create(col).Error; err != nil {
-		log.Printf("seed: failed to create sample collection: %v", err)
+		log.Printf("seed: failed to create sample collection for org %d: %v", orgID, err)
 		return
 	}
 
-	// Make admin an owner
+	// Make creator an owner
 	member := &collection.CollectionMember{
 		CollectionID: col.ID,
-		UserID:       adminUserID,
+		UserID:       creatorID,
 		Role:         "owner",
 	}
 	db.Create(member)
@@ -64,9 +70,9 @@ func SeedDefaults(db *gorm.DB, adminUserID uint) {
 			UUID:         uuid.New().String(),
 			Name:         tmpl.Name,
 			Definition:   tmpl.Definition,
-			OrgID:        defaultOrgID,
+			OrgID:        orgID,
 			CollectionID: col.ID,
-			CreatorID:    adminUserID,
+			CreatorID:    creatorID,
 		}
 		if err := db.Create(topo).Error; err != nil {
 			log.Printf("seed: failed to create topology %q: %v", tmpl.Name, err)
@@ -84,7 +90,7 @@ func SeedDefaults(db *gorm.DB, adminUserID uint) {
 		}
 	}
 
-	log.Printf("seed: created 'Sample Labs' collection with %d sample topologies", len(templates))
+	log.Printf("seed: created 'Sample Labs' collection with %d sample topologies for org %d", len(templates), orgID)
 }
 
 // ensureDefaultOrg creates the "Default" organization if it doesn't exist and
@@ -121,7 +127,6 @@ func ensureDefaultOrg(db *gorm.DB, adminUserID uint) uint {
 	db.Model(&collection.Collection{}).Where("org_id = 0").Update("org_id", org.ID)
 	db.Table("topologies").Where("org_id = 0").Update("org_id", org.ID)
 	db.Table("labs").Where("org_id = 0").Update("org_id", org.ID)
-	db.Table("workers").Where("org_id = 0").Update("org_id", org.ID)
 
 	return org.ID
 }

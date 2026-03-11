@@ -42,25 +42,9 @@ func (r *WorkerRepository) GetByName(name string) (*Worker, error) {
 	return &w, nil
 }
 
-func (r *WorkerRepository) GetByNameAndOrgID(name string, orgID uint) (*Worker, error) {
-	var w Worker
-	if err := r.db.Where("name = ? AND org_id = ?", name, orgID).First(&w).Error; err != nil {
-		return nil, err
-	}
-	return &w, nil
-}
-
 func (r *WorkerRepository) GetAll() ([]Worker, error) {
 	var workers []Worker
 	if err := r.db.Find(&workers).Error; err != nil {
-		return nil, err
-	}
-	return workers, nil
-}
-
-func (r *WorkerRepository) GetAllByOrgID(orgID uint) ([]Worker, error) {
-	var workers []Worker
-	if err := r.db.Where("org_id = ?", orgID).Find(&workers).Error; err != nil {
 		return nil, err
 	}
 	return workers, nil

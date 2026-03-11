@@ -104,3 +104,25 @@ func IsOrgAdmin(c *gin.Context) bool {
 	role := GetOrgRole(c)
 	return role == "admin" || role == "owner"
 }
+
+// RequireOrgRole returns a middleware that enforces minimum org role.
+// Role hierarchy: owner > admin > member.
+func RequireOrgRole(minRole string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role := GetOrgRole(c)
+		if !hasMinRole(role, minRole) {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "insufficient permissions in this organization"})
+			return
+		}
+		c.Next()
+	}
+}
+
+func hasMinRole(actual, required string) bool {
+	hierarchy := map[string]int{
+		"member": 1,
+		"admin":  2,
+		"owner":  3,
+	}
+	return hierarchy[actual] >= hierarchy[required]
+}

@@ -38,6 +38,7 @@ type DestroyRequest struct {
 	LabID       string `json:"labId"`
 	ClabName    string `json:"clabName"`
 	CallbackURL string `json:"callbackUrl"`
+	CleanupOnly bool   `json:"cleanupOnly,omitempty"` // skip status callbacks, just remove containers
 }
 
 // InspectRequest is sent to a worker to inspect a lab.

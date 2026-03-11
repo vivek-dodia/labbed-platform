@@ -1,4 +1,4 @@
-import { getAccessToken, getRefreshToken, setTokens, clearTokens } from "./auth";
+import { getAccessToken, getRefreshToken, setTokens, clearTokens, getActiveOrg } from "./auth";
 import type { RefreshResponse } from "@/types/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
@@ -42,30 +42,43 @@ async function refreshAccessToken(): Promise<string | null> {
   return refreshPromise;
 }
 
+function buildHeaders(options?: RequestInit): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  const token = getAccessToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const orgID = getActiveOrg();
+  if (orgID) headers["X-Org-ID"] = orgID;
+
+  // Merge any caller-supplied headers
+  if (options?.headers) {
+    const extra = options.headers as Record<string, string>;
+    Object.assign(headers, extra);
+  }
+
+  return headers;
+}
+
 export async function apiFetch<T>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
-  const token = getAccessToken();
+  const headers = buildHeaders(options);
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options?.headers,
-    },
+    headers,
   });
 
   if (res.status === 401) {
     const newToken = await refreshAccessToken();
     if (newToken) {
+      headers["Authorization"] = `Bearer ${newToken}`;
       const retry = await fetch(`${API_BASE}${path}`, {
         ...options,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${newToken}`,
-          ...options?.headers,
-        },
+        headers,
       });
       if (retry.status === 204) return null as T;
       if (!retry.ok) throw new ApiError(retry.status, await retry.json());

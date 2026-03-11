@@ -5,8 +5,10 @@ import (
 )
 
 // RegisterPublicRoutes registers signup route (no auth required).
-func RegisterPublicRoutes(router *gin.Engine, handler *OrgHandler) {
-	router.POST("/api/v1/auth/signup", handler.HandleSignup)
+func RegisterPublicRoutes(router *gin.Engine, handler *OrgHandler, middlewares ...gin.HandlerFunc) {
+	group := router.Group("/api/v1/auth")
+	group.Use(middlewares...)
+	group.POST("/signup", handler.HandleSignup)
 }
 
 // RegisterRoutes registers authenticated org management routes.

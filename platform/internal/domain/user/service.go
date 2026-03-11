@@ -162,6 +162,37 @@ func (s *UserService) ChangePassword(uuid, currentPassword, newPassword string, 
 	return s.repo.Update(user)
 }
 
+// FindOrCreateByGoogle finds a user by Google subject ID, or creates one.
+// If a user with matching email exists but no sub, it links the Google account.
+// Returns the user and whether it was newly created.
+func (s *UserService) FindOrCreateByGoogle(sub, email, name string) (*User, bool, error) {
+	// Try by sub first
+	if u, err := s.repo.GetBySub(sub); err == nil {
+		return u, false, nil
+	}
+
+	// Try by email — link existing account
+	if u, err := s.repo.GetByEmail(email); err == nil {
+		u.Sub = sub
+		if err := s.repo.Update(u); err != nil {
+			return nil, false, errors.New("failed to link google account")
+		}
+		return u, false, nil
+	}
+
+	// Create new user (no password — Google-only)
+	u := &User{
+		UUID:        uuid.New().String(),
+		Email:       email,
+		DisplayName: name,
+		Sub:         sub,
+	}
+	if err := s.repo.Create(u); err != nil {
+		return nil, false, errors.New("failed to create user")
+	}
+	return u, true, nil
+}
+
 func (s *UserService) EnsureAdminExists(email, password string) *User {
 	if existing, err := s.repo.GetByEmail(email); err == nil {
 		return existing

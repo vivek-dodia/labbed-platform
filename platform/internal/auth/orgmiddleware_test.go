@@ -206,3 +206,43 @@ func TestGetOrgHelpers_DefaultValues(t *testing.T) {
 		t.Errorf("expected empty string, got %q", GetOrgRole(c))
 	}
 }
+
+func TestRequireOrgRole(t *testing.T) {
+	tests := []struct {
+		name     string
+		role     string
+		minRole  string
+		allowed  bool
+	}{
+		{"owner can admin", "owner", "admin", true},
+		{"admin can admin", "admin", "admin", true},
+		{"member cannot admin", "member", "admin", false},
+		{"owner can member", "owner", "member", true},
+		{"admin can member", "admin", "member", true},
+		{"member can member", "member", "member", true},
+		{"empty cannot member", "", "member", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := gin.New()
+			router.Use(func(c *gin.Context) {
+				c.Set(orgRoleKey, tt.role)
+				c.Next()
+			})
+			router.Use(RequireOrgRole(tt.minRole))
+			router.GET("/test", func(c *gin.Context) { c.Status(200) })
+
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", "/test", nil)
+			router.ServeHTTP(w, req)
+
+			if tt.allowed && w.Code != http.StatusOK {
+				t.Errorf("expected 200, got %d", w.Code)
+			}
+			if !tt.allowed && w.Code != http.StatusForbidden {
+				t.Errorf("expected 403, got %d", w.Code)
+			}
+		})
+	}
+}

@@ -64,7 +64,7 @@ type UserResponse struct {
 
 type AuthConfigResponse struct {
 	EnableNative bool `json:"enableNative"`
-	EnableOIDC   bool `json:"enableOidc"`
+	EnableGoogle bool `json:"enableGoogle"`
 }
 
 func (u *User) ToResponse() UserResponse {

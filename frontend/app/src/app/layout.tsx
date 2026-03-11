@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import NoiseOverlay from "@/components/layout/NoiseOverlay";
 import { AuthProvider } from "@/hooks/useAuth";
 
 export const metadata: Metadata = {
@@ -16,10 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AuthProvider>
-          <NoiseOverlay />
-          {children}
-        </AuthProvider>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

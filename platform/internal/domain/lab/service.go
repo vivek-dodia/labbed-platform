@@ -173,11 +173,39 @@ func (s *LabService) Delete(uuid string) error {
 		return errors.New("cannot delete a running lab; destroy it first")
 	}
 
+	// If the lab was assigned to a worker, tell it to clean up any leftover containers
+	if l.WorkerID != nil && l.ClabName != nil {
+		s.cleanupWorkerContainers(l)
+	}
+
 	if err := s.repo.DeleteNodesByLabID(l.ID); err != nil {
 		return fmt.Errorf("failed to delete lab nodes: %w", err)
 	}
 
 	return s.repo.Delete(l)
+}
+
+// cleanupWorkerContainers sends a best-effort destroy to the worker to remove leftover containers.
+func (s *LabService) cleanupWorkerContainers(l *Lab) {
+	w, err := s.workerSelector.GetWorkerByID(*l.WorkerID)
+	if err != nil {
+		log.Printf("cleanup: could not load worker %d for lab %s: %v", *l.WorkerID, l.UUID, err)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	req := workerclient.DestroyRequest{
+		LabID:       l.UUID,
+		ClabName:    *l.ClabName,
+		CleanupOnly: true,
+	}
+
+	log.Printf("cleanup: sending destroy to worker %s for lab %s (clab: %s)", w.Name, l.UUID, *l.ClabName)
+	if err := s.workerClient.Destroy(ctx, w.Address, w.Secret, req); err != nil {
+		log.Printf("cleanup: worker destroy for lab %s failed (non-fatal): %v", l.UUID, err)
+	}
 }
 
 // Deploy selects a worker, transitions the lab to deploying, and dispatches to the worker.
@@ -486,7 +514,8 @@ func (s *LabService) GetEvents(labUUID string, limit, offset int) (PaginatedResp
 	}, nil
 }
 
-// CleanupStuckLabs marks labs stuck in transitional states as failed/stopped.
+// CleanupStuckLabs marks labs stuck in transitional states as failed/stopped
+// and tells workers to clean up any leftover containers.
 func (s *LabService) CleanupStuckLabs(threshold time.Duration) {
 	labs, err := s.repo.GetStuckLabs(threshold)
 	if err != nil {
@@ -495,6 +524,11 @@ func (s *LabService) CleanupStuckLabs(threshold time.Duration) {
 	}
 
 	for _, l := range labs {
+		// Tell the worker to destroy leftover containers
+		if l.WorkerID != nil && l.ClabName != nil {
+			s.cleanupWorkerContainers(&l)
+		}
+
 		if l.State == StateStopping {
 			log.Printf("cleanup: marking stuck lab %s as stopped", l.UUID)
 			_ = s.UpdateState(l.UUID, StateStopped, nil)

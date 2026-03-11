@@ -1,0 +1,9 @@
+name: worker-1
+port: 8081
+
+platform_url: http://localhost:8080
+platform_secret: change-me
+
+clab_runtime: docker
+work_dir: /tmp/labbed-worker
+max_concurrent_labs: 0  # 0 = unlimited

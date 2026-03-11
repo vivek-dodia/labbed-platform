@@ -1,0 +1,39 @@
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go
+/platform/tmp/
+/worker/tmp/
+
+# Frontend
+frontend/app/node_modules/
+frontend/app/.next/
+frontend/app/out/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+*.db
+*.sqlite
+
+# Claude
+.claude/
+
+# Logs
+*.log

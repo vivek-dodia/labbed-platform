@@ -1,0 +1,21 @@
+server:
+  host: 0.0.0.0
+  port: 8080
+
+database:
+  driver: postgres  # postgres or sqlite
+  host: localhost
+  port: 5432
+  name: labbed
+  user: labbed
+  password: labbed
+  sslmode: disable
+  sqlite: labbed.db  # only used when driver=sqlite
+
+auth:
+  jwt_secret: change-me-in-production
+  access_token_expiry: 30m
+  refresh_token_expiry: 720h
+  enable_native: true
+  admin_email: admin@labbed.local
+  admin_password: admin

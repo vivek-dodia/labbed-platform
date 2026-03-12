@@ -15,8 +15,8 @@ export default function HoverHand({ style }: HoverHandProps) {
       {/* Arrow pointing up */}
       <path
         d="M20 4L28 16H12L20 4Z"
-        fill="#ED6A4A"
-        stroke="#121212"
+        fill="#000000"
+        stroke="#000000"
         strokeWidth="1"
         strokeLinejoin="round"
       />
@@ -27,8 +27,8 @@ export default function HoverHand({ style }: HoverHandProps) {
         width="6"
         height="18"
         rx="0"
-        fill="#ED6A4A"
-        stroke="#121212"
+        fill="#000000"
+        stroke="#000000"
         strokeWidth="1"
       />
     </svg>

@@ -36,7 +36,7 @@ export default function EditorialInput({
             textTransform: "uppercase",
             letterSpacing: "0.05em",
             fontFamily: "Manrope, sans-serif",
-            color: "#121212",
+            color: "#000000",
           }}
         >
           {label}
@@ -49,7 +49,7 @@ export default function EditorialInput({
               textTransform: "uppercase",
               letterSpacing: "0.05em",
               fontFamily: "Manrope, sans-serif",
-              color: "#121212",
+              color: "#000000",
               opacity: 0.5,
               cursor: "pointer",
             }}
@@ -67,17 +67,17 @@ export default function EditorialInput({
         style={{
           width: "100%",
           padding: "1rem",
-          border: "1px solid #121212",
+          border: "1px solid #000000",
           background: "transparent",
           fontFamily: "'Space Mono', monospace",
           fontSize: "0.9rem",
-          color: "#121212",
+          color: "#000000",
           outline: "none",
           transition: "background 0.2s",
           boxSizing: "border-box",
         }}
         onFocus={(e) => {
-          e.currentTarget.style.background = "#fff";
+          e.currentTarget.style.background = "rgba(0,0,0,0.05)";
         }}
         onBlur={(e) => {
           e.currentTarget.style.background = "transparent";

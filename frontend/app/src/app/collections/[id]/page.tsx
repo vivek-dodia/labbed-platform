@@ -84,9 +84,9 @@ export default function CollectionDetailPage() {
   const pillBtn = (variant?: "default" | "filled" | "danger"): React.CSSProperties => ({
     padding: "0.5rem 1.2rem",
     borderRadius: "99px",
-    border: "1px solid #121212",
-    background: variant === "filled" ? "#121212" : variant === "danger" ? "#121212" : "transparent",
-    color: variant === "filled" || variant === "danger" ? "#F3EFE7" : "#121212",
+    border: "1px solid #000000",
+    background: variant === "filled" ? "#000000" : variant === "danger" ? "#000000" : "transparent",
+    color: variant === "filled" || variant === "danger" ? "#79f673" : "#000000",
     fontSize: "0.7rem",
     fontWeight: 700,
     textTransform: "uppercase",
@@ -100,14 +100,14 @@ export default function CollectionDetailPage() {
     padding: "0 1.5rem",
     display: "flex",
     alignItems: "center",
-    borderRight: "1px solid #121212",
+    borderRight: "1px solid #000000",
     fontSize: "0.75rem",
     textTransform: "uppercase",
     letterSpacing: "0.05em",
     fontWeight: 700,
     cursor: "pointer",
     textDecoration: "none",
-    color: "#121212",
+    color: "#000000",
     height: "100%",
     transition: "background 0.15s, color 0.15s",
     fontFamily: "'Manrope', sans-serif",
@@ -115,30 +115,30 @@ export default function CollectionDetailPage() {
 
   if (!collection) {
     return (
-      <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#F3EFE7", color: "#121212", fontFamily: "'Manrope', sans-serif", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#79f673", color: "#000000", fontFamily: "'Manrope', sans-serif", alignItems: "center", justifyContent: "center" }}>
         <span style={{ ...labelStyle, opacity: 0.4 }}>LOADING...</span>
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#F3EFE7", color: "#121212", fontFamily: "'Manrope', sans-serif" }}>
+    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#79f673", color: "#000000", fontFamily: "'Manrope', sans-serif" }}>
       {/* Sidebar */}
       <aside style={{
         width: "48px",
-        borderRight: "1px solid #121212",
+        borderRight: "1px solid #000000",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         padding: "1rem 0",
         flexShrink: 0,
-        backgroundColor: "#F3EFE7",
+        backgroundColor: "#79f673",
         zIndex: 10,
       }}>
         <div style={{ width: "24px", height: "20px", display: "flex", flexDirection: "column", justifyContent: "space-between", marginBottom: "2rem", cursor: "pointer" }}>
-          <span style={{ display: "block", height: "1px", backgroundColor: "#121212", width: "100%" }} />
-          <span style={{ display: "block", height: "1px", backgroundColor: "#121212", width: "100%" }} />
-          <span style={{ display: "block", height: "1px", backgroundColor: "#121212", width: "100%" }} />
+          <span style={{ display: "block", height: "1px", backgroundColor: "#000000", width: "100%" }} />
+          <span style={{ display: "block", height: "1px", backgroundColor: "#000000", width: "100%" }} />
+          <span style={{ display: "block", height: "1px", backgroundColor: "#000000", width: "100%" }} />
         </div>
         <div style={{ writingMode: "vertical-rl", transform: "scale(-1)", fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", gap: "1rem", display: "flex", marginTop: "auto", marginBottom: "2rem" }}>
           <span style={{ opacity: 0.5 }}>CLI</span>
@@ -150,15 +150,15 @@ export default function CollectionDetailPage() {
       {/* Main */}
       <div style={{ flexGrow: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         {/* Top Nav */}
-        <nav style={{ height: "48px", borderBottom: "1px solid #121212", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <nav style={{ height: "48px", borderBottom: "1px solid #000000", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", height: "100%" }}>
             <Link href="/" style={{ ...navItemStyle, fontWeight: 800, fontSize: "0.85rem" }}>LABBED</Link>
             <Link href="/collections" style={navItemStyle}>Collections</Link>
             <span style={{ ...navItemStyle, opacity: 0.5, cursor: "default" }}>{collection.name}</span>
           </div>
           <div style={{ display: "flex", height: "100%" }}>
-            <span style={{ ...navItemStyle, borderLeft: "1px solid #121212" }}>{user?.displayName || ""}</span>
-            <button onClick={() => logout?.()} style={{ ...navItemStyle, background: "none", border: "none", borderLeft: "1px solid #121212" }}>Logout</button>
+            <span style={{ ...navItemStyle, borderLeft: "1px solid #000000" }}>{user?.displayName || ""}</span>
+            <button onClick={() => logout?.()} style={{ ...navItemStyle, background: "none", border: "none", borderLeft: "1px solid #000000" }}>Logout</button>
           </div>
         </nav>
 
@@ -190,7 +190,7 @@ export default function CollectionDetailPage() {
                 <input
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  style={{ width: "100%", background: "transparent", border: "none", borderBottom: "1px solid #121212", padding: "0.5rem 0", fontSize: "1rem", fontFamily: "'Space Mono', monospace", outline: "none", color: "#121212" }}
+                  style={{ width: "100%", background: "transparent", border: "none", borderBottom: "1px solid #000000", padding: "0.5rem 0", fontSize: "1rem", fontFamily: "'Space Mono', monospace", outline: "none", color: "#000000" }}
                 />
               </div>
               <div style={{ display: "flex", gap: "2rem" }}>
@@ -226,9 +226,9 @@ export default function CollectionDetailPage() {
           {topologies.length > 0 && (
             <div>
               <span style={{ ...labelStyle, opacity: 0.5, display: "block", marginBottom: "1rem" }}>TOPOLOGIES IN COLLECTION</span>
-              <div style={{ border: "1px solid #121212" }}>
+              <div style={{ border: "1px solid #000000" }}>
                 {/* Header row */}
-                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr auto", borderBottom: "1px solid #121212", backgroundColor: "rgba(18,18,18,0.03)" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr auto", borderBottom: "1px solid #000000", backgroundColor: "rgba(0,0,0,0.03)" }}>
                   <div style={{ padding: "0.75rem 1.2rem", ...labelStyle }}>NAME</div>
                   <div style={{ padding: "0.75rem 1.2rem", ...labelStyle }}>UPDATED</div>
                   <div style={{ padding: "0.75rem 1.2rem", ...labelStyle, width: "60px" }}></div>
@@ -240,11 +240,11 @@ export default function CollectionDetailPage() {
                     style={{
                       display: "grid",
                       gridTemplateColumns: "2fr 1fr auto",
-                      borderBottom: "1px solid rgba(18,18,18,0.1)",
+                      borderBottom: "1px solid rgba(0,0,0,0.1)",
                       cursor: "pointer",
                       transition: "background 0.15s",
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = "#fff"; }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.05)"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                   >
                     <div style={{ padding: "0.75rem 1.2rem", fontWeight: 500 }}>{t.name}</div>
@@ -262,8 +262,8 @@ export default function CollectionDetailPage() {
 
       {/* Add member modal */}
       {showAddMember && (
-        <div onClick={() => setShowAddMember(false)} style={{ position: "fixed", inset: 0, backgroundColor: "rgba(18,18,18,0.6)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "#F3EFE7", border: "1px solid #121212", padding: "2.5rem", maxWidth: "480px", width: "90%" }}>
+        <div onClick={() => setShowAddMember(false)} style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "#79f673", border: "1px solid #000000", padding: "2.5rem", maxWidth: "480px", width: "90%" }}>
             <span style={{ ...labelStyle, opacity: 0.5 }}>LABBED -- MEMBERS</span>
             <h2 style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 200, fontSize: "1.8rem", margin: "1rem 0 1.5rem" }}>Add Member</h2>
             <div style={{ marginBottom: "1.5rem" }}>
@@ -272,7 +272,7 @@ export default function CollectionDetailPage() {
                 value={memberUserId}
                 onChange={(e) => setMemberUserId(e.target.value)}
                 placeholder="user-uuid-here"
-                style={{ width: "100%", background: "transparent", border: "none", borderBottom: "1px solid #121212", padding: "0.5rem 0", fontSize: "1rem", fontFamily: "'Space Mono', monospace", outline: "none", color: "#121212" }}
+                style={{ width: "100%", background: "transparent", border: "none", borderBottom: "1px solid #000000", padding: "0.5rem 0", fontSize: "1rem", fontFamily: "'Space Mono', monospace", outline: "none", color: "#000000" }}
               />
             </div>
             <div style={{ marginBottom: "1.5rem" }}>
@@ -280,7 +280,7 @@ export default function CollectionDetailPage() {
               <select
                 value={memberRole}
                 onChange={(e) => setMemberRole(e.target.value as typeof memberRole)}
-                style={{ width: "100%", background: "transparent", border: "none", borderBottom: "1px solid #121212", padding: "0.5rem 0", fontSize: "1rem", fontFamily: "'Manrope', sans-serif", outline: "none", color: "#121212" }}
+                style={{ width: "100%", background: "transparent", border: "none", borderBottom: "1px solid #000000", padding: "0.5rem 0", fontSize: "1rem", fontFamily: "'Manrope', sans-serif", outline: "none", color: "#000000" }}
               >
                 <option value="viewer">VIEWER</option>
                 <option value="deployer">DEPLOYER</option>

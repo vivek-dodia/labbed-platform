@@ -1,10 +1,24 @@
 "use client";
 
-import { useMemo, useRef, useState, useEffect } from "react";
+import { useMemo, useCallback, useState } from "react";
 import {
-  parseContainerlabYAML,
-  type ParsedNode,
-} from "@/lib/yaml-parser";
+  ReactFlow,
+  Background,
+  type Node,
+  type Edge,
+  type NodeTypes,
+  type EdgeTypes,
+  Handle,
+  Position,
+  BackgroundVariant,
+  ReactFlowProvider,
+  useNodesState,
+  useEdgesState,
+  getStraightPath,
+  type EdgeProps,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import { parseContainerlabYAML } from "@/lib/yaml-parser";
 
 interface Props {
   definition: string;
@@ -13,205 +27,310 @@ interface Props {
   nodeStates?: Record<string, string>;
 }
 
-const NODE_W = 130;
-const NODE_H = 44;
-const PAD = 40;
+const NODE_W = 140;
+const NODE_H = 48;
 
-// auto-layout: arrange nodes in a circle within a coordinate space
-function layoutNodes(nodes: ParsedNode[], width: number, height: number) {
-  const cx = width / 2;
-  const cy = height / 2;
-  const rx = (width - PAD * 2 - NODE_W) / 2;
-  const ry = (height - PAD * 2 - NODE_H) / 2;
-  const r = Math.min(rx, ry);
+/* ── Node tier classification ── */
+const ROUTER_PATTERNS = [/^r\d/i, /router/i, /spine/i, /core/i, /border/i, /gateway/i, /gw/i];
+const ROUTER_IMAGES = ["frr", "frrouting", "srl", "ceos", "xrd", "vyos", "bird", "quagga", "gobgp"];
 
-  return nodes.map((node, i) => {
-    const angle = (2 * Math.PI * i) / nodes.length - Math.PI / 2;
-    return {
-      ...node,
-      x: cx + r * Math.cos(angle),
-      y: cy + r * Math.sin(angle),
-    };
+function isRouterNode(name: string, kind: string, image: string): boolean {
+  if (ROUTER_PATTERNS.some((p) => p.test(name))) return true;
+  if (kind === "router" || kind === "srl" || kind === "ceos" || kind === "vr-sros") return true;
+  const imgLower = image.toLowerCase();
+  if (ROUTER_IMAGES.some((r) => imgLower.includes(r))) return true;
+  return false;
+}
+
+/* ── Tiered auto-layout ──
+ * Routers on top row, other nodes on bottom row.
+ * Each row is centered horizontally.
+ */
+const H_GAP = 60;
+const V_GAP = 120;
+
+function getLayoutedPositions(
+  nodes: { id: string; kind: string; image: string }[],
+): Record<string, { x: number; y: number }> {
+  const routers: typeof nodes = [];
+  const others: typeof nodes = [];
+
+  nodes.forEach((n) => {
+    if (isRouterNode(n.id, n.kind, n.image)) routers.push(n);
+    else others.push(n);
   });
-}
 
-function stateColor(state?: string) {
-  switch (state) {
-    case "running":
-      return "var(--status-live)";
-    case "exited":
-    case "failed":
-      return "var(--status-fail)";
-    case "starting":
-      return "var(--status-pending)";
-    default:
-      return "#0A0A0A";
+  const positions: Record<string, { x: number; y: number }> = {};
+
+  // Layout a row centered at y, returns total width
+  function layoutRow(row: typeof nodes, y: number) {
+    const totalW = row.length * NODE_W + (row.length - 1) * H_GAP;
+    const startX = -totalW / 2;
+    row.forEach((n, i) => {
+      positions[n.id] = { x: startX + i * (NODE_W + H_GAP), y };
+    });
   }
+
+  layoutRow(routers, 0);
+  layoutRow(others, NODE_H + V_GAP);
+
+  return positions;
 }
 
-export default function TopologyCanvas({
-  definition,
-  selectedNode,
-  onSelectNode,
-  nodeStates,
-}: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState({ w: 800, h: 500 });
+/* ── Custom edge with hover labels ── */
+function HoverEdge({
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  data,
+  style,
+}: EdgeProps) {
+  const [hovered, setHovered] = useState(false);
+  const [edgePath, labelX, labelY] = getStraightPath({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+  });
 
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const update = () => {
-      setSize({ w: el.clientWidth || 800, h: el.clientHeight || 500 });
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  const topo = useMemo(() => parseContainerlabYAML(definition), [definition]);
-  const laidOut = useMemo(
-    () => layoutNodes(topo.nodes, size.w, size.h),
-    [topo.nodes, size.w, size.h]
-  );
-  const nodeMap = useMemo(() => {
-    const m = new Map<string, { x: number; y: number }>();
-    laidOut.forEach((n) => m.set(n.name, { x: n.x, y: n.y }));
-    return m;
-  }, [laidOut]);
+  const sourceLabel = (data as { sourceIface?: string })?.sourceIface || "";
+  const targetLabel = (data as { targetIface?: string })?.targetIface || "";
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        position: "relative",
-        width: "100%",
-        height: "100%",
-        minHeight: 400,
-        background: "#fff",
-        overflow: "hidden",
-      }}
+    <g
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
-      {/* dot grid */}
+      <path
+        d={edgePath}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={20}
+        style={{ cursor: "default" }}
+      />
+      <path
+        d={edgePath}
+        fill="none"
+        stroke={(style?.stroke as string) || "rgba(0,0,0,0.25)"}
+        strokeWidth={(style?.strokeWidth as number) || 1.5}
+      />
+      {hovered && sourceLabel && targetLabel && (
+        <foreignObject
+          x={labelX - 70}
+          y={labelY - 14}
+          width={140}
+          height={28}
+          style={{ overflow: "visible", pointerEvents: "none" }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              background: "#000",
+              color: "#79f673",
+              fontSize: "9px",
+              fontFamily: "'Space Mono', monospace",
+              padding: "3px 8px",
+              whiteSpace: "nowrap",
+              width: "fit-content",
+              margin: "0 auto",
+              boxShadow: "2px 2px 0 rgba(0,0,0,0.15)",
+            }}
+          >
+            {sourceLabel} ↔ {targetLabel}
+          </div>
+        </foreignObject>
+      )}
+    </g>
+  );
+}
+
+/* ── Custom node ── */
+function TopoNode({ data }: { data: { label: string; kind: string; image: string; selected: boolean; state: string } }) {
+  const sel = data.selected;
+  const faded = data.state === "exited" || data.state === "failed";
+
+  return (
+    <>
+      <Handle type="target" position={Position.Top} id="tt" style={{ background: "#000", width: 6, height: 6, border: "none" }} />
+      <Handle type="source" position={Position.Top} id="ts" style={{ background: "#000", width: 6, height: 6, border: "none" }} />
+      <Handle type="target" position={Position.Left} id="lt" style={{ background: "#000", width: 6, height: 6, border: "none" }} />
+      <Handle type="source" position={Position.Left} id="ls" style={{ background: "#000", width: 6, height: 6, border: "none" }} />
+      <Handle type="target" position={Position.Right} id="rt" style={{ background: "#000", width: 6, height: 6, border: "none" }} />
+      <Handle type="source" position={Position.Right} id="rs" style={{ background: "#000", width: 6, height: 6, border: "none" }} />
       <div
         style={{
-          position: "absolute",
-          inset: 0,
-          backgroundImage: `
-            linear-gradient(to right, rgba(10,10,10,0.05) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(10,10,10,0.05) 1px, transparent 1px)
-          `,
-          backgroundSize: "30px 30px",
-        }}
-      />
-
-      {/* SVG layer: links + nodes in same coordinate space */}
-      <svg
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          zIndex: 1,
+          width: NODE_W,
+          height: NODE_H,
+          background: sel ? "#000" : "#79f673",
+          border: sel ? "2px solid #000" : faded ? "1px dashed rgba(0,0,0,0.3)" : "1.5px solid #000",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "grab",
+          opacity: faded ? 0.5 : 1,
+          boxShadow: sel ? "3px 3px 0 rgba(0,0,0,0.15)" : "2px 2px 0 rgba(0,0,0,0.08)",
         }}
       >
-        {/* links */}
-        {topo.links.map((link, i) => {
-          const a = nodeMap.get(link.a.node);
-          const b = nodeMap.get(link.b.node);
-          if (!a || !b) return null;
-          return (
-            <line
-              key={`link-${i}`}
-              x1={a.x}
-              y1={a.y}
-              x2={b.x}
-              y2={b.y}
-              stroke="#0A0A0A"
-              strokeWidth="1"
-              strokeDasharray="6"
-            />
-          );
-        })}
+        <div style={{
+          fontSize: "12px",
+          fontWeight: 700,
+          textTransform: "uppercase",
+          fontFamily: "'Manrope', sans-serif",
+          color: sel ? "#79f673" : "#000",
+          letterSpacing: "0.04em",
+        }}>
+          {data.label}
+        </div>
+        <div style={{
+          fontSize: "9px",
+          fontFamily: "'Space Mono', monospace",
+          color: sel ? "rgba(121,246,115,0.5)" : "rgba(0,0,0,0.4)",
+          marginTop: 2,
+        }}>
+          {data.kind} · {data.image}
+        </div>
+      </div>
+      <Handle type="source" position={Position.Bottom} id="bs" style={{ background: "#000", width: 6, height: 6, border: "none" }} />
+      <Handle type="target" position={Position.Bottom} id="bt" style={{ background: "#000", width: 6, height: 6, border: "none" }} />
+    </>
+  );
+}
 
-        {/* nodes */}
-        {laidOut.map((node) => {
-          const selected = selectedNode === node.name;
-          const state = nodeStates?.[node.name];
-          const borderColor = state ? stateColor(state) : "#0A0A0A";
-          const halfW = NODE_W / 2;
-          const halfH = NODE_H / 2;
+const nodeTypes: NodeTypes = { topo: TopoNode };
+const edgeTypes: EdgeTypes = { hover: HoverEdge };
 
-          return (
-            <g
-              key={node.name}
-              onClick={() => onSelectNode?.(node.name)}
-              style={{ cursor: "pointer" }}
-            >
-              {/* shadow */}
-              <rect
-                x={node.x - halfW + 2}
-                y={node.y - halfH + 2}
-                width={NODE_W}
-                height={NODE_H}
-                fill="rgba(10,10,10,0.1)"
-                rx={0}
-              />
-              {/* box */}
-              <rect
-                x={node.x - halfW}
-                y={node.y - halfH}
-                width={NODE_W}
-                height={NODE_H}
-                fill="#F2F2F2"
-                stroke={borderColor}
-                strokeWidth={selected ? 2 : 1}
-                rx={0}
-              />
-              {/* selection outline */}
-              {selected && (
-                <rect
-                  x={node.x - halfW - 3}
-                  y={node.y - halfH - 3}
-                  width={NODE_W + 6}
-                  height={NODE_H + 6}
-                  fill="none"
-                  stroke={borderColor}
-                  strokeWidth={1}
-                  strokeDasharray="4"
-                  rx={0}
-                />
-              )}
-              {/* name */}
-              <text
-                x={node.x}
-                y={node.y - 4}
-                textAnchor="middle"
-                fill="#0A0A0A"
-                fontSize="11"
-                fontWeight="700"
-                fontFamily="'Helvetica Neue', Helvetica, Arial, sans-serif"
-                style={{ textTransform: "uppercase" } as React.CSSProperties}
-              >
-                {node.name}
-              </text>
-              {/* meta */}
-              <text
-                x={node.x}
-                y={node.y + 12}
-                textAnchor="middle"
-                fill="#0A0A0A"
-                fontSize="9"
-                opacity={0.5}
-                fontFamily="'Courier New', monospace"
-              >
-                {node.kind} • {node.image.split(":")[0].split("/").pop()}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-    </div>
+/* ── Inner component ── */
+function TopologyCanvasInner({ definition, selectedNode, onSelectNode, nodeStates }: Props) {
+  const initial = useMemo(() => {
+    const topo = parseContainerlabYAML(definition);
+
+    const edgeData = topo.links.map((l, i) => ({
+      id: `e-${i}`,
+      source: l.a.node,
+      target: l.b.node,
+      sourceIface: l.a.iface,
+      targetIface: l.b.iface,
+    }));
+
+    const positions = getLayoutedPositions(
+      topo.nodes.map((n) => ({ id: n.name, kind: n.kind, image: n.image })),
+    );
+
+    const rfNodes: Node[] = topo.nodes.map((n) => ({
+      id: n.name,
+      type: "topo",
+      position: positions[n.name] || { x: 0, y: 0 },
+      data: {
+        label: n.name,
+        kind: n.kind,
+        image: n.image.split(":")[0].split("/").pop() || "",
+        selected: n.name === selectedNode,
+        state: nodeStates?.[n.name] || "",
+      },
+    }));
+
+    // Assign handles based on relative node positions
+    const rfEdges: Edge[] = edgeData.map((e) => {
+      const sPos = positions[e.source] || { x: 0, y: 0 };
+      const tPos = positions[e.target] || { x: 0, y: 0 };
+      const dx = tPos.x - sPos.x;
+      const dy = tPos.y - sPos.y;
+
+      let sourceHandle: string;
+      let targetHandle: string;
+
+      if (Math.abs(dy) > Math.abs(dx)) {
+        // Vertical: source below target or above
+        if (dy > 0) {
+          sourceHandle = "bs"; targetHandle = "tt";
+        } else {
+          sourceHandle = "ts"; targetHandle = "bt";
+        }
+      } else {
+        // Horizontal
+        if (dx > 0) {
+          sourceHandle = "rs"; targetHandle = "lt";
+        } else {
+          sourceHandle = "ls"; targetHandle = "rt";
+        }
+      }
+
+      return {
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        sourceHandle,
+        targetHandle,
+        type: "hover",
+        data: {
+          sourceIface: e.sourceIface,
+          targetIface: e.targetIface,
+        },
+        style: { stroke: "rgba(0,0,0,0.25)", strokeWidth: 1.5 },
+      };
+    });
+
+    return { nodes: rfNodes, edges: rfEdges };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [definition]);
+
+  const [nodes, , onNodesChange] = useNodesState(initial.nodes);
+  const [edges] = useEdgesState(initial.edges);
+
+  const styledNodes = useMemo(
+    () => nodes.map((n) => ({
+      ...n,
+      data: {
+        ...n.data,
+        selected: n.id === selectedNode,
+        state: nodeStates?.[n.id] || "",
+      },
+    })),
+    [nodes, selectedNode, nodeStates],
+  );
+
+  const onNodeClick = useCallback(
+    (_: React.MouseEvent, node: Node) => onSelectNode?.(node.id),
+    [onSelectNode],
+  );
+
+  const onPaneClick = useCallback(
+    () => onSelectNode?.(""),
+    [onSelectNode],
+  );
+
+  return (
+    <ReactFlow
+      nodes={styledNodes}
+      edges={edges}
+      nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
+      onNodesChange={onNodesChange}
+      onNodeClick={onNodeClick}
+      onPaneClick={onPaneClick}
+      fitView
+      fitViewOptions={{ padding: 0.2 }}
+      proOptions={{ hideAttribution: true }}
+      nodesConnectable={false}
+      panOnDrag
+      zoomOnScroll
+      minZoom={0.3}
+      maxZoom={2}
+      style={{ background: "#79f673" }}
+    >
+      <Background variant={BackgroundVariant.Dots} gap={20} size={0.8} color="rgba(0,0,0,0.06)" />
+    </ReactFlow>
+  );
+}
+
+export default function TopologyCanvas(props: Props) {
+  return (
+    <ReactFlowProvider>
+      <TopologyCanvasInner {...props} />
+    </ReactFlowProvider>
   );
 }

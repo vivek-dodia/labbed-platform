@@ -39,7 +39,7 @@ function GoogleCallbackInner() {
           fontWeight: 700,
           letterSpacing: "0.05em",
           fontFamily: "'Manrope', sans-serif",
-          color: "#ED6A4A",
+          color: "#000000",
           marginBottom: "1rem",
         }}>
           {error}
@@ -52,7 +52,7 @@ function GoogleCallbackInner() {
             fontWeight: 700,
             letterSpacing: "0.05em",
             fontFamily: "'Manrope', sans-serif",
-            color: "#121212",
+            color: "#000000",
             textDecoration: "underline",
           }}
         >
@@ -70,7 +70,7 @@ function GoogleCallbackInner() {
       letterSpacing: "0.05em",
       fontFamily: "'Manrope', sans-serif",
       opacity: 0.4,
-      color: "#121212",
+      color: "#000000",
     }}>
       AUTHENTICATING WITH GOOGLE...
     </p>
@@ -81,8 +81,8 @@ export default function GoogleCallbackPage() {
   return (
     <div
       style={{
-        backgroundColor: "#F3EFE7",
-        color: "#121212",
+        backgroundColor: "#79f673",
+        color: "#000000",
         minHeight: "100vh",
         display: "flex",
         alignItems: "center",
@@ -99,7 +99,7 @@ export default function GoogleCallbackPage() {
             letterSpacing: "0.05em",
             fontFamily: "'Manrope', sans-serif",
             opacity: 0.4,
-            color: "#121212",
+            color: "#000000",
           }}>
             LOADING...
           </p>

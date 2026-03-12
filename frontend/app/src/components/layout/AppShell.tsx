@@ -37,7 +37,7 @@ function MenuDrawer({
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(18,18,18,0.6)",
+            background: "rgba(0,0,0,0.6)",
             zIndex: 200,
           }}
         />
@@ -51,8 +51,8 @@ function MenuDrawer({
           left: 0,
           bottom: 0,
           width: 320,
-          background: "#F3EFE7",
-          borderRight: "1px solid #121212",
+          background: "#79f673",
+          borderRight: "1px solid #000000",
           zIndex: 201,
           transform: isOpen ? "translateX(0)" : "translateX(-100%)",
           transition: "transform 0.25s ease",
@@ -69,7 +69,7 @@ function MenuDrawer({
             border: "none",
             fontSize: "1.25rem",
             cursor: "pointer",
-            color: "#121212",
+            color: "#000000",
             marginBottom: "2rem",
             fontFamily: "Manrope, sans-serif",
           }}
@@ -86,9 +86,9 @@ function MenuDrawer({
               style={{
                 display: "block",
                 padding: "1rem 0",
-                borderBottom: "1px solid #121212",
+                borderBottom: "1px solid #000000",
                 textDecoration: "none",
-                color: "#121212",
+                color: "#000000",
                 fontSize: "0.75rem",
                 fontWeight: 700,
                 letterSpacing: "0.05em",
@@ -119,8 +119,8 @@ export default function AppShell({ children, navItems = [], activeNav }: AppShel
       style={{
         display: "flex",
         minHeight: "100vh",
-        background: "#F3EFE7",
-        color: "#121212",
+        background: "#79f673",
+        color: "#000000",
         fontFamily: "Manrope, sans-serif",
       }}
     >
@@ -131,7 +131,7 @@ export default function AppShell({ children, navItems = [], activeNav }: AppShel
         style={{
           width: 48,
           minWidth: 48,
-          borderRight: "1px solid #121212",
+          borderRight: "1px solid #000000",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -152,15 +152,15 @@ export default function AppShell({ children, navItems = [], activeNav }: AppShel
             gap: 4,
             background: "none",
             border: "none",
-            borderBottom: "1px solid #121212",
+            borderBottom: "1px solid #000000",
             cursor: "pointer",
             padding: 0,
           }}
           aria-label="Open menu"
         >
-          <span style={{ display: "block", width: 24, height: 1, background: "#121212" }} />
-          <span style={{ display: "block", width: 24, height: 1, background: "#121212" }} />
-          <span style={{ display: "block", width: 24, height: 1, background: "#121212" }} />
+          <span style={{ display: "block", width: 24, height: 1, background: "#000000" }} />
+          <span style={{ display: "block", width: 24, height: 1, background: "#000000" }} />
+          <span style={{ display: "block", width: 24, height: 1, background: "#000000" }} />
         </button>
 
         {/* Vertical labels */}
@@ -202,7 +202,7 @@ export default function AppShell({ children, navItems = [], activeNav }: AppShel
           style={{
             height: 48,
             minHeight: 48,
-            borderBottom: "1px solid #121212",
+            borderBottom: "1px solid #000000",
             display: "flex",
             alignItems: "stretch",
           }}
@@ -216,9 +216,9 @@ export default function AppShell({ children, navItems = [], activeNav }: AppShel
                 display: "flex",
                 alignItems: "center",
                 padding: "0 1.5rem",
-                borderRight: "1px solid #121212",
+                borderRight: "1px solid #000000",
                 textDecoration: "none",
-                color: "#121212",
+                color: "#000000",
                 fontWeight: 800,
                 fontSize: "0.75rem",
                 letterSpacing: "0.05em",
@@ -241,10 +241,10 @@ export default function AppShell({ children, navItems = [], activeNav }: AppShel
                     alignItems: "center",
                     padding: "0 1.5rem",
                     height: "100%",
-                    borderRight: "1px solid #121212",
+                    borderRight: "1px solid #000000",
                     textDecoration: "none",
-                    color: isActive ? "#F3EFE7" : "#121212",
-                    background: isActive ? "#121212" : "transparent",
+                    color: isActive ? "#79f673" : "#000000",
+                    background: isActive ? "#000000" : "transparent",
                     fontSize: "0.75rem",
                     fontWeight: 700,
                     letterSpacing: "0.05em",
@@ -254,14 +254,14 @@ export default function AppShell({ children, navItems = [], activeNav }: AppShel
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive) {
-                      e.currentTarget.style.background = "#121212";
-                      e.currentTarget.style.color = "#F3EFE7";
+                      e.currentTarget.style.background = "#000000";
+                      e.currentTarget.style.color = "#79f673";
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isActive) {
                       e.currentTarget.style.background = "transparent";
-                      e.currentTarget.style.color = "#121212";
+                      e.currentTarget.style.color = "#000000";
                     }
                   }}
                 >
@@ -294,14 +294,14 @@ export default function AppShell({ children, navItems = [], activeNav }: AppShel
                     height: "100%",
                     background: "none",
                     border: "none",
-                    borderLeft: "1px solid #121212",
+                    borderLeft: "1px solid #000000",
                     cursor: "pointer",
                     fontSize: "0.75rem",
                     fontWeight: 700,
                     letterSpacing: "0.05em",
                     textTransform: "uppercase",
                     fontFamily: "Manrope, sans-serif",
-                    color: "#121212",
+                    color: "#000000",
                   }}
                 >
                   {activeOrg?.name || "ORG"}
@@ -316,8 +316,8 @@ export default function AppShell({ children, navItems = [], activeNav }: AppShel
                       position: "absolute",
                       top: "100%",
                       right: 0,
-                      background: "#F3EFE7",
-                      border: "1px solid #121212",
+                      background: "#79f673",
+                      border: "1px solid #000000",
                       zIndex: 50,
                       minWidth: 180,
                     }}
@@ -334,11 +334,11 @@ export default function AppShell({ children, navItems = [], activeNav }: AppShel
                           width: "100%",
                           padding: "0.75rem 1.5rem",
                           border: "none",
-                          borderBottom: "1px solid #121212",
+                          borderBottom: "1px solid #000000",
                           background:
-                            activeOrg?.uuid === org.uuid ? "#121212" : "transparent",
+                            activeOrg?.uuid === org.uuid ? "#000000" : "transparent",
                           color:
-                            activeOrg?.uuid === org.uuid ? "#F3EFE7" : "#121212",
+                            activeOrg?.uuid === org.uuid ? "#79f673" : "#000000",
                           fontSize: "0.75rem",
                           fontWeight: 700,
                           letterSpacing: "0.05em",
@@ -363,7 +363,7 @@ export default function AppShell({ children, navItems = [], activeNav }: AppShel
                   display: "flex",
                   alignItems: "center",
                   padding: "0 1.5rem",
-                  borderLeft: "1px solid #121212",
+                  borderLeft: "1px solid #000000",
                   fontSize: "0.75rem",
                   fontWeight: 700,
                   letterSpacing: "0.05em",
@@ -385,23 +385,23 @@ export default function AppShell({ children, navItems = [], activeNav }: AppShel
                 height: "100%",
                 background: "none",
                 border: "none",
-                borderLeft: "1px solid #121212",
+                borderLeft: "1px solid #000000",
                 cursor: "pointer",
                 fontSize: "0.75rem",
                 fontWeight: 700,
                 letterSpacing: "0.05em",
                 textTransform: "uppercase",
                 fontFamily: "Manrope, sans-serif",
-                color: "#121212",
+                color: "#000000",
                 transition: "background 0.15s, color 0.15s",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#121212";
-                e.currentTarget.style.color = "#F3EFE7";
+                e.currentTarget.style.background = "#000000";
+                e.currentTarget.style.color = "#79f673";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = "#121212";
+                e.currentTarget.style.color = "#000000";
               }}
             >
               LOGOUT

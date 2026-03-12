@@ -10,12 +10,12 @@ type Mode = "login" | "signup";
 
 /* ── Design tokens ─────────────────────────────────────────── */
 const T = {
-  bg: "#F3EFE7",
-  ink: "#121212",
-  orange: "#ED6A4A",
-  blue: "#A2C2ED",
-  yellow: "#E4CB6A",
-  pink: "#EAA8C6",
+  bg: "#79f673",
+  ink: "#000000",
+  orange: "#000000",
+  blue: "#000000",
+  yellow: "#000000",
+  pink: "#000000",
 } as const;
 
 /* ── Animated network nodes (right panel) ──────────────────── */
@@ -37,7 +37,7 @@ const nodePositions = [
   ],
 ];
 
-const nodeColors = [T.blue, T.yellow, T.pink];
+const nodeColors = ["rgba(0,0,0,0.7)", "rgba(0,0,0,0.5)", "rgba(0,0,0,0.85)"];
 
 const nodeData = [
   { label: "CORE-SW-01", meta: "VLAN 10.10.1.1" },
@@ -131,7 +131,7 @@ function VisualPanel() {
     <section
       ref={panelRef}
       style={{
-        background: "#fff",
+        background: "rgba(0,0,0,0.03)",
         position: "relative",
         overflow: "hidden",
         display: "flex",
@@ -146,7 +146,7 @@ function VisualPanel() {
           position: "absolute",
           inset: 0,
           backgroundImage:
-            "linear-gradient(to right, rgba(18,18,18,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(18,18,18,0.05) 1px, transparent 1px)",
+            "linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px)",
           backgroundSize: "40px 40px",
         }}
       />
@@ -165,7 +165,7 @@ function VisualPanel() {
       >
         <style>{`
           .ed2-path {
-            stroke: #121212;
+            stroke: #000000;
             stroke-width: 1.5;
             fill: none;
             stroke-dasharray: 6;
@@ -191,7 +191,7 @@ function VisualPanel() {
             display: "flex",
             flexDirection: "column",
             gap: "0.2rem",
-            boxShadow: "6px 6px 0 rgba(18,18,18,0.1)",
+            boxShadow: "6px 6px 0 rgba(0,0,0,0.1)",
             transition:
               "top 1s cubic-bezier(0.4, 0, 0.2, 1), left 1s cubic-bezier(0.4, 0, 0.2, 1)",
             top: positions[i].top,
@@ -204,6 +204,7 @@ function VisualPanel() {
               fontWeight: 800,
               letterSpacing: "0.05em",
               fontFamily: "'Manrope', -apple-system, sans-serif",
+              color: "#ffffff",
             }}
           >
             {node.label}
@@ -213,6 +214,7 @@ function VisualPanel() {
               fontFamily: "'Space Mono', monospace",
               fontSize: "0.65rem",
               opacity: 0.7,
+              color: "#ffffff",
             }}
           >
             {node.meta}
@@ -348,7 +350,7 @@ export default function LoginPage() {
     width: "100%",
     padding: "1rem",
     border: `1px solid ${T.ink}`,
-    background: focused ? "#fff" : "transparent",
+    background: focused ? "rgba(0,0,0,0.05)" : "transparent",
     fontFamily: "'Space Mono', monospace",
     fontSize: "0.9rem",
     outline: "none",
@@ -676,7 +678,7 @@ export default function LoginPage() {
                 justifyContent: "center",
                 gap: "0.5rem",
                 transition: "all 0.2s",
-                background: googleHover ? "#fff" : "transparent",
+                background: googleHover ? "rgba(0,0,0,0.08)" : "transparent",
                 color: T.ink,
                 opacity: authConfig?.enableGoogle ? 1 : 0.4,
                 borderRadius: 0,

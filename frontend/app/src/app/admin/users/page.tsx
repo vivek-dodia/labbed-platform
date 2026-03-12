@@ -59,9 +59,9 @@ export default function UsersPage() {
   const pillBtn = (variant?: "default" | "filled" | "orange"): React.CSSProperties => ({
     padding: "0.5rem 1.2rem",
     borderRadius: "99px",
-    border: "1px solid #121212",
-    background: variant === "filled" ? "#121212" : variant === "orange" ? "#ED6A4A" : "transparent",
-    color: variant === "filled" ? "#F3EFE7" : "#121212",
+    border: "1px solid #000000",
+    background: variant === "filled" ? "#000000" : variant === "orange" ? "#000000" : "transparent",
+    color: variant === "filled" || variant === "orange" ? "#79f673" : "#000000",
     fontSize: "0.7rem",
     fontWeight: 700,
     textTransform: "uppercase",
@@ -75,37 +75,37 @@ export default function UsersPage() {
     padding: "0 1.5rem",
     display: "flex",
     alignItems: "center",
-    borderRight: "1px solid #121212",
+    borderRight: "1px solid #000000",
     fontSize: "0.75rem",
     textTransform: "uppercase",
     letterSpacing: "0.05em",
     fontWeight: 700,
     cursor: "pointer",
     textDecoration: "none",
-    color: "#121212",
+    color: "#000000",
     height: "100%",
     transition: "background 0.15s, color 0.15s",
     fontFamily: "'Manrope', sans-serif",
   };
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#F3EFE7", color: "#121212", fontFamily: "'Manrope', sans-serif" }}>
+    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#79f673", color: "#000000", fontFamily: "'Manrope', sans-serif" }}>
       {/* Sidebar */}
       <aside style={{
         width: "48px",
-        borderRight: "1px solid #121212",
+        borderRight: "1px solid #000000",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         padding: "1rem 0",
         flexShrink: 0,
-        backgroundColor: "#F3EFE7",
+        backgroundColor: "#79f673",
         zIndex: 10,
       }}>
         <div style={{ width: "24px", height: "20px", display: "flex", flexDirection: "column", justifyContent: "space-between", marginBottom: "2rem", cursor: "pointer" }}>
-          <span style={{ display: "block", height: "1px", backgroundColor: "#121212", width: "100%" }} />
-          <span style={{ display: "block", height: "1px", backgroundColor: "#121212", width: "100%" }} />
-          <span style={{ display: "block", height: "1px", backgroundColor: "#121212", width: "100%" }} />
+          <span style={{ display: "block", height: "1px", backgroundColor: "#000000", width: "100%" }} />
+          <span style={{ display: "block", height: "1px", backgroundColor: "#000000", width: "100%" }} />
+          <span style={{ display: "block", height: "1px", backgroundColor: "#000000", width: "100%" }} />
         </div>
         <div style={{ writingMode: "vertical-rl", transform: "scale(-1)", fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", gap: "1rem", display: "flex", marginTop: "auto", marginBottom: "2rem" }}>
           <span style={{ opacity: 0.5 }}>SYS</span>
@@ -116,15 +116,15 @@ export default function UsersPage() {
       {/* Main */}
       <div style={{ flexGrow: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         {/* Top Nav */}
-        <nav style={{ height: "48px", borderBottom: "1px solid #121212", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <nav style={{ height: "48px", borderBottom: "1px solid #000000", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", height: "100%" }}>
             <Link href="/" style={{ ...navItemStyle, fontWeight: 800, fontSize: "0.85rem" }}>LABBED</Link>
             <Link href="/" style={navItemStyle}>Dashboard</Link>
             <Link href="/admin/workers" style={navItemStyle}>Workers</Link>
           </div>
           <div style={{ display: "flex", height: "100%" }}>
-            <span style={{ ...navItemStyle, borderLeft: "1px solid #121212" }}>{user?.displayName || ""}</span>
-            <button onClick={() => logout?.()} style={{ ...navItemStyle, background: "none", border: "none", borderLeft: "1px solid #121212" }}>Logout</button>
+            <span style={{ ...navItemStyle, borderLeft: "1px solid #000000" }}>{user?.displayName || ""}</span>
+            <button onClick={() => logout?.()} style={{ ...navItemStyle, background: "none", border: "none", borderLeft: "1px solid #000000" }}>Logout</button>
           </div>
         </nav>
 
@@ -151,13 +151,13 @@ export default function UsersPage() {
               <span style={{ ...labelStyle, opacity: 0.4 }}>LOADING...</span>
             </div>
           ) : (
-            <div style={{ border: "1px solid #121212" }}>
+            <div style={{ border: "1px solid #000000" }}>
               {/* Header row */}
               <div style={{
                 display: "grid",
                 gridTemplateColumns: "2fr 1.5fr 0.8fr 1fr 0.4fr",
-                borderBottom: "1px solid #121212",
-                backgroundColor: "rgba(18,18,18,0.03)",
+                borderBottom: "1px solid #000000",
+                backgroundColor: "rgba(0,0,0,0.03)",
               }}>
                 {["EMAIL", "DISPLAY NAME", "ROLE", "CREATED", ""].map((h) => (
                   <div key={h} style={{ padding: "0.75rem 1.2rem", ...labelStyle }}>{h}</div>
@@ -169,10 +169,10 @@ export default function UsersPage() {
                   style={{
                     display: "grid",
                     gridTemplateColumns: "2fr 1.5fr 0.8fr 1fr 0.4fr",
-                    borderBottom: "1px solid rgba(18,18,18,0.1)",
+                    borderBottom: "1px solid rgba(0,0,0,0.1)",
                     transition: "background 0.15s",
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "#fff"; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.05)"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                 >
                   <div style={{ padding: "0.75rem 1.2rem", fontWeight: 500, fontSize: "0.9rem" }}>{u.email}</div>
@@ -182,10 +182,10 @@ export default function UsersPage() {
                       ...labelStyle,
                       fontSize: "0.6rem",
                       padding: "2px 8px",
-                      border: "1px solid #121212",
+                      border: "1px solid #000000",
                       borderRadius: "99px",
-                      backgroundColor: u.isAdmin ? "#121212" : "transparent",
-                      color: u.isAdmin ? "#F3EFE7" : "#121212",
+                      backgroundColor: u.isAdmin ? "#000000" : "transparent",
+                      color: u.isAdmin ? "#79f673" : "#000000",
                     }}>
                       {u.isAdmin ? "ADMIN" : "MEMBER"}
                     </span>
@@ -210,26 +210,26 @@ export default function UsersPage() {
 
       {/* Create modal */}
       {showCreate && (
-        <div onClick={() => setShowCreate(false)} style={{ position: "fixed", inset: 0, backgroundColor: "rgba(18,18,18,0.6)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "#F3EFE7", border: "1px solid #121212", padding: "2.5rem", maxWidth: "480px", width: "90%" }}>
+        <div onClick={() => setShowCreate(false)} style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "#79f673", border: "1px solid #000000", padding: "2.5rem", maxWidth: "480px", width: "90%" }}>
             <span style={{ ...labelStyle, opacity: 0.5 }}>LABBED -- ADMIN</span>
             <h2 style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 200, fontSize: "1.8rem", margin: "1rem 0 1.5rem" }}>Create User</h2>
             <div style={{ marginBottom: "1.5rem" }}>
               <label style={{ ...labelStyle, display: "block", marginBottom: "0.4rem" }}>EMAIL</label>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="user@example.com"
-                style={{ width: "100%", background: "transparent", border: "none", borderBottom: "1px solid #121212", padding: "0.5rem 0", fontSize: "1rem", fontFamily: "'Space Mono', monospace", outline: "none", color: "#121212" }}
+                style={{ width: "100%", background: "transparent", border: "none", borderBottom: "1px solid #000000", padding: "0.5rem 0", fontSize: "1rem", fontFamily: "'Space Mono', monospace", outline: "none", color: "#000000" }}
               />
             </div>
             <div style={{ marginBottom: "1.5rem" }}>
               <label style={{ ...labelStyle, display: "block", marginBottom: "0.4rem" }}>PASSWORD</label>
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="min 6 characters"
-                style={{ width: "100%", background: "transparent", border: "none", borderBottom: "1px solid #121212", padding: "0.5rem 0", fontSize: "1rem", fontFamily: "'Space Mono', monospace", outline: "none", color: "#121212" }}
+                style={{ width: "100%", background: "transparent", border: "none", borderBottom: "1px solid #000000", padding: "0.5rem 0", fontSize: "1rem", fontFamily: "'Space Mono', monospace", outline: "none", color: "#000000" }}
               />
             </div>
             <div style={{ marginBottom: "1.5rem" }}>
               <label style={{ ...labelStyle, display: "block", marginBottom: "0.4rem" }}>DISPLAY NAME</label>
               <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Jane Doe"
-                style={{ width: "100%", background: "transparent", border: "none", borderBottom: "1px solid #121212", padding: "0.5rem 0", fontSize: "1rem", fontFamily: "'Space Mono', monospace", outline: "none", color: "#121212" }}
+                style={{ width: "100%", background: "transparent", border: "none", borderBottom: "1px solid #000000", padding: "0.5rem 0", fontSize: "1rem", fontFamily: "'Space Mono', monospace", outline: "none", color: "#000000" }}
               />
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", marginBottom: "1.5rem" }}>

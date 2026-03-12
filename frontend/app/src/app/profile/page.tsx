@@ -59,9 +59,9 @@ export default function ProfilePage() {
   const pillBtn = (filled?: boolean): React.CSSProperties => ({
     padding: "0.5rem 1.2rem",
     borderRadius: "99px",
-    border: "1px solid #121212",
-    background: filled ? "#121212" : "transparent",
-    color: filled ? "#F3EFE7" : "#121212",
+    border: "1px solid #000000",
+    background: filled ? "#000000" : "transparent",
+    color: filled ? "#79f673" : "#000000",
     fontSize: "0.7rem",
     fontWeight: 700,
     textTransform: "uppercase",
@@ -75,14 +75,14 @@ export default function ProfilePage() {
     padding: "0 1.5rem",
     display: "flex",
     alignItems: "center",
-    borderRight: "1px solid #121212",
+    borderRight: "1px solid #000000",
     fontSize: "0.75rem",
     textTransform: "uppercase",
     letterSpacing: "0.05em",
     fontWeight: 700,
     cursor: "pointer",
     textDecoration: "none",
-    color: "#121212",
+    color: "#000000",
     height: "100%",
     transition: "background 0.15s, color 0.15s",
     fontFamily: "'Manrope', sans-serif",
@@ -92,32 +92,32 @@ export default function ProfilePage() {
     width: "100%",
     background: "transparent",
     border: "none",
-    borderBottom: "1px solid #121212",
+    borderBottom: "1px solid #000000",
     padding: "0.5rem 0",
     fontSize: "1rem",
     fontFamily: "'Space Mono', monospace",
     outline: "none",
-    color: "#121212",
+    color: "#000000",
   };
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#F3EFE7", color: "#121212", fontFamily: "'Manrope', sans-serif" }}>
+    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#79f673", color: "#000000", fontFamily: "'Manrope', sans-serif" }}>
       {/* Sidebar */}
       <aside style={{
         width: "48px",
-        borderRight: "1px solid #121212",
+        borderRight: "1px solid #000000",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         padding: "1rem 0",
         flexShrink: 0,
-        backgroundColor: "#F3EFE7",
+        backgroundColor: "#79f673",
         zIndex: 10,
       }}>
         <div style={{ width: "24px", height: "20px", display: "flex", flexDirection: "column", justifyContent: "space-between", marginBottom: "2rem", cursor: "pointer" }}>
-          <span style={{ display: "block", height: "1px", backgroundColor: "#121212", width: "100%" }} />
-          <span style={{ display: "block", height: "1px", backgroundColor: "#121212", width: "100%" }} />
-          <span style={{ display: "block", height: "1px", backgroundColor: "#121212", width: "100%" }} />
+          <span style={{ display: "block", height: "1px", backgroundColor: "#000000", width: "100%" }} />
+          <span style={{ display: "block", height: "1px", backgroundColor: "#000000", width: "100%" }} />
+          <span style={{ display: "block", height: "1px", backgroundColor: "#000000", width: "100%" }} />
         </div>
         <div style={{ writingMode: "vertical-rl", transform: "scale(-1)", fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", gap: "1rem", display: "flex", marginTop: "auto", marginBottom: "2rem" }}>
           <span style={{ opacity: 0.5 }}>USR</span>
@@ -128,15 +128,15 @@ export default function ProfilePage() {
       {/* Main */}
       <div style={{ flexGrow: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         {/* Top Nav */}
-        <nav style={{ height: "48px", borderBottom: "1px solid #121212", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <nav style={{ height: "48px", borderBottom: "1px solid #000000", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", height: "100%" }}>
             <Link href="/" style={{ ...navItemStyle, fontWeight: 800, fontSize: "0.85rem" }}>LABBED</Link>
             <Link href="/" style={navItemStyle}>Dashboard</Link>
             <Link href="/topologies" style={navItemStyle}>Topologies</Link>
           </div>
           <div style={{ display: "flex", height: "100%" }}>
-            <span style={{ ...navItemStyle, borderLeft: "1px solid #121212" }}>{user?.displayName || ""}</span>
-            <button onClick={() => logout?.()} style={{ ...navItemStyle, background: "none", border: "none", borderLeft: "1px solid #121212" }}>Logout</button>
+            <span style={{ ...navItemStyle, borderLeft: "1px solid #000000" }}>{user?.displayName || ""}</span>
+            <button onClick={() => logout?.()} style={{ ...navItemStyle, background: "none", border: "none", borderLeft: "1px solid #000000" }}>Logout</button>
           </div>
         </nav>
 
@@ -164,7 +164,7 @@ export default function ProfilePage() {
                 <input value={user?.email || ""} disabled style={{ ...inputStyle, opacity: 0.4 }} />
               </div>
               {profileMsg && (
-                <p style={{ fontSize: "0.8rem", color: "#A8EAB5", marginBottom: "1rem" }}>{profileMsg}</p>
+                <p style={{ fontSize: "0.8rem", color: "rgba(0,0,0,0.2)", marginBottom: "1rem" }}>{profileMsg}</p>
               )}
               <button onClick={handleUpdateProfile} disabled={saving} style={{ ...pillBtn(true), opacity: saving ? 0.5 : 1 }}>
                 {saving ? "Saving..." : "Update Profile"}
@@ -183,7 +183,7 @@ export default function ProfilePage() {
                 <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={inputStyle} />
               </div>
               {passwordMsg && (
-                <p style={{ fontSize: "0.8rem", color: "#A8EAB5", marginBottom: "1rem" }}>{passwordMsg}</p>
+                <p style={{ fontSize: "0.8rem", color: "rgba(0,0,0,0.2)", marginBottom: "1rem" }}>{passwordMsg}</p>
               )}
               <button onClick={handleChangePassword} style={pillBtn(true)}>Change Password</button>
             </div>

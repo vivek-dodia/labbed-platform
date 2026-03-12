@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	clabcore "github.com/srl-labs/containerlab/core"
@@ -83,6 +84,15 @@ func PrepareTopologyFile(labID, topoYAML string, bindFiles map[string][]byte) (s
 	return topoPath, nil
 }
 
+// GetTopologyFilePath returns the path to the topology file if it exists on disk.
+func GetTopologyFilePath(labID string) string {
+	p := filepath.Join(config.AppConfig.WorkDir, labID, "topology.clab.yml")
+	if _, err := os.Stat(p); err == nil {
+		return p
+	}
+	return ""
+}
+
 // CleanupTopologyFiles removes the lab directory from disk.
 func CleanupTopologyFiles(labID string) {
 	labDir := filepath.Join(config.AppConfig.WorkDir, labID)
@@ -137,9 +147,13 @@ func (s *Service) Exec(ctx context.Context, containerName, command string) (stri
 }
 
 // Deploy deploys a lab using the containerlab library.
+// After clab.Deploy returns (or times out waiting for post-deploy steps),
+// we use Inspect to gather actual container info since Deploy can block
+// on health checks / management IP assignment.
 func (s *Service) Deploy(ctx context.Context, opts DeployOptions) ([]NodeInfo, error) {
-	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
-	defer cancel()
+	deployTimeout := 5 * time.Minute
+	deployCtx, deployCancel := context.WithTimeout(ctx, deployTimeout)
+	defer deployCancel()
 
 	// Change to the topology directory for relative path resolution
 	topoDir := filepath.Dir(opts.TopoPath)
@@ -151,10 +165,10 @@ func (s *Service) Deploy(ctx context.Context, opts DeployOptions) ([]NodeInfo, e
 
 	// Build containerlab options
 	clabOpts := []clabcore.ClabOption{
-		clabcore.WithTimeout(defaultTimeout),
+		clabcore.WithTimeout(deployTimeout),
 		clabcore.WithTopoPath(opts.TopoPath, ""),
 		clabcore.WithRuntime(config.AppConfig.ClabRuntime, &clabruntime.RuntimeConfig{
-			Timeout: defaultTimeout,
+			Timeout: deployTimeout,
 		}),
 	}
 
@@ -175,35 +189,114 @@ func (s *Service) Deploy(ctx context.Context, opts DeployOptions) ([]NodeInfo, e
 	}
 	deployOpts.SetReconfigure(true)
 
-	containers, err := clab.Deploy(ctx, deployOpts)
-	if err != nil {
-		return nil, fmt.Errorf("deployment failed: %w", err)
+	// Run deploy in a goroutine — it can block on post-deploy steps
+	type deployResult struct {
+		err error
+	}
+	ch := make(chan deployResult, 1)
+	go func() {
+		_, deployErr := clab.Deploy(deployCtx, deployOpts)
+		ch <- deployResult{err: deployErr}
+	}()
+
+	// Wait for deploy or a shorter timeout for the container creation phase
+	// Containers are typically created within 1-2 minutes; the blocking happens
+	// in post-deploy (health checks, mgmt IP). We give it the full timeout but
+	// will also check periodically if containers are up.
+	containerWait := 90 * time.Second
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	timer := time.NewTimer(containerWait)
+	defer timer.Stop()
+
+	// Extract lab name from topology for inspect
+	labName := ""
+	if clab.Config != nil && clab.Config.Name != "" {
+		labName = clab.Config.Name
 	}
 
-	// Convert containers to NodeInfo
-	var nodes []NodeInfo
-	for _, c := range containers {
-		nodes = append(nodes, NodeInfo{
-			Name:        c.Names[0],
-			Kind:        c.Labels["clab-node-kind"],
-			Image:       c.Image,
-			ContainerID: c.ID[:12],
-			IPv4:        c.GetContainerIPv4(),
-			IPv6:        c.GetContainerIPv6(),
-			State:       c.State,
-		})
-	}
+	for {
+		select {
+		case result := <-ch:
+			// Deploy finished (success or error)
+			if result.err != nil {
+				return nil, fmt.Errorf("deployment failed: %w", result.err)
+			}
+			log.Printf("clab.Deploy returned successfully")
+			// Use inspect to get container info
+			if labName != "" {
+				os.Chdir(originalDir) // restore dir for inspect
+				nodes, inspectErr := s.Inspect(ctx, labName)
+				if inspectErr == nil && len(nodes) > 0 {
+					return nodes, nil
+				}
+				log.Printf("inspect after deploy returned: %v (nodes: %d)", inspectErr, len(nodes))
+			}
+			return nil, nil
 
-	return nodes, nil
+		case <-ticker.C:
+			// Check if containers are up even though Deploy hasn't returned
+			if labName != "" {
+				os.Chdir(originalDir)
+				nodes, inspectErr := s.Inspect(ctx, labName)
+				os.Chdir(topoDir)
+				if inspectErr == nil && len(nodes) > 0 {
+					allRunning := true
+					for _, n := range nodes {
+						if n.State != "running" {
+							allRunning = false
+							break
+						}
+					}
+					if allRunning {
+						log.Printf("all %d containers running, proceeding without waiting for clab.Deploy to return", len(nodes))
+						deployCancel() // cancel the blocking deploy
+						return nodes, nil
+					}
+				}
+			}
+
+		case <-timer.C:
+			// Container creation should be done by now — check via inspect
+			if labName != "" {
+				os.Chdir(originalDir)
+				nodes, inspectErr := s.Inspect(ctx, labName)
+				os.Chdir(topoDir)
+				if inspectErr == nil && len(nodes) > 0 {
+					log.Printf("containers found via inspect after timeout, proceeding (%d nodes)", len(nodes))
+					deployCancel()
+					return nodes, nil
+				}
+			}
+
+		case <-ctx.Done():
+			return nil, fmt.Errorf("deploy timed out: %w", ctx.Err())
+		}
+	}
 }
 
 // Destroy destroys a lab.
-func (s *Service) Destroy(ctx context.Context, opts DestroyOptions) error {
+func (s *Service) Destroy(ctx context.Context, opts DestroyOptions) (retErr error) {
+	// containerlab's WithTopologyFromLab can panic if the lab doesn't exist
+	defer func() {
+		if r := recover(); r != nil {
+			retErr = fmt.Errorf("containerlab panic during destroy: %v", r)
+		}
+	}()
+
 	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
 	defer cancel()
 
 	var clabOpts []clabcore.ClabOption
 	clabOpts = append(clabOpts, clabcore.WithTimeout(defaultTimeout))
+
+	// Runtime MUST come before WithTopologyFromLab — it calls globalRuntime()
+	clabOpts = append(clabOpts,
+		clabcore.WithRuntime(config.AppConfig.ClabRuntime, &clabruntime.RuntimeConfig{
+			Timeout: defaultTimeout,
+		}),
+	)
 
 	if opts.TopoPath != "" {
 		topoDir := filepath.Dir(opts.TopoPath)
@@ -219,12 +312,6 @@ func (s *Service) Destroy(ctx context.Context, opts DestroyOptions) error {
 	} else {
 		return fmt.Errorf("either topology path or lab name is required")
 	}
-
-	clabOpts = append(clabOpts,
-		clabcore.WithRuntime(config.AppConfig.ClabRuntime, &clabruntime.RuntimeConfig{
-			Timeout: defaultTimeout,
-		}),
-	)
 
 	clab, err := clabcore.NewContainerLab(clabOpts...)
 	if err != nil {
@@ -242,41 +329,75 @@ func (s *Service) Destroy(ctx context.Context, opts DestroyOptions) error {
 	return clab.Destroy(ctx, destroyOpts...)
 }
 
-// Inspect inspects running containers for a lab.
+// Inspect inspects running containers for a lab using docker CLI directly.
+// We avoid containerlab's library for inspect because WithTopologyFromLab
+// and ListContainers have nil-pointer bugs in v0.73.0.
 func (s *Service) Inspect(ctx context.Context, labName string) ([]NodeInfo, error) {
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	clabOpts := []clabcore.ClabOption{
-		clabcore.WithTimeout(2 * time.Minute),
-		clabcore.WithTopologyFromLab(labName),
-		clabcore.WithRuntime(config.AppConfig.ClabRuntime, &clabruntime.RuntimeConfig{
-			Timeout: 2 * time.Minute,
-		}),
+	dockerBin, err := exec.LookPath("docker")
+	if err != nil {
+		for _, p := range []string{"/usr/bin/docker", "/usr/local/bin/docker"} {
+			if _, ferr := os.Stat(p); ferr == nil {
+				dockerBin = p
+				break
+			}
+		}
+		if dockerBin == "" {
+			return nil, fmt.Errorf("docker binary not found")
+		}
 	}
 
-	clab, err := clabcore.NewContainerLab(clabOpts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create containerlab instance: %w", err)
-	}
+	// List containers with clab label filter
+	// Format: name|kind|image|id|ipv4|state
+	cmd := exec.CommandContext(ctx, dockerBin, "ps",
+		"--filter", fmt.Sprintf("label=clab-topo-file"),
+		"--filter", fmt.Sprintf("label=containerlab=%s", labName),
+		"--format", "{{.Names}}|{{.Label \"clab-node-kind\"}}|{{.Image}}|{{.ID}}|{{.State}}",
+	)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 
-	containers, err := clab.ListContainers(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("inspect failed: %w", err)
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("docker ps failed: %w (%s)", err, stderr.String())
 	}
 
 	var nodes []NodeInfo
-	for _, c := range containers {
+	for _, line := range bytes.Split(bytes.TrimSpace(stdout.Bytes()), []byte("\n")) {
+		if len(line) == 0 {
+			continue
+		}
+		parts := bytes.SplitN(line, []byte("|"), 5)
+		if len(parts) < 5 {
+			continue
+		}
+		name := string(parts[0])
+		// Get IPv4 from docker inspect
+		ipv4 := s.getContainerIPv4(ctx, dockerBin, name)
+
 		nodes = append(nodes, NodeInfo{
-			Name:        c.Names[0],
-			Kind:        c.Labels["clab-node-kind"],
-			Image:       c.Image,
-			ContainerID: c.ID[:12],
-			IPv4:        c.GetContainerIPv4(),
-			IPv6:        c.GetContainerIPv6(),
-			State:       c.State,
+			Name:        name,
+			Kind:        string(parts[1]),
+			Image:       string(parts[2]),
+			ContainerID: string(parts[3]),
+			IPv4:        ipv4,
+			State:       string(parts[4]),
 		})
 	}
 
 	return nodes, nil
+}
+
+func (s *Service) getContainerIPv4(ctx context.Context, dockerBin, name string) string {
+	cmd := exec.CommandContext(ctx, dockerBin, "inspect",
+		"--format", "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
+		name,
+	)
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }

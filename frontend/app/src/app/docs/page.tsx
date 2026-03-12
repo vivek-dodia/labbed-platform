@@ -63,12 +63,12 @@ const sections: Record<string, Endpoint[]> = {
 };
 
 const methodColors: Record<string, string> = {
-  GET: "#A2C2ED",
-  POST: "#ED6A4A",
-  PUT: "#D0C3DF",
-  PATCH: "#D0C3DF",
-  DELETE: "#EAA8C6",
-  WS: "#121212",
+  GET: "rgba(0,0,0,0.15)",
+  POST: "#000000",
+  PUT: "rgba(0,0,0,0.1)",
+  PATCH: "rgba(0,0,0,0.1)",
+  DELETE: "rgba(0,0,0,0.15)",
+  WS: "#000000",
 };
 
 const sidebarNavGroups: Record<string, string[]> = {
@@ -93,8 +93,8 @@ function NavHoverItem({
       href={href || "#"}
       style={{
         ...style,
-        backgroundColor: hovered ? "#121212" : "transparent",
-        color: hovered ? "#F3EFE7" : "#121212",
+        backgroundColor: hovered ? "#000000" : "transparent",
+        color: hovered ? "#79f673" : "#000000",
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -122,7 +122,7 @@ function NavLinkItem({
         display: "block",
         padding: "0.5rem 0",
         fontSize: "0.85rem",
-        color: "#121212",
+        color: "#000000",
         textDecoration: active ? "underline" : "none",
         fontWeight: active ? 700 : 500,
         cursor: "pointer",
@@ -151,17 +151,17 @@ function PillTry({ onClick }: { onClick: () => void }) {
         alignItems: "center",
         padding: "0.2rem 0.8rem",
         borderRadius: "99px",
-        border: "1px solid #121212",
+        border: "1px solid #000000",
         fontSize: "0.7rem",
         fontWeight: 700,
         cursor: "pointer",
         gap: "0.4rem",
-        backgroundColor: "#E4CB6A",
+        backgroundColor: "rgba(0,0,0,0.1)",
         transition: "all 0.2s",
         textTransform: "uppercase",
         fontFamily: "'Manrope', -apple-system, sans-serif",
         transform: hovered ? "translateY(-1px)" : "none",
-        boxShadow: hovered ? "2px 2px 0 #121212" : "none",
+        boxShadow: hovered ? "2px 2px 0 #000000" : "none",
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -182,9 +182,9 @@ function TerminalWindow({
   return (
     <div
       style={{
-        border: "1px solid #121212",
-        backgroundColor: "#121212",
-        color: "#F3EFE7",
+        border: "1px solid #000000",
+        backgroundColor: "#000000",
+        color: "#79f673",
         display: "flex",
         flexDirection: "column",
         marginBottom: "2rem",
@@ -284,7 +284,7 @@ function TryItModal({
       style={{
         position: "fixed",
         inset: 0,
-        backgroundColor: "rgba(18,18,18,0.5)",
+        backgroundColor: "rgba(0,0,0,0.5)",
         zIndex: 100,
         display: "flex",
         alignItems: "center",
@@ -294,8 +294,8 @@ function TryItModal({
     >
       <div
         style={{
-          backgroundColor: "#F3EFE7",
-          border: "1px solid #121212",
+          backgroundColor: "#79f673",
+          border: "1px solid #000000",
           padding: "2rem",
           maxWidth: "560px",
           width: "90%",
@@ -322,7 +322,7 @@ function TryItModal({
               border: "none",
               cursor: "pointer",
               fontSize: "1.2rem",
-              color: "#121212",
+              color: "#000000",
             }}
           >
             ✕
@@ -348,8 +348,8 @@ function TryItModal({
             style={{
               width: "100%",
               padding: "0.5rem",
-              border: "1px solid #121212",
-              backgroundColor: "#fff",
+              border: "1px solid #000000",
+              backgroundColor: "rgba(0,0,0,0.05)",
               fontFamily: "'Space Mono', monospace",
               fontSize: "0.75rem",
               outline: "none",
@@ -360,8 +360,8 @@ function TryItModal({
         <button
           onClick={handleSend}
           style={{
-            backgroundColor: "#E4CB6A",
-            border: "1px solid #121212",
+            backgroundColor: "rgba(0,0,0,0.1)",
+            border: "1px solid #000000",
             padding: "0.5rem 1.5rem",
             cursor: "pointer",
             fontWeight: 700,
@@ -397,12 +397,12 @@ function getMethodTagStyle(method: string): React.CSSProperties {
     fontFamily: "'Space Mono', monospace",
     fontSize: "0.7rem",
     padding: "0.2rem 0.5rem",
-    border: "1px solid #121212",
+    border: "1px solid #000000",
     borderRadius: "4px",
     verticalAlign: "middle",
     marginRight: "0.5rem",
-    backgroundColor: methodColors[method] || "#F3EFE7",
-    color: method === "WS" ? "#F3EFE7" : "#121212",
+    backgroundColor: methodColors[method] || "#79f673",
+    color: (method === "WS" || method === "POST") ? "#79f673" : "#000000",
     fontWeight: 700,
     display: "inline-block",
   };
@@ -411,18 +411,18 @@ function getMethodTagStyle(method: string): React.CSSProperties {
 function getCurlExample(ep: Endpoint): React.ReactNode {
   return (
     <>
-      <span style={{ color: "#EAA8C6" }}>curl</span> -X {ep.method}{" "}
-      <span style={{ color: "#E4CB6A" }}>
+      <span style={{ color: "rgba(121,246,115,0.5)" }}>curl</span> -X {ep.method}{" "}
+      <span style={{ color: "rgba(121,246,115,0.4)" }}>
         &quot;http://localhost:8080{ep.path}&quot;
       </span>{" "}
       \<br />
       &nbsp;&nbsp;-H{" "}
-      <span style={{ color: "#E4CB6A" }}>
+      <span style={{ color: "rgba(121,246,115,0.4)" }}>
         &quot;Authorization: Bearer YOUR_TOKEN&quot;
       </span>{" "}
       \<br />
       &nbsp;&nbsp;-H{" "}
-      <span style={{ color: "#E4CB6A" }}>
+      <span style={{ color: "rgba(121,246,115,0.4)" }}>
         &quot;Content-Type: application/json&quot;
       </span>
     </>
@@ -434,14 +434,14 @@ function getResponseExample(section: string): React.ReactNode {
     return (
       <>
         {"{"}<br />
-        &nbsp;&nbsp;<span style={{ color: "#A2C2ED" }}>&quot;access_token&quot;</span>:{" "}
-        <span style={{ color: "#E4CB6A" }}>&quot;eyJhbGciOi...&quot;</span>,<br />
-        &nbsp;&nbsp;<span style={{ color: "#A2C2ED" }}>&quot;refresh_token&quot;</span>:{" "}
-        <span style={{ color: "#E4CB6A" }}>&quot;dGhpcyBpcy...&quot;</span>,<br />
-        &nbsp;&nbsp;<span style={{ color: "#A2C2ED" }}>&quot;token_type&quot;</span>:{" "}
-        <span style={{ color: "#E4CB6A" }}>&quot;Bearer&quot;</span>,<br />
-        &nbsp;&nbsp;<span style={{ color: "#A2C2ED" }}>&quot;expires_in&quot;</span>:{" "}
-        <span style={{ color: "#E4CB6A" }}>3600</span><br />
+        &nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;access_token&quot;</span>:{" "}
+        <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;eyJhbGciOi...&quot;</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;refresh_token&quot;</span>:{" "}
+        <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;dGhpcyBpcy...&quot;</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;token_type&quot;</span>:{" "}
+        <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;Bearer&quot;</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;expires_in&quot;</span>:{" "}
+        <span style={{ color: "rgba(121,246,115,0.35)" }}>3600</span><br />
         {"}"}
       </>
     );
@@ -450,21 +450,21 @@ function getResponseExample(section: string): React.ReactNode {
     return (
       <>
         {"{"}<br />
-        &nbsp;&nbsp;<span style={{ color: "#A2C2ED" }}>&quot;status&quot;</span>:{" "}
-        <span style={{ color: "#E4CB6A" }}>&quot;success&quot;</span>,<br />
-        &nbsp;&nbsp;<span style={{ color: "#A2C2ED" }}>&quot;data&quot;</span>: [<br />
+        &nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;status&quot;</span>:{" "}
+        <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;success&quot;</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;data&quot;</span>: [<br />
         &nbsp;&nbsp;&nbsp;&nbsp;{"{"}<br />
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "#A2C2ED" }}>&quot;id&quot;</span>:{" "}
-        <span style={{ color: "#E4CB6A" }}>&quot;lab_44210&quot;</span>,<br />
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "#A2C2ED" }}>&quot;name&quot;</span>:{" "}
-        <span style={{ color: "#E4CB6A" }}>&quot;OSPF-Lab-01&quot;</span>,<br />
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "#A2C2ED" }}>&quot;state&quot;</span>:{" "}
-        <span style={{ color: "#E4CB6A" }}>&quot;running&quot;</span><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;id&quot;</span>:{" "}
+        <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;lab_44210&quot;</span>,<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;name&quot;</span>:{" "}
+        <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;OSPF-Lab-01&quot;</span>,<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;state&quot;</span>:{" "}
+        <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;running&quot;</span><br />
         &nbsp;&nbsp;&nbsp;&nbsp;{"}"}<br />
         &nbsp;&nbsp;],<br />
         &nbsp;&nbsp;<span style={{ color: "rgba(255,255,255,0.4)", fontStyle: "italic" }}>{"// Total count for pagination"}</span><br />
-        &nbsp;&nbsp;<span style={{ color: "#A2C2ED" }}>&quot;total&quot;</span>:{" "}
-        <span style={{ color: "#E4CB6A" }}>8</span><br />
+        &nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;total&quot;</span>:{" "}
+        <span style={{ color: "rgba(121,246,115,0.35)" }}>8</span><br />
         {"}"}
       </>
     );
@@ -473,23 +473,23 @@ function getResponseExample(section: string): React.ReactNode {
   return (
     <>
       {"{"}<br />
-      &nbsp;&nbsp;<span style={{ color: "#A2C2ED" }}>&quot;status&quot;</span>:{" "}
-      <span style={{ color: "#E4CB6A" }}>&quot;success&quot;</span>,<br />
-      &nbsp;&nbsp;<span style={{ color: "#A2C2ED" }}>&quot;data&quot;</span>: [<br />
+      &nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;status&quot;</span>:{" "}
+      <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;success&quot;</span>,<br />
+      &nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;data&quot;</span>: [<br />
       &nbsp;&nbsp;&nbsp;&nbsp;{"{"}<br />
-      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "#A2C2ED" }}>&quot;id&quot;</span>:{" "}
-      <span style={{ color: "#E4CB6A" }}>&quot;top_99821&quot;</span>,<br />
-      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "#A2C2ED" }}>&quot;name&quot;</span>:{" "}
-      <span style={{ color: "#E4CB6A" }}>&quot;BGP-Core-Mesh&quot;</span>,<br />
-      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "#A2C2ED" }}>&quot;nodes&quot;</span>:{" "}
-      <span style={{ color: "#E4CB6A" }}>12</span>,<br />
-      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "#A2C2ED" }}>&quot;status&quot;</span>:{" "}
-      <span style={{ color: "#E4CB6A" }}>&quot;active&quot;</span><br />
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;id&quot;</span>:{" "}
+      <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;top_99821&quot;</span>,<br />
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;name&quot;</span>:{" "}
+      <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;BGP-Core-Mesh&quot;</span>,<br />
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;nodes&quot;</span>:{" "}
+      <span style={{ color: "rgba(121,246,115,0.35)" }}>12</span>,<br />
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;status&quot;</span>:{" "}
+      <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;active&quot;</span><br />
       &nbsp;&nbsp;&nbsp;&nbsp;{"}"}<br />
       &nbsp;&nbsp;],<br />
       &nbsp;&nbsp;<span style={{ color: "rgba(255,255,255,0.4)", fontStyle: "italic" }}>{"// Total count for pagination"}</span><br />
-      &nbsp;&nbsp;<span style={{ color: "#A2C2ED" }}>&quot;total&quot;</span>:{" "}
-      <span style={{ color: "#E4CB6A" }}>42</span><br />
+      &nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;total&quot;</span>:{" "}
+      <span style={{ color: "rgba(121,246,115,0.35)" }}>42</span><br />
       {"}"}
     </>
   );
@@ -547,8 +547,8 @@ export default function DocsPage() {
       style={{
         display: "flex",
         minHeight: "100vh",
-        backgroundColor: "#F3EFE7",
-        color: "#121212",
+        backgroundColor: "#79f673",
+        color: "#000000",
         fontFamily: "'Manrope', -apple-system, sans-serif",
         WebkitFontSmoothing: "antialiased",
         overflowX: "hidden",
@@ -558,13 +558,13 @@ export default function DocsPage() {
       <aside
         style={{
           width: "48px",
-          borderRight: "1px solid #121212",
+          borderRight: "1px solid #000000",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           padding: "1rem 0",
           flexShrink: 0,
-          backgroundColor: "#F3EFE7",
+          backgroundColor: "#79f673",
           zIndex: 10,
         }}
       >
@@ -584,7 +584,7 @@ export default function DocsPage() {
             style={{
               display: "block",
               height: "1px",
-              backgroundColor: "#121212",
+              backgroundColor: "#000000",
               width: "100%",
             }}
           />
@@ -592,7 +592,7 @@ export default function DocsPage() {
             style={{
               display: "block",
               height: "1px",
-              backgroundColor: "#121212",
+              backgroundColor: "#000000",
               width: "100%",
             }}
           />
@@ -600,7 +600,7 @@ export default function DocsPage() {
             style={{
               display: "block",
               height: "1px",
-              backgroundColor: "#121212",
+              backgroundColor: "#000000",
               width: "100%",
             }}
           />
@@ -646,7 +646,7 @@ export default function DocsPage() {
         <nav
           style={{
             height: "48px",
-            borderBottom: "1px solid #121212",
+            borderBottom: "1px solid #000000",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -659,14 +659,14 @@ export default function DocsPage() {
                 padding: "0 1.5rem",
                 display: "flex",
                 alignItems: "center",
-                borderRight: "1px solid #121212",
+                borderRight: "1px solid #000000",
                 fontSize: "0.85rem",
                 textTransform: "uppercase",
                 letterSpacing: "0.05em",
                 fontWeight: 800,
                 cursor: "pointer",
                 textDecoration: "none",
-                color: "#121212",
+                color: "#000000",
                 height: "100%",
                 transition: "background-color 0.15s, color 0.15s",
               }}
@@ -679,14 +679,14 @@ export default function DocsPage() {
                 padding: "0 1.5rem",
                 display: "flex",
                 alignItems: "center",
-                borderRight: "1px solid #121212",
+                borderRight: "1px solid #000000",
                 fontSize: "0.75rem",
                 textTransform: "uppercase",
                 letterSpacing: "0.05em",
                 fontWeight: 700,
                 cursor: "pointer",
                 textDecoration: "none",
-                color: "#121212",
+                color: "#000000",
                 height: "100%",
                 transition: "background-color 0.15s, color 0.15s",
               }}
@@ -699,14 +699,14 @@ export default function DocsPage() {
                 padding: "0 1.5rem",
                 display: "flex",
                 alignItems: "center",
-                borderRight: "1px solid #121212",
+                borderRight: "1px solid #000000",
                 fontSize: "0.75rem",
                 textTransform: "uppercase",
                 letterSpacing: "0.05em",
                 fontWeight: 700,
                 cursor: "pointer",
                 textDecoration: "none",
-                color: "#121212",
+                color: "#000000",
                 height: "100%",
                 transition: "background-color 0.15s, color 0.15s",
               }}
@@ -721,7 +721,7 @@ export default function DocsPage() {
               alignItems: "center",
               padding: "0 1rem",
               justifyContent: "flex-end",
-              color: "#121212",
+              color: "#000000",
               opacity: 0.5,
             }}
           >
@@ -756,14 +756,14 @@ export default function DocsPage() {
                 display: "flex",
                 alignItems: "center",
                 borderRight: "none",
-                borderLeft: "1px solid #121212",
+                borderLeft: "1px solid #000000",
                 fontSize: "0.75rem",
                 textTransform: "uppercase",
                 letterSpacing: "0.05em",
                 fontWeight: 700,
                 cursor: "pointer",
                 textDecoration: "none",
-                color: "#121212",
+                color: "#000000",
                 height: "100%",
                 transition: "background-color 0.15s, color 0.15s",
               }}
@@ -786,7 +786,7 @@ export default function DocsPage() {
           <nav
             className="labbed-docs-sidebar"
             style={{
-              borderRight: "1px solid #121212",
+              borderRight: "1px solid #000000",
               padding: "2rem",
               overflowY: "auto",
             }}
@@ -796,7 +796,7 @@ export default function DocsPage() {
                 <div
                   style={{
                     marginBottom: "1rem",
-                    color: "#121212",
+                    color: "#000000",
                     opacity: 0.6,
                     fontSize: "0.65rem",
                     textTransform: "uppercase",
@@ -823,7 +823,7 @@ export default function DocsPage() {
           <section
             style={{
               padding: "3rem",
-              borderRight: "1px solid #121212",
+              borderRight: "1px solid #000000",
               overflowY: "auto",
             }}
           >
@@ -835,7 +835,7 @@ export default function DocsPage() {
                   textTransform: "uppercase",
                   letterSpacing: "0.05em",
                   fontWeight: 700,
-                  color: "#ED6A4A",
+                  color: "#000000",
                 }}
               >
                 v1.0 API
@@ -921,7 +921,7 @@ export default function DocsPage() {
             className="labbed-code-view"
             style={{
               padding: "3rem",
-              backgroundColor: "#fff",
+              backgroundColor: "rgba(0,0,0,0.05)",
               overflowY: "auto",
             }}
           >
@@ -942,9 +942,9 @@ export default function DocsPage() {
             {/* Pro tip card */}
             <div
               style={{
-                border: "1px solid #121212",
+                border: "1px solid #000000",
                 padding: "1.5rem",
-                backgroundColor: "#F3EFE7",
+                backgroundColor: "#79f673",
                 position: "relative",
                 display: "flex",
                 flexDirection: "column",

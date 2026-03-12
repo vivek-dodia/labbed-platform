@@ -60,7 +60,7 @@ export default function PropertiesPanel({ node }: Props) {
                 style={{
                   fontSize: "0.8rem",
                   padding: "0.3rem 0",
-                  borderBottom: "1px solid rgba(10,10,10,0.1)",
+                  borderBottom: "1px solid rgba(0,0,0,0.15)",
                 }}
               >
                 {iface}

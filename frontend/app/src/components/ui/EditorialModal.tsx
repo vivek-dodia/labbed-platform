@@ -37,7 +37,7 @@ export default function EditorialModal({
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(18,18,18,0.6)",
+        background: "rgba(0,0,0,0.6)",
         zIndex: 100,
         display: "flex",
         alignItems: "center",
@@ -46,8 +46,8 @@ export default function EditorialModal({
     >
       <div
         style={{
-          background: "#F3EFE7",
-          border: "1px solid #121212",
+          background: "#79f673",
+          border: "2px solid #000000",
           padding: "2.5rem",
           maxWidth: 560,
           width: "90%",
@@ -66,7 +66,7 @@ export default function EditorialModal({
             border: "none",
             fontSize: "1.25rem",
             cursor: "pointer",
-            color: "#121212",
+            color: "#000000",
             fontFamily: "Manrope, sans-serif",
             lineHeight: 1,
           }}
@@ -83,7 +83,7 @@ export default function EditorialModal({
             fontWeight: 700,
             textTransform: "uppercase",
             letterSpacing: "0.05em",
-            color: "#121212",
+            color: "#000000",
           }}
         >
           {title}

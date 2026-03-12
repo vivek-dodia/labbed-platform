@@ -1,14 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200;400;500;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
 
 :root {
-  --bg: #F3EFE7;
-  --ink: #121212;
-  --blue: #A2C2ED;
-  --orange: #ED6A4A;
-  --yellow: #E4CB6A;
-  --lilac: #D0C3DF;
-  --pink: #EAA8C6;
-  --green: #A8EAB5;
+  --bg: #79f673;
+  --ink: #000000;
+  --bg-dim: #00E600;
+  --bg-bright: #33FF33;
 }
 
 *, *::before, *::after {
@@ -27,7 +23,7 @@ body {
 
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: rgba(18,18,18,0.2); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 2px; }
 
 .label {
   font-size: 0.65rem;
@@ -56,5 +52,5 @@ body {
 
 /* Terminal scrollbar */
 .terminal-scroll::-webkit-scrollbar { width: 4px; }
-.terminal-scroll::-webkit-scrollbar-track { background: #121212; }
-.terminal-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+.terminal-scroll::-webkit-scrollbar-track { background: #000; }
+.terminal-scroll::-webkit-scrollbar-thumb { background: rgba(0,255,0,0.3); border-radius: 2px; }

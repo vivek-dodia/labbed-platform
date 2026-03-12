@@ -14,8 +14,14 @@ interface PillProps {
 
 const VARIANT_BG: Record<string, string> = {
   default: "transparent",
-  primary: "#ED6A4A",
-  secondary: "#A2C2ED",
+  primary: "#000000",
+  secondary: "transparent",
+};
+
+const VARIANT_COLOR: Record<string, string> = {
+  default: "#000000",
+  primary: "#79f673",
+  secondary: "#000000",
 };
 
 export default function Pill({
@@ -40,7 +46,7 @@ export default function Pill({
       onMouseLeave={() => setHovered(false)}
       style={{
         borderRadius: 99,
-        border: `1px ${dashed ? "dashed" : "solid"} #121212`,
+        border: `1px ${dashed ? "dashed" : "solid"} #000000`,
         padding: "0.5rem 1.2rem",
         fontSize: "0.75rem",
         fontWeight: 700,
@@ -48,11 +54,11 @@ export default function Pill({
         letterSpacing: "0.05em",
         fontFamily: "Manrope, sans-serif",
         background: VARIANT_BG[variant] || "transparent",
-        color: "#121212",
+        color: VARIANT_COLOR[variant] || "#000000",
         cursor: disabled ? "default" : "pointer",
         opacity: disabled ? 0.4 : 1,
         transform: canHover ? "translateY(-2px)" : "none",
-        boxShadow: canHover ? "4px 4px 0 #121212" : "none",
+        boxShadow: canHover ? "4px 4px 0 #000000" : "none",
         transition: "transform 0.15s, box-shadow 0.15s",
         ...style,
       }}

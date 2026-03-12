@@ -206,10 +206,23 @@ func (h *Handler) destroyAsync(labID, clabName string, cleanupOnly bool) {
 	}
 
 	log.Printf("destroying containers for lab %s (clab: %s, cleanupOnly: %v)", labID, clabName, cleanupOnly)
-	err := h.clabService.Destroy(ctx, clab.DestroyOptions{
-		LabName: clabName,
-		Cleanup: true,
-	})
+
+	// Try to destroy using the topology file on disk first (more reliable —
+	// uses the actual clab name from the YAML, not the platform's clab_name field).
+	// Fall back to lab name lookup if the topology file was already cleaned up.
+	topoPath := clab.GetTopologyFilePath(labID)
+	var err error
+	if topoPath != "" {
+		err = h.clabService.Destroy(ctx, clab.DestroyOptions{
+			TopoPath: topoPath,
+			Cleanup:  true,
+		})
+	} else {
+		err = h.clabService.Destroy(ctx, clab.DestroyOptions{
+			LabName: clabName,
+			Cleanup: true,
+		})
+	}
 
 	// Always clean up tracking and files regardless of success/failure
 	clab.CleanupTopologyFiles(labID)

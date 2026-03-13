@@ -6,7 +6,12 @@ type StatusHandler = (status: WSConnectionStatus) => void;
 
 export type WSConnectionStatus = "connected" | "connecting" | "disconnected";
 
-const WS_BASE = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080";
+function getWsBase(): string {
+  if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
+  if (typeof window === "undefined") return "ws://localhost:8080";
+  const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${proto}//${window.location.host}`;
+}
 
 export class LabWebSocket {
   private ws: WebSocket | null = null;
@@ -36,7 +41,7 @@ export class LabWebSocket {
     if (!token) return;
 
     this.setStatus("connecting");
-    this.ws = new WebSocket(`${WS_BASE}/ws?token=${token}`);
+    this.ws = new WebSocket(`${getWsBase()}/ws?token=${token}`);
 
     this.ws.onopen = () => {
       this.reconnectDelay = 1000;

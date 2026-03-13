@@ -97,12 +97,19 @@ func Load() error {
 		refreshExpiry = 720 * time.Hour
 	}
 
+	// viper.GetStringSlice doesn't split comma-separated env vars,
+	// so handle CORS origins manually for env var support.
+	corsOrigins := viper.GetStringSlice("server.cors_origins")
+	if len(corsOrigins) == 1 && strings.Contains(corsOrigins[0], ",") {
+		corsOrigins = strings.Split(corsOrigins[0], ",")
+	}
+
 	AppConfig = Config{
 		Server: ServerConfig{
 			Host:        viper.GetString("server.host"),
 			Port:        viper.GetString("server.port"),
 			PlatformURL: viper.GetString("server.platform_url"),
-			CORSOrigins: viper.GetStringSlice("server.cors_origins"),
+			CORSOrigins: corsOrigins,
 		},
 		Database: DatabaseConfig{
 			Driver:   viper.GetString("database.driver"),

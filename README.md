@@ -312,33 +312,65 @@ make docker-image
 
 **RouterOS interface mapping:** `eth0` → `ether1` (management, reserved), `eth1` → `ether2` (first data port), etc.
 
-**Default credentials:** `admin:admin`
+**Default credentials:** `admin` with empty password (RouterOS v7+)
 
-## Quick Start (Dev)
+## Deployment
+
+Labbed runs on a Linux host with Docker and KVM (required for vrnetlab NOS images). Development workflow: edit code locally, push to git, pull and rebuild on the server.
+
+### Server Setup
 
 ```bash
-# Start PostgreSQL
-docker compose up -d postgres
+# Prerequisites: Ubuntu 24.04 with /dev/kvm, Docker, Go 1.24+, bun, containerlab
 
-# Start platform (terminal 1)
-cd platform
-LABBED_AUTH_JWT_SECRET=dev-secret go run main.go
+# Clone and build
+git clone https://github.com/vivek-dodia/labbed-platform.git /opt/labbed
+cd /opt/labbed/platform && go build -o labbed-platform .
+cd /opt/labbed/worker && go build -o labbed-worker .
+cd /opt/labbed/frontend/app && bun install
 
-# Start worker (terminal 2)
-cd worker
-LABBED_WORKER_PLATFORM_SECRET=change-me-in-production go run main.go
+# Start Postgres
+docker run -d --name labbed-postgres \
+  -e POSTGRES_USER=labbed -e POSTGRES_PASSWORD=labbed -e POSTGRES_DB=labbed \
+  -p 5432:5432 postgres:16-alpine
 
-# Start frontend (terminal 3)
-cd frontend/app
-bun install
-bun run dev
+# Start platform
+cd /opt/labbed/platform
+LABBED_SERVER_PLATFORM_URL="http://<SERVER_IP>:8080" \
+./labbed-platform &
+
+# Start worker
+cd /opt/labbed/worker
+LABBED_WORKER_PLATFORM_URL="http://<SERVER_IP>:8080" \
+LABBED_WORKER_PLATFORM_SECRET="change-me-in-production" \
+./labbed-worker &
+
+# Start frontend
+cd /opt/labbed/frontend/app
+echo 'NEXT_PUBLIC_API_URL=http://<SERVER_IP>' > .env.local
+echo 'NEXT_PUBLIC_WS_URL=ws://<SERVER_IP>' >> .env.local
+bun run dev --hostname 0.0.0.0 &
+
+# Nginx reverse proxy (handles CORS, proxies frontend/API/WS on port 80)
+# See deploy/nginx.conf or use Docker:
+docker run -d --name labbed-nginx --network host \
+  -v /path/to/nginx.conf:/etc/nginx/conf.d/default.conf:ro nginx:alpine
+```
+
+### Dev Workflow
+
+```bash
+# Edit code locally, then deploy:
+git push origin main
+ssh server 'cd /opt/labbed && git pull && cd platform && go build -o labbed-platform . && cd ../worker && go build -o labbed-worker .'
+# Restart affected services
 ```
 
 Default credentials: `admin@labbed.local` / `admin`
 
 ### First steps
 
-1. Login with admin credentials to get a JWT
+1. Login with admin credentials
 2. Note the default org UUID from `GET /api/v1/organizations`
 3. Include `X-Org-ID: <org-uuid>` header on all resource requests
 4. Browse sample topologies in the "Sample Labs" collection

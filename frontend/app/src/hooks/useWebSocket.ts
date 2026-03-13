@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
-import { getWS } from "@/lib/ws";
+import { useEffect, useRef, useCallback, useState } from "react";
+import { getWS, type WSConnectionStatus } from "@/lib/ws";
 
 export function useWSChannel(
   channel: string | null,
@@ -23,4 +23,18 @@ export function useShellInput() {
   return useCallback((channel: string, input: string) => {
     getWS().sendShellInput(channel, input);
   }, []);
+}
+
+export function useWSStatus(): WSConnectionStatus {
+  const [status, setStatus] = useState<WSConnectionStatus>(() => {
+    try { return getWS().status; } catch { return "disconnected"; }
+  });
+
+  useEffect(() => {
+    const ws = getWS();
+    setStatus(ws.status);
+    return ws.onStatus(setStatus);
+  }, []);
+
+  return status;
 }

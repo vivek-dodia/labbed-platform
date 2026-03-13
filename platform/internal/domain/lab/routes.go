@@ -19,6 +19,7 @@ func RegisterRoutes(apiGroup *gin.RouterGroup, handler *LabHandler) {
 		labs.POST("/:id/clone", handler.HandleClone)
 		labs.GET("/:id/nodes", handler.HandleGetNodes)
 		labs.GET("/:id/events", handler.HandleGetEvents)
+		labs.POST("/:id/capture", handler.HandleCapture)
 
 		// Admin/owner only
 		admin := labs.Group("")

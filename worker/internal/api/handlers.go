@@ -298,6 +298,43 @@ func (h *Handler) HandleExec(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"output": output})
 }
 
+// CaptureRequest is received from the platform to capture packets on a container interface.
+type CaptureRequest struct {
+	NodeName  string `json:"nodeName" binding:"required"`
+	Interface string `json:"interface" binding:"required"`
+	Count     int    `json:"count"`
+	Filter    string `json:"filter"`
+}
+
+// HandleCapture runs tcpdump on a container interface from the host namespace (containerlab-native).
+func (h *Handler) HandleCapture(c *gin.Context) {
+	var req CaptureRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	count := req.Count
+	if count <= 0 {
+		count = 50
+	}
+	if count > 1000 {
+		count = 1000
+	}
+
+	// 25s timeout — leaves headroom before platform's 30s HTTP timeout
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 25*time.Second)
+	defer cancel()
+
+	output, err := h.clabService.Capture(ctx, req.NodeName, req.Interface, count, req.Filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"output": output})
+}
+
 // HandleHealth returns worker health status.
 func (h *Handler) HandleHealth(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{

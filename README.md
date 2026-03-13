@@ -20,7 +20,7 @@ Labbed has three components:
 
 **Worker** — Agent that runs on Docker hosts. Registers with the platform on startup, sends periodic heartbeats, and executes containerlab operations (deploy, destroy, inspect, exec). Reports results back to the platform via HTTP callbacks. Streams deployment logs in real-time.
 
-**Frontend** — Next.js 15 app. Provides dashboard, topology editor, lab management, and an in-browser terminal for running commands on lab nodes.
+**Frontend** — Next.js 15 app with React Flow topology visualization, interactive terminal with per-node persistence, packet capture, config diff, bulk commands, and full API documentation. Features a tiered auto-layout engine that arranges nodes by role (routers → servers → clients).
 
 ## Multi-Tenancy
 
@@ -73,10 +73,22 @@ The frontend terminal sends commands via WebSocket to the platform, which proxie
 
 Channel format: `shell:{labUuid}:{nodeName}`
 
+The shell relay is also used for non-interactive operations:
+- **Ping / Traceroute** — runs `ping -c 4` or `traceroute` to a target node IP
+- **Bulk commands** — executes the same command on all nodes in parallel
+- **Config fetch** — runs `vtysh -c 'show running-config'` on FRR nodes for config diff
+- **Packet capture** — runs `tcpdump` via `nsenter` on the host (no install needed in containers), with BPF filter support and configurable packet count
+- **Routing table** — runs `vtysh -c 'show ip route'` on router nodes
+
+Terminal output is persisted per-node in a `Map<string, string[]>` ref, so switching between nodes preserves scroll history. Command history supports up/down arrow navigation with deduplication.
+
 ## Features
 
+### Platform
 - **Organization-based multi-tenancy** — full data isolation between orgs
 - **Self-service signup** — creates user + personal org in one step
+- **JWT + Google OAuth2** — native email/password login and Google SSO
+- **RBAC** — owner/admin/member roles per organization
 - **Real-time updates** — WebSocket broadcasts for lab state, node info, deployment logs
 - **Deployment log streaming** — worker pushes log lines → platform broadcasts via WS
 - **Lab cloning** — `POST /labs/:id/clone` duplicates a lab config
@@ -84,8 +96,36 @@ Channel format: `shell:{labUuid}:{nodeName}`
 - **Lab event history** — audit trail of state transitions and deployments
 - **Paginated responses** — `{data, total, limit, offset}` wrapper on list endpoints
 - **Orphaned lab cleanup** — background goroutine marks stuck labs as failed after timeout
+- **Rate limiting** — 20 req/min per IP on auth endpoints
 - **Configurable CORS** — origin whitelist for API and WebSocket
 - **Worker health monitoring** — stale workers auto-marked offline after missed heartbeats
+
+### Frontend
+- **Topology visualization** — React Flow canvas with auto-layout, draggable nodes, and interactive MiniMap
+- **Tiered node layout** — routers on top, servers in middle, clients on bottom (auto-classified by name, kind, and image)
+- **Node status dots** — colored 8px circles on each node (green=running, red=failed, yellow=deploying, gray=stopped)
+- **Hover edge labels** — hover over connections to see interface names (e.g. `eth1 ↔ eth2 · SNIFF`)
+- **Link-click packet capture** — click any link to open a tcpdump sniffer with BPF filter support and configurable packet count
+- **Interactive terminal** — WebSocket shell relay to running containers with per-node buffer persistence
+- **Command history** — up/down arrow navigation through previous commands, deduplication, 100-entry limit
+- **Terminal clear** — clear button resets terminal output and per-node buffer
+- **Quick commands** — context-aware command buttons (FRR: show routes/BGP/OSPF, DHCP/DNS: leases/zones, Linux: ip addr/route)
+- **Tabbed bottom panel** — TERMINAL | LOGS | EVENTS | YAML | BULK CMD tabs in a collapsible dark panel
+- **Deployment logs** — real-time log streaming during deploy/destroy via WebSocket
+- **Events timeline** — audit trail of lab state transitions with relative timestamps, auto-refreshes every 10s
+- **YAML viewer** — syntax-highlighted topology definition with color-coded keys, values, comments, and line numbers
+- **Bulk command execution** — run a command on all nodes in parallel, results displayed per-node with status
+- **Uptime timer** — live HH:MM:SS counter since deployment, displayed in the header when lab is running
+- **Clone button** — one-click lab cloning with automatic navigation to the new lab
+- **Copy-to-clipboard** — click to copy IPv4 addresses and container IDs with "COPIED" feedback
+- **Ping test** — select a target node and run `ping -c 4` via shell relay, shows PASS/FAIL with output
+- **Traceroute** — run traceroute to any node with IPv4, output displayed inline
+- **Config diff** — fetch running config via `vtysh -c 'show running-config'`, compare against startup bind file with added/removed line highlighting
+- **WS connection indicator** — real-time WebSocket status dot (green/yellow/red) with label in the header
+- **Full-screen canvas** — topology fills the viewport, terminal slides in on node selection
+- **Settings page** — profile, organization member management, password change
+- **API documentation** — interactive docs with curl examples, response previews, and try-it modal
+- **Lab management** — deploy, destroy, clone, delete with real-time state updates
 
 ## Project Structure
 
@@ -119,8 +159,18 @@ Channel format: `shell:{labUuid}:{nodeName}`
 └── frontend/app/                # Next.js frontend
     ├── src/
     │   ├── app/                 # App Router pages
-    │   ├── components/          # UI components (canvas, terminal, etc.)
-    │   ├── hooks/               # useAuth, useWebSocket
+    │   │   ├── labs/[id]/       # Lab detail (topology canvas + terminal)
+    │   │   ├── topologies/      # Topology list + editor
+    │   │   ├── collections/     # Collection management
+    │   │   ├── settings/        # Profile, org, security settings
+    │   │   ├── docs/            # Interactive API documentation
+    │   │   ├── admin/           # User + worker admin panels
+    │   │   └── login/           # Auth (native + Google OAuth2)
+    │   ├── components/
+    │   │   ├── topology/        # TopologyCanvas (React Flow + tiered layout)
+    │   │   ├── layout/          # AppShell, navigation
+    │   │   └── ui/              # StatusBadge, Pill, Modal, etc.
+    │   ├── hooks/               # useAuth, useWebSocket, useShellInput
     │   ├── lib/                 # API client, YAML parser
     │   └── types/               # TypeScript type definitions
     └── package.json
@@ -157,6 +207,7 @@ Each domain follows the same pattern: `entity.go`, `repository.go`, `service.go`
 | POST | `/api/v1/labs/:id/deploy` | Deploy a lab |
 | POST | `/api/v1/labs/:id/destroy` | Destroy a lab |
 | POST | `/api/v1/labs/:id/clone` | Clone a lab |
+| POST | `/api/v1/labs/:id/capture` | Packet capture on a node interface |
 | GET | `/api/v1/labs/:id/events` | Lab event history |
 | GET/POST | `/api/v1/workers` | Worker management (admin) |
 | GET | `/ws?token=...` | WebSocket connection |
@@ -177,6 +228,7 @@ Each domain follows the same pattern: `entity.go`, `repository.go`, `service.go`
 | POST | `/api/v1/labs/destroy` | Destroy containers |
 | POST | `/api/v1/labs/inspect` | Inspect running lab |
 | POST | `/api/v1/labs/exec` | Execute command in container |
+| POST | `/api/v1/labs/capture` | Packet capture via nsenter + tcpdump |
 | GET | `/health` | Worker health check |
 
 ## Database Models
@@ -200,7 +252,7 @@ All org-scoped entities (Collection, Topology, Lab, Worker) have an `OrgID` fore
 ## Tests
 
 ```bash
-# Run all tests (requires CGO for SQLite)
+# Backend — run all tests (requires CGO for SQLite)
 CGO_ENABLED=1 go test ./... -count=1
 
 # Run org middleware tests
@@ -208,26 +260,59 @@ CGO_ENABLED=1 go test ./internal/auth/ -v
 
 # Run org service + isolation tests
 CGO_ENABLED=1 go test ./internal/domain/organization/ -v
+
+# Frontend — run all tests (vitest)
+cd frontend/app
+bun run test
 ```
 
-**Test coverage:**
+**Backend test coverage:**
 - Org context middleware — header validation, auth checks, membership, platform admin bypass, role helpers
 - Org service — signup, create, membership CRUD, quota checks, slug generation
 - Cross-domain isolation — collection/topology/lab/worker scoping verified between two separate orgs
+
+**Frontend test coverage (128 tests):**
+- Lab detail utilities — shortName, formatUptime, timeAgo, isRouterNode, getCommandsForImage, computeLineDiff, tcpdump command construction, capture side selection, command history
+- Topology canvas — getStatusColor, classifyNode (router/server/client by name, kind, image), LinkEndpoint type
+- API types — LabEventResponse, LabResponse, NodeResponse, BindFileResponse, PaginatedResponse, WSMessageType
+- YAML parser — parseContainerlabYAML, node extraction, link parsing, edge cases
+- YAML highlighting — line classification (key, value, comment, list), value type detection
+- WebSocket status — WSConnectionStatus type, status-to-color/label mapping
 
 ## Tech Stack
 
 - **Backend**: Go 1.23, Gin, GORM, gorilla/websocket
 - **Database**: PostgreSQL 16 (primary), SQLite (dev option)
 - **Container orchestration**: containerlab v0.73.0 (Go library)
-- **Frontend**: Next.js 15, TypeScript, bun
-- **Auth**: JWT (access + refresh tokens), org membership validation
+- **Frontend**: Next.js 15, TypeScript, React Flow (@xyflow/react), bun
+- **Auth**: JWT (access 30m + refresh 30d), Google OAuth2, org membership validation
 
-## Target NOS
+## Supported Network OS
 
-- FRRouting (FRR) 10.3.1
-- Alpine Linux 3.20
-- dnsmasq (DHCP/DNS)
+| NOS | Image | containerlab Kind | Notes |
+|-----|-------|-------------------|-------|
+| FRRouting (FRR) 10.3.1 | `quay.io/frrouting/frr:10.3.1` | `linux` | Native container, no KVM needed |
+| Alpine Linux 3.20 | `alpine:3.20` | `linux` | Native container, no KVM needed |
+| dnsmasq (DHCP/DNS) | `alpine:3.20` + dnsmasq | `linux` | Native container, no KVM needed |
+| MikroTik RouterOS CHR 7.20.8 | `vrnetlab/mikrotik_routeros:7.20.8` | `mikrotik_ros` | vrnetlab (QEMU), requires KVM |
+
+### vrnetlab Images (KVM required)
+
+RouterOS CHR and other vendor NOS images use [vrnetlab](https://github.com/srl-labs/vrnetlab) — QEMU VMs packaged as Docker containers. These require `/dev/kvm` on the host (bare-metal or VM with nested virtualization).
+
+**Building RouterOS CHR:**
+```bash
+git clone https://github.com/srl-labs/vrnetlab && cd vrnetlab/mikrotik/routeros
+# Download CHR VMDK from https://mikrotik.com/download (CHR tab)
+wget https://download.mikrotik.com/routeros/7.20.8/chr-7.20.8.vmdk.zip
+unzip chr-7.20.8.vmdk.zip
+make docker-image
+# Result: vrnetlab/mikrotik_routeros:7.20.8
+```
+
+**RouterOS interface mapping:** `eth0` → `ether1` (management, reserved), `eth1` → `ether2` (first data port), etc.
+
+**Default credentials:** `admin:admin`
 
 ## Quick Start (Dev)
 
@@ -274,6 +359,10 @@ All config is via environment variables (prefix `LABBED_` for platform, `LABBED_
 | `LABBED_AUTH_JWT_SECRET` | `change-me-in-production` | JWT signing key |
 | `LABBED_AUTH_ADMIN_EMAIL` | `admin@labbed.local` | Default admin email |
 | `LABBED_AUTH_ADMIN_PASSWORD` | `admin` | Default admin password |
+| `LABBED_AUTH_GOOGLE_ENABLED` | `false` | Enable Google OAuth2 |
+| `LABBED_AUTH_GOOGLE_CLIENT_ID` | — | Google OAuth client ID |
+| `LABBED_AUTH_GOOGLE_CLIENT_SECRET` | — | Google OAuth client secret |
+| `LABBED_AUTH_GOOGLE_REDIRECT_URI` | — | OAuth redirect URI |
 
 ### Worker
 | Variable | Default | Description |

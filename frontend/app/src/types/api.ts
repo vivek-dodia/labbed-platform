@@ -125,6 +125,7 @@ export interface AddMemberRequest {
 export interface BindFileResponse {
   uuid: string;
   filePath: string;
+  content?: string;
   createdAt: string;
 }
 
@@ -232,6 +233,13 @@ export interface UpdateWorkerRequest {
   address?: string;
   state?: WorkerState;
   capacity?: number;
+}
+
+// ── Lab Events ──
+export interface LabEventResponse {
+  event: string;
+  details: string;
+  createdAt: string;
 }
 
 // ── WebSocket ──

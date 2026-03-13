@@ -37,3 +37,13 @@ Thumbs.db
 
 # Logs
 *.log
+
+# vrnetlab (large VM images, build locally)
+vrnetlab/
+
+# Build artifacts
+.next/
+
+# Compiled binaries
+platform/labbed-platform
+worker/labbed-worker

@@ -146,6 +146,76 @@ func (s *Service) Exec(ctx context.Context, containerName, command string) (stri
 	return output, nil
 }
 
+// Capture runs tcpdump on a container's interface from the host using nsenter.
+// This is the containerlab-native approach: nsenter into the container's network namespace
+// and run tcpdump from the host (no tcpdump needed inside the container).
+func (s *Service) Capture(ctx context.Context, containerName, iface string, count int, filter string) (string, error) {
+	// Get container PID for nsenter
+	dockerBin, _ := exec.LookPath("docker")
+	if dockerBin == "" {
+		for _, p := range []string{"/usr/bin/docker", "/usr/local/bin/docker"} {
+			if _, ferr := os.Stat(p); ferr == nil {
+				dockerBin = p
+				break
+			}
+		}
+	}
+	if dockerBin == "" {
+		return "", fmt.Errorf("docker binary not found")
+	}
+
+	pidCmd := exec.CommandContext(ctx, dockerBin, "inspect", "--format", "{{.State.Pid}}", containerName)
+	pidOut, err := pidCmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get container PID: %w", err)
+	}
+	pid := strings.TrimSpace(string(pidOut))
+	if pid == "" || pid == "0" {
+		return "", fmt.Errorf("container %s is not running", containerName)
+	}
+
+	// If the requested interface doesn't exist, fall back to "any"
+	checkCmd := exec.CommandContext(ctx, "nsenter", "-t", pid, "-n", "ip", "link", "show", iface)
+	if err := checkCmd.Run(); err != nil {
+		// Interface not found — try "any" to capture on all interfaces
+		iface = "any"
+	}
+
+	// Build nsenter + tcpdump args
+	args := []string{"-t", pid, "-n", "tcpdump", "-nn", "-c", fmt.Sprintf("%d", count), "-i", iface}
+	if filter != "" {
+		args = append(args, strings.Fields(filter)...)
+	}
+
+	cmd := exec.CommandContext(ctx, "nsenter", args...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err = cmd.Run()
+	// tcpdump writes packet lines to stdout and summary to stderr
+	output := stdout.String()
+	if stderr.Len() > 0 {
+		if output != "" {
+			output += "\n"
+		}
+		output += stderr.String()
+	}
+
+	if err != nil {
+		// Context deadline = normal (timeout reached before count packets)
+		if ctx.Err() != nil {
+			return output, nil
+		}
+		if output != "" {
+			return output, nil
+		}
+		return "", fmt.Errorf("capture failed: %w", err)
+	}
+
+	return output, nil
+}
+
 // Deploy deploys a lab using the containerlab library.
 // After clab.Deploy returns (or times out waiting for post-deploy steps),
 // we use Inspect to gather actual container info since Deploy can block

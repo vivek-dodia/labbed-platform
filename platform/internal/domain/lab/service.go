@@ -514,6 +514,42 @@ func (s *LabService) GetEvents(labUUID string, limit, offset int) (PaginatedResp
 	}, nil
 }
 
+// Capture runs tcpdump on a container interface via the worker (host-side, containerlab-native).
+func (s *LabService) Capture(labUUID, nodeName, iface string, count int, filter string) (string, error) {
+	l, err := s.repo.GetByUUID(labUUID)
+	if err != nil {
+		return "", fmt.Errorf("lab not found: %w", err)
+	}
+
+	if l.State != StateRunning {
+		return "", fmt.Errorf("lab must be running for capture (current: %s)", l.State)
+	}
+
+	if l.WorkerID == nil {
+		return "", fmt.Errorf("lab has no worker assigned")
+	}
+
+	w, err := s.workerSelector.GetWorkerByID(*l.WorkerID)
+	if err != nil {
+		return "", fmt.Errorf("worker not found: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := s.workerClient.Capture(ctx, w.Address, w.Secret, workerclient.CaptureRequest{
+		NodeName:  nodeName,
+		Interface: iface,
+		Count:     count,
+		Filter:    filter,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return resp.Output, nil
+}
+
 // CleanupStuckLabs marks labs stuck in transitional states as failed/stopped
 // and tells workers to clean up any leftover containers.
 func (s *LabService) CleanupStuckLabs(threshold time.Duration) {

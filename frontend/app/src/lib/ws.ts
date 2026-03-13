@@ -2,6 +2,9 @@ import type { WSMessage } from "@/types/api";
 import { getAccessToken } from "./auth";
 
 type MessageHandler = (data: unknown) => void;
+type StatusHandler = (status: WSConnectionStatus) => void;
+
+export type WSConnectionStatus = "connected" | "connecting" | "disconnected";
 
 const WS_BASE = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080";
 
@@ -11,15 +14,33 @@ export class LabWebSocket {
   private reconnectDelay = 1000;
   private maxDelay = 30000;
   private shouldReconnect = true;
+  private statusHandlers = new Set<StatusHandler>();
+  private _status: WSConnectionStatus = "disconnected";
+
+  get status(): WSConnectionStatus {
+    return this._status;
+  }
+
+  private setStatus(s: WSConnectionStatus) {
+    this._status = s;
+    this.statusHandlers.forEach((h) => h(s));
+  }
+
+  onStatus(handler: StatusHandler) {
+    this.statusHandlers.add(handler);
+    return () => { this.statusHandlers.delete(handler); };
+  }
 
   connect() {
     const token = getAccessToken();
     if (!token) return;
 
+    this.setStatus("connecting");
     this.ws = new WebSocket(`${WS_BASE}/ws?token=${token}`);
 
     this.ws.onopen = () => {
       this.reconnectDelay = 1000;
+      this.setStatus("connected");
       // re-subscribe to all active channels
       for (const channel of this.subs.keys()) {
         this.send({ type: "subscribe", channel });
@@ -39,6 +60,7 @@ export class LabWebSocket {
     };
 
     this.ws.onclose = () => {
+      this.setStatus("disconnected");
       if (this.shouldReconnect) {
         setTimeout(() => this.connect(), this.reconnectDelay);
         this.reconnectDelay = Math.min(

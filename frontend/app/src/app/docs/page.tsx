@@ -12,53 +12,82 @@ interface Endpoint {
 
 const sections: Record<string, Endpoint[]> = {
   Authentication: [
-    { method: "POST", path: "/api/v1/auth/login", description: "Authenticate with email and password. Returns access and refresh tokens.", auth: false },
+    { method: "POST", path: "/api/v1/auth/login", description: "Authenticate with email and password. Returns access and refresh tokens (access: 30m, refresh: 30d).", auth: false },
+    { method: "POST", path: "/api/v1/auth/signup", description: "Register a new account. Creates a personal organization automatically.", auth: false },
     { method: "POST", path: "/api/v1/auth/refresh", description: "Exchange a refresh token for a new access token.", auth: false },
-    { method: "GET", path: "/api/v1/auth/config", description: "Returns authentication configuration (native/OIDC).", auth: false },
+    { method: "GET", path: "/api/v1/auth/config", description: "Returns authentication configuration including enabled providers (native, Google OAuth2).", auth: false },
+    { method: "GET", path: "/api/v1/auth/google/authorize", description: "Initiate Google OAuth2 login flow. Redirects to Google consent screen.", auth: false },
+    { method: "POST", path: "/api/v1/auth/google/callback", description: "Complete Google OAuth2 login. Exchanges authorization code for tokens.", auth: false },
   ],
   Users: [
-    { method: "GET", path: "/api/v1/users/me", description: "Get the currently authenticated user profile.", auth: true },
-    { method: "PUT", path: "/api/v1/users/:id", description: "Update user display name or admin status.", auth: true },
-    { method: "PUT", path: "/api/v1/users/:id/password", description: "Change user password. Requires current password.", auth: true },
+    { method: "GET", path: "/api/v1/users/me", description: "Get the currently authenticated user profile including organization memberships.", auth: true },
+    { method: "PUT", path: "/api/v1/users/:id", description: "Update user display name.", auth: true },
+    { method: "PUT", path: "/api/v1/users/:id/password", description: "Change user password. Requires current password. Minimum 6 characters.", auth: true },
+    { method: "GET", path: "/api/v1/users", description: "List all users. Platform admin only.", auth: true },
+    { method: "POST", path: "/api/v1/users", description: "Create a new user account. Platform admin only.", auth: true },
+    { method: "DELETE", path: "/api/v1/users/:id", description: "Delete a user. Platform admin only.", auth: true },
+  ],
+  Organizations: [
+    { method: "GET", path: "/api/v1/organizations", description: "List organizations the user belongs to.", auth: true },
+    { method: "POST", path: "/api/v1/organizations", description: "Create a new organization. Creator becomes owner.", auth: true },
+    { method: "GET", path: "/api/v1/organizations/:id", description: "Get organization details including plan and limits.", auth: true },
+    { method: "PUT", path: "/api/v1/organizations/:id", description: "Update organization name or settings. Owner/admin only.", auth: true },
+    { method: "GET", path: "/api/v1/organizations/:id/members", description: "List all members and their roles (owner/admin/member).", auth: true },
+    { method: "POST", path: "/api/v1/organizations/:id/members", description: "Invite a member by email with a role. Owner/admin only.", auth: true },
+    { method: "DELETE", path: "/api/v1/organizations/:id/members/:userId", description: "Remove a member from the organization. Cannot remove the owner.", auth: true },
   ],
   Collections: [
-    { method: "GET", path: "/api/v1/collections", description: "List all collections accessible to the user.", auth: true },
+    { method: "GET", path: "/api/v1/collections", description: "List all collections in the current organization. Requires X-Org-ID header.", auth: true },
     { method: "POST", path: "/api/v1/collections", description: "Create a new collection with name and visibility settings.", auth: true },
     { method: "GET", path: "/api/v1/collections/:id", description: "Get a specific collection by UUID.", auth: true },
     { method: "PUT", path: "/api/v1/collections/:id", description: "Update collection name or visibility.", auth: true },
-    { method: "DELETE", path: "/api/v1/collections/:id", description: "Delete a collection. Creator or admin only.", auth: true },
-    { method: "POST", path: "/api/v1/collections/:id/members", description: "Add a member with a role (editor/deployer/viewer).", auth: true },
-    { method: "DELETE", path: "/api/v1/collections/:id/members/:uid", description: "Remove a member from the collection.", auth: true },
+    { method: "DELETE", path: "/api/v1/collections/:id", description: "Delete a collection. Org admin or higher required.", auth: true },
+    { method: "POST", path: "/api/v1/collections/:id/members", description: "Add a member with a role (editor/deployer/viewer). Org admin only.", auth: true },
+    { method: "DELETE", path: "/api/v1/collections/:id/members/:uid", description: "Remove a member from the collection. Org admin only.", auth: true },
   ],
   Topologies: [
-    { method: "GET", path: "/api/v1/topologies", description: "List all topologies the user can access.", auth: true },
-    { method: "POST", path: "/api/v1/topologies", description: "Create a topology with name, YAML definition, and collection.", auth: true },
-    { method: "GET", path: "/api/v1/topologies/:id", description: "Get topology details including definition and bind files.", auth: true },
-    { method: "PUT", path: "/api/v1/topologies/:id", description: "Update topology name or definition.", auth: true },
-    { method: "DELETE", path: "/api/v1/topologies/:id", description: "Delete a topology.", auth: true },
-    { method: "POST", path: "/api/v1/topologies/:id/files", description: "Add a bind file (config file for nodes).", auth: true },
+    { method: "GET", path: "/api/v1/topologies", description: "List all topologies in the current organization. Supports pagination with limit/offset query params.", auth: true },
+    { method: "POST", path: "/api/v1/topologies", description: "Create a topology with name, containerlab YAML definition, and collection. Body limit: 5MB.", auth: true },
+    { method: "GET", path: "/api/v1/topologies/:id", description: "Get topology details including YAML definition and bind files.", auth: true },
+    { method: "PUT", path: "/api/v1/topologies/:id", description: "Update topology name or YAML definition. Body limit: 5MB.", auth: true },
+    { method: "DELETE", path: "/api/v1/topologies/:id", description: "Delete a topology. Org admin or higher required.", auth: true },
+    { method: "POST", path: "/api/v1/topologies/validate", description: "Validate a containerlab YAML definition without saving it.", auth: true },
+    { method: "POST", path: "/api/v1/topologies/:id/files", description: "Add a bind file (startup config, custom script, etc.).", auth: true },
     { method: "PATCH", path: "/api/v1/topologies/:id/files/:fid", description: "Update a bind file path or content.", auth: true },
-    { method: "DELETE", path: "/api/v1/topologies/:id/files/:fid", description: "Delete a bind file.", auth: true },
+    { method: "DELETE", path: "/api/v1/topologies/:id/files/:fid", description: "Delete a bind file. Org admin or higher required.", auth: true },
   ],
   Labs: [
-    { method: "GET", path: "/api/v1/labs", description: "List all labs the user can access.", auth: true },
-    { method: "POST", path: "/api/v1/labs", description: "Create a new lab from a topology.", auth: true },
-    { method: "GET", path: "/api/v1/labs/:id", description: "Get lab details including node status.", auth: true },
+    { method: "GET", path: "/api/v1/labs", description: "List all labs in the current organization. Supports pagination with limit/offset query params.", auth: true },
+    { method: "POST", path: "/api/v1/labs", description: "Create a new lab from a topology. Checks org lab quota.", auth: true },
+    { method: "GET", path: "/api/v1/labs/:id", description: "Get lab details including node list with container state, IPs, and images.", auth: true },
     { method: "PUT", path: "/api/v1/labs/:id", description: "Update lab name or schedule.", auth: true },
-    { method: "DELETE", path: "/api/v1/labs/:id", description: "Delete a lab record.", auth: true },
-    { method: "POST", path: "/api/v1/labs/:id/deploy", description: "Deploy the lab to a worker.", auth: true },
-    { method: "POST", path: "/api/v1/labs/:id/destroy", description: "Stop and destroy the running lab.", auth: true },
-    { method: "GET", path: "/api/v1/labs/:id/nodes", description: "Get the current node list for a lab.", auth: true },
+    { method: "DELETE", path: "/api/v1/labs/:id", description: "Delete a lab record. Org admin or higher required.", auth: true },
+    { method: "POST", path: "/api/v1/labs/:id/deploy", description: "Deploy the lab to a worker. Runs async — use WebSocket for progress.", auth: true },
+    { method: "POST", path: "/api/v1/labs/:id/destroy", description: "Stop and destroy all running containers for this lab.", auth: true },
+    { method: "POST", path: "/api/v1/labs/:id/clone", description: "Clone an existing lab with all its configuration.", auth: true },
+    { method: "GET", path: "/api/v1/labs/:id/nodes", description: "Get the current node list with container IDs, IPs, and state.", auth: true },
+    { method: "GET", path: "/api/v1/labs/:id/events", description: "Get the audit trail of events for this lab (deploy, destroy, errors).", auth: true },
   ],
   Workers: [
-    { method: "GET", path: "/api/v1/workers", description: "List all workers. Admin only.", auth: true },
-    { method: "POST", path: "/api/v1/workers", description: "Register a new worker. Admin only.", auth: true },
-    { method: "GET", path: "/api/v1/workers/:id", description: "Get worker details. Admin only.", auth: true },
-    { method: "PUT", path: "/api/v1/workers/:id", description: "Update worker config or state. Admin only.", auth: true },
-    { method: "DELETE", path: "/api/v1/workers/:id", description: "Delete a worker. Admin only.", auth: true },
+    { method: "GET", path: "/api/v1/workers", description: "List all registered workers. Platform admin only.", auth: true },
+    { method: "POST", path: "/api/v1/workers", description: "Register a new worker. Platform admin only.", auth: true },
+    { method: "GET", path: "/api/v1/workers/:id", description: "Get worker details including capacity and status. Platform admin only.", auth: true },
+    { method: "PUT", path: "/api/v1/workers/:id", description: "Update worker config or state. Platform admin only.", auth: true },
+    { method: "DELETE", path: "/api/v1/workers/:id", description: "Delete a worker. Platform admin only.", auth: true },
   ],
   WebSocket: [
-    { method: "WS", path: "/ws?token={jwt}", description: "WebSocket endpoint for real-time lab state, node updates, and shell relay. Subscribe to channels: lab:{uuid}, lab:{uuid}:nodes, shell:{labUuid}:{nodeName}.", auth: true },
+    { method: "WS", path: "/ws?token={jwt}", description: "Real-time updates via WebSocket. Subscribe to channels for live data.", auth: true },
+    { method: "WS", path: "channel: lab:{uuid}", description: "Lab state changes (deploying, running, stopped, failed). Pushes full lab object on every state transition.", auth: true },
+    { method: "WS", path: "channel: lab:{uuid}:nodes", description: "Node updates — container state, IPs, and health changes in real-time.", auth: true },
+    { method: "WS", path: "channel: shell:{labUuid}:{nodeName}", description: "Interactive shell relay. Send commands and receive output from lab containers. Also used for ping, traceroute, bulk commands, config fetch, and packet capture (tcpdump).", auth: true },
+    { method: "WS", path: "channel: lab:{uuid}:logs", description: "Deployment log streaming. Receives real-time log lines during lab deploy/destroy operations.", auth: true },
+  ],
+  "Internal API": [
+    { method: "POST", path: "/api/internal/workers/register", description: "Worker self-registration on startup. Authenticated via shared secret.", auth: true },
+    { method: "POST", path: "/api/internal/workers/heartbeat", description: "Worker heartbeat with capacity info. Sent every 30 seconds.", auth: true },
+    { method: "POST", path: "/api/internal/labs/status", description: "Worker reports lab state changes (deploying → running, failed, stopped).", auth: true },
+    { method: "POST", path: "/api/internal/labs/nodes", description: "Worker reports discovered container nodes with IPs and state.", auth: true },
+    { method: "POST", path: "/api/internal/labs/logs", description: "Worker streams deployment logs to the platform for WebSocket broadcast.", auth: true },
   ],
 };
 
@@ -72,9 +101,22 @@ const methodColors: Record<string, string> = {
 };
 
 const sidebarNavGroups: Record<string, string[]> = {
-  Introduction: ["Authentication", "Users"],
+  "Getting Started": ["Authentication", "Users", "Organizations"],
   Resources: ["Collections", "Topologies", "Labs", "Workers"],
-  Webhooks: ["WebSocket"],
+  "Real-time": ["WebSocket"],
+  Platform: ["Internal API"],
+};
+
+const sectionDescriptions: Record<string, string> = {
+  Authentication: "JWT-based auth with native email/password and Google OAuth2. Access tokens expire in 30 minutes, refresh tokens in 30 days. Rate limited to 20 requests per minute per IP.",
+  Users: "Manage user accounts and profiles. Regular users can update their own profile and password. Platform admins can create, list, and delete users.",
+  Organizations: "Multi-tenant organization management. Each org has its own collections, topologies, labs, and workers. Members have roles: owner, admin, or member. All org-scoped API calls require the X-Org-ID header.",
+  Collections: "Group topologies into collections for organization. Collections are org-scoped and support member-level access control with editor, deployer, and viewer roles.",
+  Topologies: "Containerlab YAML topology definitions. Create, validate, and manage network topologies with bind files for node startup configs. Body size limit of 5MB for write operations.",
+  Labs: "Deploy and manage containerlab network labs. Labs are created from topologies and run on registered workers. Supports real-time state tracking, node inspection, cloning, audit trail, packet capture, config diff, bulk commands, and interactive terminal with per-node persistence.",
+  Workers: "Platform-managed worker agents that run on Docker hosts. Workers register with the platform, send heartbeats, and execute containerlab operations. Platform admin access required.",
+  WebSocket: "Real-time communication via WebSocket. Subscribe to channels for live lab state changes, node updates, deployment log streaming, and interactive shell sessions. Shell relay also powers ping, traceroute, bulk commands, config diff, and packet capture.",
+  "Internal API": "Worker-to-platform communication endpoints. Authenticated via shared secret. Used for worker registration, heartbeats, and reporting lab status, nodes, and deployment logs.",
 };
 
 function NavHoverItem({
@@ -408,21 +450,38 @@ function getMethodTagStyle(method: string): React.CSSProperties {
   };
 }
 
+const ORG_SCOPED_PATHS = ["/api/v1/collections", "/api/v1/topologies", "/api/v1/labs", "/api/v1/workers"];
+
 function getCurlExample(ep: Endpoint): React.ReactNode {
+  const needsOrgHeader = ORG_SCOPED_PATHS.some((p) => ep.path.startsWith(p));
+  const c = "rgba(121,246,115,0.4)";
   return (
     <>
       <span style={{ color: "rgba(121,246,115,0.5)" }}>curl</span> -X {ep.method}{" "}
-      <span style={{ color: "rgba(121,246,115,0.4)" }}>
+      <span style={{ color: c }}>
         &quot;http://localhost:8080{ep.path}&quot;
       </span>{" "}
       \<br />
+      {ep.auth && (
+        <>
+          &nbsp;&nbsp;-H{" "}
+          <span style={{ color: c }}>
+            &quot;Authorization: Bearer YOUR_TOKEN&quot;
+          </span>{" "}
+          \<br />
+        </>
+      )}
+      {needsOrgHeader && (
+        <>
+          &nbsp;&nbsp;-H{" "}
+          <span style={{ color: c }}>
+            &quot;X-Org-ID: YOUR_ORG_UUID&quot;
+          </span>{" "}
+          \<br />
+        </>
+      )}
       &nbsp;&nbsp;-H{" "}
-      <span style={{ color: "rgba(121,246,115,0.4)" }}>
-        &quot;Authorization: Bearer YOUR_TOKEN&quot;
-      </span>{" "}
-      \<br />
-      &nbsp;&nbsp;-H{" "}
-      <span style={{ color: "rgba(121,246,115,0.4)" }}>
+      <span style={{ color: c }}>
         &quot;Content-Type: application/json&quot;
       </span>
     </>
@@ -430,18 +489,42 @@ function getCurlExample(ep: Endpoint): React.ReactNode {
 }
 
 function getResponseExample(section: string): React.ReactNode {
+  const k = "rgba(121,246,115,0.5)";
+  const v = "rgba(121,246,115,0.35)";
+  const comment = "rgba(255,255,255,0.4)";
+
   if (section === "Authentication") {
     return (
       <>
         {"{"}<br />
-        &nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;access_token&quot;</span>:{" "}
-        <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;eyJhbGciOi...&quot;</span>,<br />
-        &nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;refresh_token&quot;</span>:{" "}
-        <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;dGhpcyBpcy...&quot;</span>,<br />
-        &nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;token_type&quot;</span>:{" "}
-        <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;Bearer&quot;</span>,<br />
-        &nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;expires_in&quot;</span>:{" "}
-        <span style={{ color: "rgba(121,246,115,0.35)" }}>3600</span><br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;access_token&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;eyJhbGciOi...&quot;</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;refresh_token&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;dGhpcyBpcy...&quot;</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;token_type&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;Bearer&quot;</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;expires_in&quot;</span>:{" "}
+        <span style={{ color: v }}>1800</span><br />
+        {"}"}
+      </>
+    );
+  }
+  if (section === "Organizations") {
+    return (
+      <>
+        {"{"}<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;uuid&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;org_a1b2c3d4...&quot;</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;name&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;Acme Networks&quot;</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;slug&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;acme-networks&quot;</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;plan&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;free&quot;</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;maxLabs&quot;</span>:{" "}
+        <span style={{ color: v }}>10</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;maxWorkers&quot;</span>:{" "}
+        <span style={{ color: v }}>5</span><br />
         {"}"}
       </>
     );
@@ -450,46 +533,119 @@ function getResponseExample(section: string): React.ReactNode {
     return (
       <>
         {"{"}<br />
-        &nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;status&quot;</span>:{" "}
-        <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;success&quot;</span>,<br />
-        &nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;data&quot;</span>: [<br />
-        &nbsp;&nbsp;&nbsp;&nbsp;{"{"}<br />
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;id&quot;</span>:{" "}
-        <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;lab_44210&quot;</span>,<br />
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;name&quot;</span>:{" "}
-        <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;OSPF-Lab-01&quot;</span>,<br />
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;state&quot;</span>:{" "}
-        <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;running&quot;</span><br />
-        &nbsp;&nbsp;&nbsp;&nbsp;{"}"}<br />
-        &nbsp;&nbsp;],<br />
-        &nbsp;&nbsp;<span style={{ color: "rgba(255,255,255,0.4)", fontStyle: "italic" }}>{"// Total count for pagination"}</span><br />
-        &nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;total&quot;</span>:{" "}
-        <span style={{ color: "rgba(121,246,115,0.35)" }}>8</span><br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;data&quot;</span>: [{"{"}<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: k }}>&quot;uuid&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;lab_44210...&quot;</span>,<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: k }}>&quot;name&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;OSPF-Lab-01&quot;</span>,<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: k }}>&quot;state&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;running&quot;</span>,<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: k }}>&quot;nodes&quot;</span>: [{"{"}<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: k }}>&quot;name&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;clab-ospf-r1&quot;</span>,<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: k }}>&quot;state&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;running&quot;</span>,<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: k }}>&quot;ipv4&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;172.20.20.2&quot;</span><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;{"}"}]<br />
+        &nbsp;&nbsp;{"}"}],<br />
+        &nbsp;&nbsp;<span style={{ color: comment, fontStyle: "italic" }}>{"// Pagination"}</span><br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;total&quot;</span>:{" "}
+        <span style={{ color: v }}>8</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;limit&quot;</span>:{" "}
+        <span style={{ color: v }}>20</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;offset&quot;</span>:{" "}
+        <span style={{ color: v }}>0</span><br />
         {"}"}
       </>
     );
   }
-  // Default response for Topologies, Collections, Users, Workers
+  if (section === "WebSocket") {
+    return (
+      <>
+        <span style={{ color: comment, fontStyle: "italic" }}>{"// Subscribe to a channel"}</span><br />
+        {"{"}<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;type&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;subscribe&quot;</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;channel&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;lab:abc-123:nodes&quot;</span><br />
+        {"}"}<br /><br />
+        <span style={{ color: comment, fontStyle: "italic" }}>{"// Incoming message"}</span><br />
+        {"{"}<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;channel&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;lab:abc-123:nodes&quot;</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;data&quot;</span>: [{"{"}<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: k }}>&quot;name&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;clab-ospf-r1&quot;</span>,<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: k }}>&quot;state&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;running&quot;</span><br />
+        &nbsp;&nbsp;{"}"}]<br />
+        {"}"}
+      </>
+    );
+  }
+  if (section === "Internal API") {
+    return (
+      <>
+        <span style={{ color: comment, fontStyle: "italic" }}>{"// Worker → Platform heartbeat"}</span><br />
+        {"{"}<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;workerUuid&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;wrk_55f1...&quot;</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;activeLabs&quot;</span>:{" "}
+        <span style={{ color: v }}>3</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;capacity&quot;</span>:{" "}
+        <span style={{ color: v }}>10</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;uptime&quot;</span>:{" "}
+        <span style={{ color: v }}>86400</span><br />
+        {"}"}
+      </>
+    );
+  }
+  if (section === "Users") {
+    return (
+      <>
+        {"{"}<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;uuid&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;usr_e4f5a6...&quot;</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;email&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;admin@labbed.local&quot;</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;displayName&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;Admin&quot;</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;isAdmin&quot;</span>:{" "}
+        <span style={{ color: v }}>true</span>,<br />
+        &nbsp;&nbsp;<span style={{ color: k }}>&quot;organizations&quot;</span>: [{"{"}<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: k }}>&quot;uuid&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;org_a1b2...&quot;</span>,<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: k }}>&quot;name&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;Default&quot;</span>,<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: k }}>&quot;role&quot;</span>:{" "}
+        <span style={{ color: v }}>&quot;owner&quot;</span><br />
+        &nbsp;&nbsp;{"}"}]<br />
+        {"}"}
+      </>
+    );
+  }
+  // Default response for Topologies, Collections, Workers
   return (
     <>
       {"{"}<br />
-      &nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;status&quot;</span>:{" "}
-      <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;success&quot;</span>,<br />
-      &nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;data&quot;</span>: [<br />
+      &nbsp;&nbsp;<span style={{ color: k }}>&quot;data&quot;</span>: [<br />
       &nbsp;&nbsp;&nbsp;&nbsp;{"{"}<br />
-      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;id&quot;</span>:{" "}
-      <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;top_99821&quot;</span>,<br />
-      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;name&quot;</span>:{" "}
-      <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;BGP-Core-Mesh&quot;</span>,<br />
-      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;nodes&quot;</span>:{" "}
-      <span style={{ color: "rgba(121,246,115,0.35)" }}>12</span>,<br />
-      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;status&quot;</span>:{" "}
-      <span style={{ color: "rgba(121,246,115,0.35)" }}>&quot;active&quot;</span><br />
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: k }}>&quot;uuid&quot;</span>:{" "}
+      <span style={{ color: v }}>&quot;top_99821...&quot;</span>,<br />
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: k }}>&quot;name&quot;</span>:{" "}
+      <span style={{ color: v }}>&quot;BGP-Core-Mesh&quot;</span>,<br />
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: k }}>&quot;createdAt&quot;</span>:{" "}
+      <span style={{ color: v }}>&quot;2026-03-12T...&quot;</span><br />
       &nbsp;&nbsp;&nbsp;&nbsp;{"}"}<br />
       &nbsp;&nbsp;],<br />
-      &nbsp;&nbsp;<span style={{ color: "rgba(255,255,255,0.4)", fontStyle: "italic" }}>{"// Total count for pagination"}</span><br />
-      &nbsp;&nbsp;<span style={{ color: "rgba(121,246,115,0.5)" }}>&quot;total&quot;</span>:{" "}
-      <span style={{ color: "rgba(121,246,115,0.35)" }}>42</span><br />
+      &nbsp;&nbsp;<span style={{ color: comment, fontStyle: "italic" }}>{"// Pagination"}</span><br />
+      &nbsp;&nbsp;<span style={{ color: k }}>&quot;total&quot;</span>:{" "}
+      <span style={{ color: v }}>42</span>,<br />
+      &nbsp;&nbsp;<span style={{ color: k }}>&quot;limit&quot;</span>:{" "}
+      <span style={{ color: v }}>20</span>,<br />
+      &nbsp;&nbsp;<span style={{ color: k }}>&quot;offset&quot;</span>:{" "}
+      <span style={{ color: v }}>0</span><br />
       {"}"}
     </>
   );
@@ -861,9 +1017,7 @@ export default function DocsPage() {
                   lineHeight: 1.4,
                 }}
               >
-                Manage your network lab environments programmatically. Create
-                topologies, deploy labs, and stream real-time data through
-                WebSocket channels.
+                {sectionDescriptions[activeSection] || "Manage your network lab environments programmatically."}
               </p>
             </header>
 

@@ -102,6 +102,28 @@ func (c *Client) Exec(ctx context.Context, workerAddr, workerSecret string, req 
 	return &resp, nil
 }
 
+// CaptureRequest is sent to a worker to capture packets on a container interface.
+type CaptureRequest struct {
+	NodeName  string `json:"nodeName"`
+	Interface string `json:"interface"`
+	Count     int    `json:"count"`
+	Filter    string `json:"filter"`
+}
+
+// CaptureResponse is the worker's response to a capture call.
+type CaptureResponse struct {
+	Output string `json:"output"`
+}
+
+// Capture sends a packet capture request to a worker.
+func (c *Client) Capture(ctx context.Context, workerAddr, workerSecret string, req CaptureRequest) (*CaptureResponse, error) {
+	var resp CaptureResponse
+	if err := c.post(ctx, workerAddr+"/api/v1/labs/capture", workerSecret, req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 // HealthCheck checks if a worker is reachable.
 func (c *Client) HealthCheck(ctx context.Context, workerAddr string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, workerAddr+"/health", nil)

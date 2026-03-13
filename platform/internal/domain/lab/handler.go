@@ -308,6 +308,33 @@ func (h *LabHandler) HandleNodeUpdate(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
+// HandleCapture runs tcpdump on a container interface via the worker.
+func (h *LabHandler) HandleCapture(c *gin.Context) {
+	labUUID := c.Param("id")
+	if h.requireLabOrg(c, labUUID) {
+		return
+	}
+
+	var req struct {
+		NodeName  string `json:"nodeName" binding:"required"`
+		Interface string `json:"interface" binding:"required"`
+		Count     int    `json:"count"`
+		Filter    string `json:"filter"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	output, err := h.service.Capture(labUUID, req.NodeName, req.Interface, req.Count, req.Filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"output": output})
+}
+
 func (h *LabHandler) HandleLogPush(c *gin.Context) {
 	var req LogPushRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

@@ -1,0 +1,74 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: labbed-postgres
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      POSTGRES_DB: labbed
+      POSTGRES_USER: labbed
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-labbed}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U labbed"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  platform:
+    image: ghcr.io/vivek-dodia/labbed-platform:latest
+    container_name: labbed-platform
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      LABBED_DATABASE_HOST: localhost
+      LABBED_AUTH_JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      LABBED_AUTH_ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@labbed.local}
+      LABBED_AUTH_ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      LABBED_SERVER_PLATFORM_URL: ${PLATFORM_URL:-http://localhost:8080}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    image: ghcr.io/vivek-dodia/labbed-worker:latest
+    container_name: labbed-worker
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+    pid: host
+    environment:
+      LABBED_WORKER_NAME: do-worker
+      LABBED_WORKER_PORT: "8081"
+      LABBED_WORKER_PLATFORM_URL: ${PLATFORM_URL:-http://localhost:8080}
+      LABBED_WORKER_PLATFORM_SECRET: ${JWT_SECRET:-change-me-in-production}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/netns:/var/run/netns
+    depends_on:
+      - platform
+
+  frontend:
+    image: ghcr.io/vivek-dodia/labbed-frontend:latest
+    container_name: labbed-frontend
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8080}
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+
+  nginx:
+    image: nginx:alpine
+    container_name: labbed-nginx
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - platform
+      - frontend
+
+volumes:
+  pgdata:

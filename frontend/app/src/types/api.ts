@@ -208,6 +208,18 @@ export interface UpdateLabRequest {
   scheduledEnd?: string;
 }
 
+// ── NOS Images ──
+export interface NosImageResponse {
+  uuid: string;
+  name: string;
+  clabKind: string;
+  dockerImage: string;
+  defaultUser: string;
+  defaultPass: string;
+  isSystem: boolean;
+  createdAt: string;
+}
+
 // ── Workers ──
 export type WorkerState = "online" | "offline" | "draining";
 

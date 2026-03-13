@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useWSChannel, useShellInput, useWSStatus } from "@/hooks/useWebSocket";
 import { api } from "@/lib/api";
 import { parseContainerlabYAML } from "@/lib/yaml-parser";
+import DeployConfigModal from "@/components/DeployConfigModal";
 import type { LabResponse, NodeResponse, TopologyResponse, LabEventResponse, PaginatedResponse, BindFileResponse } from "@/types/api";
 
 /* ── Quick-command definitions ── */
@@ -176,6 +177,7 @@ export default function LabDetailPage() {
   const [topology, setTopology] = useState<TopologyResponse | null>(null);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState("");
+  const [showDeployModal, setShowDeployModal] = useState(false);
 
   /* Bottom panel state */
   const [bottomTab, setBottomTab] = useState<BottomTab>("terminal");
@@ -433,9 +435,26 @@ export default function LabDetailPage() {
 
   /* Actions */
   const handleAction = useCallback(async (action: "deploy" | "destroy") => {
+    if (action === "deploy") {
+      setShowDeployModal(true);
+      return;
+    }
     setActionLoading(action);
     try {
       await api.post(`/api/v1/labs/${id}/${action}`, {});
+      const updated = await api.get<LabResponse>(`/api/v1/labs/${id}`);
+      setLab(updated);
+      startPolling();
+    } finally { setActionLoading(""); }
+  }, [id, startPolling]);
+
+  const handleDeployWithImages = useCallback(async (nodeImages: Record<string, string>) => {
+    setActionLoading("deploy");
+    try {
+      await api.post(`/api/v1/labs/${id}/deploy`, {
+        nodeImages: Object.keys(nodeImages).length > 0 ? nodeImages : undefined,
+      });
+      setShowDeployModal(false);
       const updated = await api.get<LabResponse>(`/api/v1/labs/${id}`);
       setLab(updated);
       startPolling();
@@ -1827,6 +1846,17 @@ export default function LabDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Deploy config modal */}
+      {topology && (
+        <DeployConfigModal
+          isOpen={showDeployModal}
+          onClose={() => setShowDeployModal(false)}
+          onDeploy={handleDeployWithImages}
+          definition={topology.definition}
+          deploying={actionLoading === "deploy"}
+        />
+      )}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import TopologyCanvas from "@/components/topology/TopologyCanvas";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import { parseContainerlabYAML } from "@/lib/yaml-parser";
+import DeployConfigModal from "@/components/DeployConfigModal";
 import type {
   TopologyResponse,
   BindFileResponse,
@@ -29,6 +30,7 @@ export default function TopologyEditorPage() {
   const [newFileContent, setNewFileContent] = useState("");
   const [showFileEdit, setShowFileEdit] = useState<BindFileResponse | null>(null);
   const [editContent, setEditContent] = useState("");
+  const [showDeployModal, setShowDeployModal] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -58,7 +60,11 @@ export default function TopologyEditorPage() {
     }
   }, [id, definition]);
 
-  const handleDeploy = useCallback(async () => {
+  const handleDeployClick = useCallback(() => {
+    setShowDeployModal(true);
+  }, []);
+
+  const handleDeployWithImages = useCallback(async (nodeImages: Record<string, string>) => {
     if (!topology) return;
     setDeploying(true);
     try {
@@ -66,8 +72,10 @@ export default function TopologyEditorPage() {
         name: `${topology.name} -- deploy`,
         topologyId: topology.uuid,
       });
-      // Trigger actual deployment to a worker
-      await api.post(`/api/v1/labs/${lab.uuid}/deploy`, {});
+      await api.post(`/api/v1/labs/${lab.uuid}/deploy`, {
+        nodeImages: Object.keys(nodeImages).length > 0 ? nodeImages : undefined,
+      });
+      setShowDeployModal(false);
       router.push(`/labs/${lab.uuid}`);
     } finally {
       setDeploying(false);
@@ -202,7 +210,7 @@ export default function TopologyEditorPage() {
               <button onClick={handleSave} disabled={saving} style={pillBtn()}>
                 {saving ? "Saving..." : "Save"}
               </button>
-              <button onClick={handleDeploy} disabled={deploying} style={pillBtn("orange")}>
+              <button onClick={handleDeployClick} disabled={deploying} style={pillBtn("orange")}>
                 {deploying ? "Deploying..." : "Deploy as Lab"}
               </button>
               <button
@@ -369,6 +377,15 @@ export default function TopologyEditorPage() {
           </div>
         </div>
       )}
+
+      {/* Deploy config modal */}
+      <DeployConfigModal
+        isOpen={showDeployModal}
+        onClose={() => setShowDeployModal(false)}
+        onDeploy={handleDeployWithImages}
+        definition={definition}
+        deploying={deploying}
+      />
 
       {/* Edit file modal */}
       {showFileEdit && (

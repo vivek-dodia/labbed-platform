@@ -19,6 +19,7 @@ import (
 	"github.com/labbed/platform/internal/config"
 	"github.com/labbed/platform/internal/domain/collection"
 	"github.com/labbed/platform/internal/domain/lab"
+	"github.com/labbed/platform/internal/domain/nosimage"
 	"github.com/labbed/platform/internal/domain/organization"
 	"github.com/labbed/platform/internal/domain/topology"
 	"github.com/labbed/platform/internal/domain/user"
@@ -55,6 +56,7 @@ func main() {
 		&lab.Lab{},
 		&lab.LabNode{},
 		&lab.LabEvent{},
+		&nosimage.NosImage{},
 	); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
@@ -67,6 +69,7 @@ func main() {
 	topologyRepo := topology.NewRepository(db)
 	workerRepo := worker.NewRepository(db)
 	labRepo := lab.NewRepository(db)
+	nosImageRepo := nosimage.NewRepository(db)
 
 	// Helper functions for cross-domain resolution
 	resolveUserID := func(uuid string) (uint, error) {
@@ -143,7 +146,9 @@ func main() {
 	workerService := worker.NewService(workerRepo)
 	workerHTTPClient := workerclient.NewClient()
 	topoLoader := topology.NewLoader(topologyRepo)
+	nosImageService := nosimage.NewService(nosImageRepo)
 	labService := lab.NewService(labRepo, workerService, workerHTTPClient, topoLoader, config.AppConfig.Server.PlatformURL)
+	labService.SetNosImageResolver(nosImageService)
 
 	// Initialize WebSocket hub
 	hub := ws.NewHub(config.AppConfig.Server.CORSOrigins)
@@ -173,6 +178,7 @@ func main() {
 	topologyHandler := topology.NewHandler(topologyService, resolveCollectionID, resolveUserID, getUserCollectionIDs)
 	labHandler := lab.NewHandler(labService, hub, resolveUserID, getUserCollectionIDs)
 	workerHandler := worker.NewHandler(workerService)
+	nosImageHandler := nosimage.NewHandler(nosImageService)
 
 	// Wire shell exec handler: channel format is "shell:{labUuid}:{nodeName}"
 	hub.SetShellHandler(func(channel string, input string) (string, error) {
@@ -292,6 +298,9 @@ func main() {
 
 			// Labs
 			lab.RegisterRoutes(orgScoped, labHandler)
+
+			// NOS Images
+			nosimage.RegisterRoutes(orgScoped, nosImageHandler)
 
 			// Workers (admin only, handled in routes.go)
 			worker.RegisterRoutes(orgScoped, workerHandler)

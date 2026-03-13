@@ -37,17 +37,25 @@ rebuild_frontend() {
     echo "Frontend restarted"
 }
 
+rebuild_nginx() {
+    echo "Updating nginx config..."
+    $SSH "cp /opt/labbed/nginx/default.conf /tmp/labbed-nginx.conf && docker restart labbed-nginx 2>/dev/null || docker run -d --name labbed-nginx --network host -v /tmp/labbed-nginx.conf:/etc/nginx/conf.d/default.conf:ro nginx:alpine"
+    echo "Nginx updated"
+}
+
 case $COMPONENT in
     platform)  rebuild_platform ;;
     worker)    rebuild_worker ;;
     frontend)  rebuild_frontend ;;
+    nginx)     rebuild_nginx ;;
     all)
         rebuild_platform
         rebuild_worker
         rebuild_frontend
+        rebuild_nginx
         ;;
     *)
-        echo "Usage: ./deploy.sh [platform|worker|frontend|all]"
+        echo "Usage: ./deploy.sh [platform|worker|frontend|nginx|all]"
         exit 1
         ;;
 esac

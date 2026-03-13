@@ -100,6 +100,11 @@ type LabEventResponse struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
+// DeployRequest is the optional body for POST /labs/:id/deploy.
+type DeployRequest struct {
+	NodeImages map[string]string `json:"nodeImages"` // nodeName -> NOS image UUID
+}
+
 // LogPushRequest is sent by workers to stream deployment logs.
 type LogPushRequest struct {
 	LabUUID string `json:"labUuid" binding:"required"`

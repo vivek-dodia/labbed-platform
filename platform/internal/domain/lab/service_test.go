@@ -346,7 +346,7 @@ func TestDeploy_InvalidState(t *testing.T) {
 	_ = svc.UpdateState(created.UUID, StateRunning, nil)
 
 	// Try to deploy from running — should fail
-	err := svc.Deploy(created.UUID)
+	err := svc.Deploy(created.UUID, nil)
 	if err == nil {
 		t.Error("expected error when deploying from running state")
 	}
@@ -361,7 +361,7 @@ func TestDeploy_FromScheduled(t *testing.T) {
 	})
 
 	// Deploy from scheduled — should succeed (worker dispatch will fail but state should update)
-	err := svc.Deploy(created.UUID)
+	err := svc.Deploy(created.UUID, nil)
 	if err != nil {
 		t.Fatalf("deploy failed: %v", err)
 	}
@@ -385,7 +385,7 @@ func TestDeploy_FromStopped(t *testing.T) {
 
 	_ = svc.UpdateState(created.UUID, StateStopped, nil)
 
-	err := svc.Deploy(created.UUID)
+	err := svc.Deploy(created.UUID, nil)
 	if err != nil {
 		t.Fatalf("redeploy from stopped failed: %v", err)
 	}
@@ -407,7 +407,7 @@ func TestDeploy_FromFailed(t *testing.T) {
 	errMsg := "previous error"
 	_ = svc.UpdateState(created.UUID, StateFailed, &errMsg)
 
-	err := svc.Deploy(created.UUID)
+	err := svc.Deploy(created.UUID, nil)
 	if err != nil {
 		t.Fatalf("deploy from failed state failed: %v", err)
 	}
@@ -435,7 +435,7 @@ func TestDeploy_NoWorkers(t *testing.T) {
 		TopologyID: "topo-1",
 	})
 
-	err := svc.Deploy(created.UUID)
+	err := svc.Deploy(created.UUID, nil)
 	if err == nil {
 		t.Error("expected error when no workers available")
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/labbed/platform/internal/domain/worker"
 	"github.com/labbed/platform/internal/workerclient"
+	"gopkg.in/yaml.v3"
 )
 
 // WorkerSelector is a minimal interface for worker selection, keeping the lab
@@ -21,16 +22,22 @@ type WorkerSelector interface {
 
 // TopologyLoader loads topology definitions and bind files for deploy dispatch.
 type TopologyLoader interface {
-	GetDefinition(topoUUID string) (string, error)                      // returns YAML definition
-	GetBindFiles(topoUUID string) (map[string][]byte, error)            // filePath -> content
+	GetDefinition(topoUUID string) (string, error)           // returns YAML definition
+	GetBindFiles(topoUUID string) (map[string][]byte, error) // filePath -> content
+}
+
+// NosImageResolver resolves a NOS image UUID to its clab kind and docker image.
+type NosImageResolver interface {
+	ResolveImage(uuid string) (clabKind, dockerImage string, err error)
 }
 
 type LabService struct {
-	repo           *LabRepository
-	workerSelector WorkerSelector
-	workerClient   *workerclient.Client
-	topoLoader     TopologyLoader
-	platformURL    string // base URL for worker callbacks
+	repo             *LabRepository
+	workerSelector   WorkerSelector
+	workerClient     *workerclient.Client
+	topoLoader       TopologyLoader
+	platformURL      string // base URL for worker callbacks
+	nosImageResolver NosImageResolver
 }
 
 func NewService(repo *LabRepository, workerSelector WorkerSelector, wc *workerclient.Client, tl TopologyLoader, platformURL string) *LabService {
@@ -41,6 +48,11 @@ func NewService(repo *LabRepository, workerSelector WorkerSelector, wc *workercl
 		topoLoader:     tl,
 		platformURL:    platformURL,
 	}
+}
+
+// SetNosImageResolver sets the NOS image resolver for deploy-time overrides.
+func (s *LabService) SetNosImageResolver(resolver NosImageResolver) {
+	s.nosImageResolver = resolver
 }
 
 // Create creates a new lab in the scheduled state.
@@ -209,7 +221,8 @@ func (s *LabService) cleanupWorkerContainers(l *Lab) {
 }
 
 // Deploy selects a worker, transitions the lab to deploying, and dispatches to the worker.
-func (s *LabService) Deploy(labUUID string) error {
+// nodeImages is an optional map of node name -> NOS image UUID for deploy-time overrides.
+func (s *LabService) Deploy(labUUID string, nodeImages map[string]string) error {
 	l, err := s.repo.GetByUUID(labUUID)
 	if err != nil {
 		return fmt.Errorf("lab not found: %w", err)
@@ -231,6 +244,14 @@ func (s *LabService) Deploy(labUUID string) error {
 	definition, err := s.topoLoader.GetDefinition(l.TopologyID)
 	if err != nil {
 		return fmt.Errorf("failed to load topology: %w", err)
+	}
+
+	// Apply image overrides if provided
+	if len(nodeImages) > 0 {
+		definition, err = s.applyImageOverrides(definition, nodeImages)
+		if err != nil {
+			return fmt.Errorf("failed to apply image overrides: %w", err)
+		}
 	}
 
 	bindFiles, err := s.topoLoader.GetBindFiles(l.TopologyID)
@@ -277,6 +298,50 @@ func (s *LabService) Deploy(labUUID string) error {
 	}()
 
 	return nil
+}
+
+// applyImageOverrides parses the topology YAML, overrides node images based on
+// NOS image UUIDs, and returns the modified YAML string.
+func (s *LabService) applyImageOverrides(definition string, nodeImages map[string]string) (string, error) {
+	if s.nosImageResolver == nil {
+		return "", errors.New("NOS image resolver not configured")
+	}
+
+	var topo map[string]interface{}
+	if err := yaml.Unmarshal([]byte(definition), &topo); err != nil {
+		return "", fmt.Errorf("failed to parse topology YAML: %w", err)
+	}
+
+	// Navigate to topology.nodes
+	topoSection, ok := topo["topology"].(map[string]interface{})
+	if !ok {
+		return "", errors.New("topology YAML missing 'topology' section")
+	}
+	nodes, ok := topoSection["nodes"].(map[string]interface{})
+	if !ok {
+		return "", errors.New("topology YAML missing 'nodes' section")
+	}
+
+	for nodeName, imageUUID := range nodeImages {
+		nodeData, ok := nodes[nodeName].(map[string]interface{})
+		if !ok {
+			return "", fmt.Errorf("node %q not found in topology", nodeName)
+		}
+
+		clabKind, dockerImage, err := s.nosImageResolver.ResolveImage(imageUUID)
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve image for node %q: %w", nodeName, err)
+		}
+
+		nodeData["kind"] = clabKind
+		nodeData["image"] = dockerImage
+	}
+
+	out, err := yaml.Marshal(topo)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal modified topology: %w", err)
+	}
+	return string(out), nil
 }
 
 // Destroy transitions the lab to stopping and dispatches destroy to the worker.

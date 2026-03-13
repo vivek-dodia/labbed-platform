@@ -179,7 +179,12 @@ func (h *LabHandler) HandleDeploy(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.Deploy(id); err != nil {
+	// Parse optional deploy body with node image overrides
+	var req DeployRequest
+	// Ignore bind errors — body is optional; empty body = no overrides
+	_ = c.ShouldBindJSON(&req)
+
+	if err := h.service.Deploy(id, req.NodeImages); err != nil {
 		if err.Error() == "no available workers with capacity" {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
 			return

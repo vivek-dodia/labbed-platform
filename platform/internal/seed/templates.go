@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/labbed/platform/internal/domain/collection"
+	"github.com/labbed/platform/internal/domain/nosimage"
 	"github.com/labbed/platform/internal/domain/organization"
 	"github.com/labbed/platform/internal/domain/topology"
 )
@@ -31,6 +32,56 @@ func SeedDefaults(db *gorm.DB, adminUserID uint) {
 	defaultOrgID := ensureDefaultOrg(db, adminUserID)
 
 	SeedSampleTopologies(db, defaultOrgID, adminUserID)
+	SeedNosImages(db)
+}
+
+// SeedNosImages creates system-level NOS images if they don't already exist.
+func SeedNosImages(db *gorm.DB) {
+	systemImages := []nosimage.NosImage{
+		{
+			UUID:        uuid.New().String(),
+			Name:        "FRR 10.3.1",
+			ClabKind:    "linux",
+			DockerImage: "quay.io/frrouting/frr:10.3.1",
+			DefaultUser: "root",
+			DefaultPass: "",
+			IsSystem:    true,
+			OrgID:       0,
+		},
+		{
+			UUID:        uuid.New().String(),
+			Name:        "Alpine 3.20",
+			ClabKind:    "linux",
+			DockerImage: "alpine:3.20",
+			DefaultUser: "root",
+			DefaultPass: "",
+			IsSystem:    true,
+			OrgID:       0,
+		},
+		{
+			UUID:        uuid.New().String(),
+			Name:        "RouterOS CHR 7.20.8",
+			ClabKind:    "mikrotik_ros",
+			DockerImage: "vrnetlab/vr-routeros:7.20.8",
+			DefaultUser: "admin",
+			DefaultPass: "",
+			IsSystem:    true,
+			OrgID:       0,
+		},
+	}
+
+	for _, img := range systemImages {
+		var count int64
+		db.Model(&nosimage.NosImage{}).Where("docker_image = ? AND is_system = ?", img.DockerImage, true).Count(&count)
+		if count > 0 {
+			continue
+		}
+		if err := db.Create(&img).Error; err != nil {
+			log.Printf("seed: failed to create NOS image %q: %v", img.Name, err)
+			continue
+		}
+		log.Printf("seed: created system NOS image %q", img.Name)
+	}
 }
 
 // SeedSampleTopologies creates a "Sample Labs" collection with starter topologies

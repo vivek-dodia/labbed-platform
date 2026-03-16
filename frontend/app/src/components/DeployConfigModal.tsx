@@ -27,6 +27,20 @@ const MONO: React.CSSProperties = {
   fontSize: "0.8rem",
 };
 
+/** Derive a friendly display name from a docker image string */
+function friendlyImageName(image: string): string {
+  if (!image) return "no image set";
+  const img = image.toLowerCase();
+  if (img.includes("frr") || img.includes("frrouting")) return "FRR";
+  if (img.includes("routeros") || img.includes("mikrotik")) return "RouterOS CHR";
+  if (img.includes("alpine")) return "Alpine Linux";
+  if (img.includes("srl") || img.includes("srlinux")) return "Nokia SR Linux";
+  if (img.includes("ceos")) return "Arista cEOS";
+  // Fallback: show image:tag without registry prefix
+  const parts = image.split("/");
+  return parts[parts.length - 1];
+}
+
 export default function DeployConfigModal({
   isOpen,
   onClose,
@@ -53,8 +67,19 @@ export default function DeployConfigModal({
     setSelections({});
   }, [isOpen]);
 
+  // Auto-match nodes to catalog images when catalog loads
+  useEffect(() => {
+    if (nosImages.length === 0 || nodes.length === 0) return;
+    const auto: Record<string, string> = {};
+    for (const node of nodes) {
+      if (!node.image) continue;
+      const match = nosImages.find((img) => img.dockerImage === node.image);
+      if (match) auto[node.name] = match.uuid;
+    }
+    setSelections(auto);
+  }, [nosImages, nodes.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleDeploy = useCallback(() => {
-    // Only include nodes where user actually selected an override
     const overrides: Record<string, string> = {};
     for (const [nodeName, imageUUID] of Object.entries(selections)) {
       if (imageUUID) {
@@ -85,10 +110,22 @@ export default function DeployConfigModal({
                 border: "1px solid rgba(0,0,0,0.15)",
               }}
             >
-              <div style={{ flex: "0 0 120px" }}>
+              <div style={{ flex: "0 0 140px", minWidth: 0 }}>
                 <span style={{ ...MONO, fontWeight: 700 }}>{node.name}</span>
-                <div style={{ ...LABEL, fontSize: "0.55rem", opacity: 0.4, marginTop: "0.2rem" }}>
-                  {node.image || "no image"}
+                <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", marginTop: "0.25rem" }}>
+                  <span style={{
+                    ...LABEL,
+                    fontSize: "0.5rem",
+                    opacity: 0.6,
+                    padding: "0.1rem 0.35rem",
+                    border: "1px solid rgba(0,0,0,0.2)",
+                    borderRadius: "3px",
+                  }}>
+                    {node.kind}
+                  </span>
+                  <span style={{ ...LABEL, fontSize: "0.55rem", opacity: 0.4 }}>
+                    {friendlyImageName(node.image)}
+                  </span>
                 </div>
               </div>
               <select
@@ -108,10 +145,10 @@ export default function DeployConfigModal({
                   color: "#000000",
                 }}
               >
-                <option value="">Use YAML default</option>
+                <option value="">-- Use YAML default --</option>
                 {nosImages.map((img) => (
                   <option key={img.uuid} value={img.uuid}>
-                    {img.name} ({img.dockerImage})
+                    {img.name} — {img.clabKind}
                   </option>
                 ))}
               </select>

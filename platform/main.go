@@ -210,9 +210,11 @@ func main() {
 		// But the node names from the lab already include the clab prefix
 		// Use the node name as-is if it matches, otherwise try with prefix
 		containerName := nodeName
+		nodeKind := ""
 		for _, n := range labResp.Nodes {
 			if n.Name == nodeName || strings.HasSuffix(n.Name, "-"+nodeName) {
 				containerName = n.Name
+				nodeKind = n.Kind
 				break
 			}
 		}
@@ -227,6 +229,7 @@ func main() {
 			LabID:    labUUID,
 			NodeName: containerName,
 			Command:  cmd,
+			NodeKind: nodeKind,
 		})
 		if err != nil {
 			return "", err

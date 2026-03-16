@@ -86,6 +86,7 @@ type ExecRequest struct {
 	LabID    string `json:"labId"`
 	NodeName string `json:"nodeName"`
 	Command  string `json:"command"`
+	NodeKind string `json:"nodeKind,omitempty"` // "linux", "mikrotik_ros", etc.
 }
 
 // ExecResponse is the worker's response to an exec call.

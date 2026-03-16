@@ -273,9 +273,10 @@ func (h *Handler) HandleInspect(c *gin.Context) {
 
 // ExecRequest is received from the platform to execute a command in a container.
 type ExecRequest struct {
-	LabID     string `json:"labId" binding:"required"`
-	NodeName  string `json:"nodeName" binding:"required"`
-	Command   string `json:"command" binding:"required"`
+	LabID    string `json:"labId" binding:"required"`
+	NodeName string `json:"nodeName" binding:"required"`
+	Command  string `json:"command" binding:"required"`
+	NodeKind string `json:"nodeKind"` // "linux", "mikrotik_ros", etc.
 }
 
 // HandleExec executes a command in a running container and returns output.
@@ -289,7 +290,15 @@ func (h *Handler) HandleExec(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
 	defer cancel()
 
-	output, err := h.clabService.Exec(ctx, req.NodeName, req.Command)
+	var output string
+	var err error
+
+	if clab.IsVrnetlabKind(req.NodeKind) {
+		output, err = h.clabService.SerialExec(ctx, req.NodeName, req.Command)
+	} else {
+		output, err = h.clabService.Exec(ctx, req.NodeName, req.Command)
+	}
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

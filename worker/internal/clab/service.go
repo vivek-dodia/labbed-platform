@@ -101,6 +101,80 @@ func CleanupTopologyFiles(labID string) {
 	}
 }
 
+// vrnetlabKinds are containerlab node kinds that use vrnetlab (VM-inside-container).
+// These need serial console access instead of docker exec sh.
+var vrnetlabKinds = map[string]bool{
+	"mikrotik_ros":  true,
+	"cisco_xrv":     true,
+	"cisco_xrv9k":   true,
+	"cisco_csr1000v": true,
+	"cisco_ftdv":    true,
+	"juniper_vmx":   true,
+	"juniper_vsrx":  true,
+	"juniper_vqfx":  true,
+	"arista_veos":   true,
+	"nokia_sros":    true,
+	"paloalto_panos": true,
+}
+
+// IsVrnetlabKind returns true if the kind uses vrnetlab (VM-inside-container).
+func IsVrnetlabKind(kind string) bool {
+	return vrnetlabKinds[kind]
+}
+
+// SerialExec sends a command to a vrnetlab container's serial console (QEMU telnet
+// port 5000) and returns the output. This is used for NOS VMs like RouterOS where
+// docker exec only reaches the outer Linux container, not the VM itself.
+func (s *Service) SerialExec(ctx context.Context, containerName, command string) (string, error) {
+	dockerBin, err := exec.LookPath("docker")
+	if err != nil {
+		for _, p := range []string{"/usr/bin/docker", "/usr/local/bin/docker"} {
+			if _, ferr := os.Stat(p); ferr == nil {
+				dockerBin = p
+				break
+			}
+		}
+		if dockerBin == "" {
+			return "", fmt.Errorf("docker binary not found: %w", err)
+		}
+	}
+
+	// Script that:
+	// 1. Opens telnet to QEMU serial console on port 5000
+	// 2. Waits for prompt, sends the command, captures output
+	// 3. Uses a heredoc + timeout to avoid hanging
+	//
+	// We use `expect`-style approach with shell: send command via printf to
+	// a fifo that feeds into telnet, and read output with timeout.
+	script := fmt.Sprintf(`
+timeout 10 sh -c '
+(echo ""; sleep 1; echo "%s"; sleep 2; echo "") | telnet localhost 5000 2>/dev/null
+' | tail -n +4 | head -n -1
+`, strings.ReplaceAll(command, `"`, `\"`))
+
+	args := []string{"exec", containerName, "sh", "-c", script}
+	cmd := exec.CommandContext(ctx, dockerBin, args...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err = cmd.Run()
+	output := strings.TrimSpace(stdout.String())
+
+	if err != nil {
+		if output != "" {
+			return output, nil
+		}
+		errOut := stderr.String()
+		if errOut != "" {
+			return errOut, nil
+		}
+		return "", fmt.Errorf("serial exec failed: %w", err)
+	}
+
+	return output, nil
+}
+
 // Exec runs a command inside a container using docker exec.
 func (s *Service) Exec(ctx context.Context, containerName, command string) (string, error) {
 	// Find docker binary

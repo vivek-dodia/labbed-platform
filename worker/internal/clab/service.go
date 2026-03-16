@@ -139,18 +139,15 @@ func (s *Service) SerialExec(ctx context.Context, containerName, command string)
 		}
 	}
 
-	// Script that:
-	// 1. Opens telnet to QEMU serial console on port 5000
-	// 2. Waits for prompt, sends the command, captures output
-	// 3. Uses a heredoc + timeout to avoid hanging
-	//
-	// We use `expect`-style approach with shell: send command via printf to
-	// a fifo that feeds into telnet, and read output with timeout.
-	script := fmt.Sprintf(`
-timeout 10 sh -c '
-(echo ""; sleep 1; echo "%s"; sleep 2; echo "") | telnet localhost 5000 2>/dev/null
-' | tail -n +4 | head -n -1
-`, strings.ReplaceAll(command, `"`, `\"`))
+	// Send command via telnet to QEMU serial console on port 5000.
+	// The approach: pipe commands into telnet with sleeps for timing,
+	// capture all output, then clean ANSI escape codes in Go.
+	escapedCmd := strings.ReplaceAll(command, `"`, `\"`)
+	escapedCmd = strings.ReplaceAll(escapedCmd, `$`, `\$`)
+	script := fmt.Sprintf(
+		`(sleep 0.5; printf "\r"; sleep 0.5; printf "%s\r"; sleep 2; printf "\r") | telnet localhost 5000 2>/dev/null`,
+		escapedCmd,
+	)
 
 	args := []string{"exec", containerName, "sh", "-c", script}
 	cmd := exec.CommandContext(ctx, dockerBin, args...)
@@ -158,21 +155,87 @@ timeout 10 sh -c '
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err = cmd.Run()
-	output := strings.TrimSpace(stdout.String())
+	_ = cmd.Run()
+	output := cleanSerialOutput(stdout.String(), command)
 
-	if err != nil {
-		if output != "" {
-			return output, nil
-		}
-		errOut := stderr.String()
-		if errOut != "" {
-			return errOut, nil
-		}
-		return "", fmt.Errorf("serial exec failed: %w", err)
+	if output == "" {
+		// Fall back to raw output if cleaning stripped everything
+		output = stdout.String()
 	}
 
 	return output, nil
+}
+
+// cleanSerialOutput strips ANSI escape codes, telnet banners, and prompt lines
+// from serial console output to return clean command results.
+func cleanSerialOutput(raw, command string) string {
+	// Strip ANSI/VT100 escape sequences
+	cleaned := stripAnsiCodes(raw)
+
+	lines := strings.Split(cleaned, "\n")
+	var result []string
+	foundCommand := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		// Skip telnet connection lines
+		if strings.HasPrefix(trimmed, "Trying ") ||
+			strings.HasPrefix(trimmed, "Connected to") ||
+			strings.HasPrefix(trimmed, "Escape character") ||
+			strings.HasPrefix(trimmed, "Connection closed") {
+			continue
+		}
+		// Find the line with our command, start capturing after it
+		if !foundCommand && strings.Contains(trimmed, command) {
+			foundCommand = true
+			continue
+		}
+		if foundCommand {
+			result = append(result, line)
+		}
+	}
+
+	// If we captured lines, remove the last prompt line
+	if len(result) > 0 {
+		last := strings.TrimSpace(result[len(result)-1])
+		if strings.Contains(last, ">") || strings.Contains(last, "#") || strings.Contains(last, "]") {
+			result = result[:len(result)-1]
+		}
+	}
+
+	return strings.TrimSpace(strings.Join(result, "\n"))
+}
+
+// stripAnsiCodes removes ANSI/VT100 escape sequences from a string.
+func stripAnsiCodes(s string) string {
+	var result strings.Builder
+	i := 0
+	for i < len(s) {
+		if s[i] == '\x1b' {
+			// Skip ESC [ ... (letter) sequences
+			i++
+			if i < len(s) && s[i] == '[' {
+				i++
+				for i < len(s) && !((s[i] >= 'A' && s[i] <= 'Z') || (s[i] >= 'a' && s[i] <= 'z')) {
+					i++
+				}
+				if i < len(s) {
+					i++ // skip the final letter
+				}
+			}
+			continue
+		}
+		if s[i] == '\r' {
+			i++
+			continue
+		}
+		result.WriteByte(s[i])
+		i++
+	}
+	return result.String()
 }
 
 // Exec runs a command inside a container using docker exec.

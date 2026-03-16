@@ -52,7 +52,7 @@ const btnOutline: React.CSSProperties = {
   border: BORDER,
 };
 
-type Tab = "profile" | "organization" | "security";
+type Tab = "profile" | "organization" | "security" | "about";
 
 export default function SettingsPage() {
   const { user, activeOrg, loading: authLoading, logout } = useAuth();
@@ -80,7 +80,7 @@ export default function SettingsPage() {
           <div style={{ padding: "1.5rem 1.25rem 1rem" }}>
             <span style={{ ...LABEL, opacity: 0.4 }}>SETTINGS</span>
           </div>
-          {(["profile", "organization", "security"] as Tab[]).map((t) => (
+          {(["profile", "organization", "security", "about"] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -112,6 +112,7 @@ export default function SettingsPage() {
           {tab === "profile" && <ProfileSection user={user} />}
           {tab === "organization" && <OrgSection orgUUID={activeOrg?.uuid} orgName={activeOrg?.name} orgRole={activeOrg?.role} />}
           {tab === "security" && <SecuritySection userUUID={user.uuid} />}
+          {tab === "about" && <AboutSection />}
         </div>
       </div>
     </AppShell>
@@ -334,7 +335,7 @@ function SecuritySection({ userUUID }: { userUUID: string }) {
   return (
     <div>
       <h2 style={{ fontWeight: 200, fontSize: "2rem", letterSpacing: "-0.01em", marginBottom: "0.5rem" }}>Security</h2>
-      <p style={{ ...LABEL, opacity: 0.4, marginBottom: "2.5rem" }}>CHANGE YOUR PASSWORD</p>
+      <p style={{ ...LABEL, opacity: 0.4, marginBottom: "2.5rem" }}>CHANGE PASSWORD</p>
 
       <div style={{ maxWidth: 480 }}>
         <div style={{ marginBottom: "2rem" }}>
@@ -357,6 +358,57 @@ function SecuritySection({ userUUID }: { userUUID: string }) {
         <button onClick={handleChangePassword} disabled={saving} style={{ ...btnFilled, opacity: saving ? 0.5 : 1 }}>
           {saving ? "CHANGING..." : "CHANGE PASSWORD"}
         </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── About Section ── */
+function AboutSection() {
+  const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || "dev";
+  const shortSha = commitSha.length > 7 ? commitSha.slice(0, 7) : commitSha;
+  const commitUrl = commitSha !== "dev"
+    ? `https://github.com/vivek-dodia/labbed-platform/commit/${commitSha}`
+    : null;
+
+  return (
+    <div>
+      <h2 style={{ fontWeight: 200, fontSize: "2rem", letterSpacing: "-0.01em", marginBottom: "0.5rem" }}>About</h2>
+      <p style={{ ...LABEL, opacity: 0.4, marginBottom: "2.5rem" }}>BUILD INFO</p>
+
+      <div style={{ maxWidth: 480 }}>
+        <div style={{ marginBottom: "2rem" }}>
+          <label style={{ ...LABEL, display: "block", marginBottom: "0.4rem" }}>BUILD COMMIT</label>
+          {commitUrl ? (
+            <a
+              href={commitUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontFamily: MONO, fontSize: "0.85rem", color: INK }}
+            >
+              {shortSha}
+            </a>
+          ) : (
+            <span style={{ fontFamily: MONO, fontSize: "0.85rem" }}>{shortSha}</span>
+          )}
+        </div>
+
+        <div style={{ marginBottom: "2rem" }}>
+          <label style={{ ...LABEL, display: "block", marginBottom: "0.4rem" }}>PLATFORM</label>
+          <span style={{ fontFamily: MONO, fontSize: "0.85rem" }}>Labbed v0.1.0</span>
+        </div>
+
+        <div style={{ marginBottom: "2rem" }}>
+          <label style={{ ...LABEL, display: "block", marginBottom: "0.4rem" }}>SOURCE</label>
+          <a
+            href="https://github.com/vivek-dodia/labbed-platform"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontFamily: MONO, fontSize: "0.85rem", color: INK }}
+          >
+            github.com/vivek-dodia/labbed-platform
+          </a>
+        </div>
       </div>
     </div>
   );

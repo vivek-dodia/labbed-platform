@@ -8,6 +8,8 @@ COPY . .
 
 # Use empty API URL so frontend uses relative paths (works behind nginx proxy)
 ENV NEXT_PUBLIC_API_URL=""
+ARG COMMIT_SHA="dev"
+ENV NEXT_PUBLIC_COMMIT_SHA=$COMMIT_SHA
 RUN npm run build
 
 FROM node:22-alpine

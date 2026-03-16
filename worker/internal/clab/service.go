@@ -142,10 +142,11 @@ func (s *Service) SerialExec(ctx context.Context, containerName, command string)
 	// Send command via telnet to QEMU serial console on port 5000.
 	// The approach: pipe commands into telnet with sleeps for timing,
 	// capture all output, then clean ANSI escape codes in Go.
+	// Use integer sleeps for busybox/ash compatibility.
 	escapedCmd := strings.ReplaceAll(command, `"`, `\"`)
 	escapedCmd = strings.ReplaceAll(escapedCmd, `$`, `\$`)
 	script := fmt.Sprintf(
-		`(sleep 0.5; printf "\r"; sleep 0.5; printf "%s\r"; sleep 2; printf "\r") | telnet localhost 5000 2>/dev/null`,
+		`(sleep 1; printf "\r"; sleep 1; printf "%s\r"; sleep 3; printf "\r") | telnet localhost 5000 2>/dev/null`,
 		escapedCmd,
 	)
 

@@ -31,6 +31,34 @@ const LINUX_COMMANDS: QuickCmd[] = [
   { label: "PORTS", cmd: "netstat -tlnp 2>/dev/null || ss -tlnp", description: "Listening ports" },
 ];
 
+const MULTITOOL_COMMANDS: QuickCmd[] = [
+  { label: "IP ADDR", cmd: "ip addr show", description: "Interface addresses" },
+  { label: "ROUTE", cmd: "ip route show", description: "Routing table" },
+  { label: "PING", cmd: "ping -c 3 8.8.8.8", description: "Internet connectivity" },
+  { label: "CURL", cmd: "curl -s -o /dev/null -w '%{http_code}' http://example.com", description: "HTTP check" },
+  { label: "DIG", cmd: "dig +short google.com", description: "DNS lookup" },
+  { label: "TRACE", cmd: "traceroute -n -m 10 8.8.8.8", description: "Traceroute" },
+  { label: "IPERF", cmd: "iperf3 -v 2>&1 | head -1 || echo 'iperf3 not available'", description: "iperf version" },
+  { label: "ARP", cmd: "ip neigh show", description: "ARP/neighbor cache" },
+];
+
+const GOBGP_COMMANDS: QuickCmd[] = [
+  { label: "GLOBAL", cmd: "gobgp global", description: "BGP global config" },
+  { label: "NEIGHBOR", cmd: "gobgp neighbor", description: "BGP neighbors" },
+  { label: "RIB", cmd: "gobgp global rib", description: "BGP RIB" },
+  { label: "IP ADDR", cmd: "ip addr show", description: "Interface addresses" },
+  { label: "ROUTE", cmd: "ip route show", description: "Routing table" },
+];
+
+const ROUTEROS_COMMANDS: QuickCmd[] = [
+  { label: "INTF", cmd: "/interface print", description: "Interface list" },
+  { label: "IP ADDR", cmd: "/ip address print", description: "IP addresses" },
+  { label: "ROUTE", cmd: "/ip route print", description: "Routing table" },
+  { label: "BGP PEER", cmd: "/routing bgp connection print", description: "BGP peers" },
+  { label: "OSPF NBR", cmd: "/routing ospf neighbor print", description: "OSPF neighbors" },
+  { label: "SYSTEM", cmd: "/system resource print", description: "System info" },
+];
+
 const DNSMASQ_COMMANDS: QuickCmd[] = [
   { label: "LEASES", cmd: "cat /var/lib/misc/dnsmasq.leases 2>/dev/null || echo 'No leases'", description: "DHCP leases" },
   { label: "CONF", cmd: "cat /etc/dnsmasq.conf", description: "Dnsmasq config" },
@@ -41,6 +69,9 @@ const DNSMASQ_COMMANDS: QuickCmd[] = [
 function getCommandsForImage(image: string): { category: string; commands: QuickCmd[] } {
   const img = image.toLowerCase();
   if (img.includes("frr") || img.includes("frrouting")) return { category: "FRR", commands: FRR_COMMANDS };
+  if (img.includes("gobgp")) return { category: "GoBGP", commands: GOBGP_COMMANDS };
+  if (img.includes("network-multitool") || img.includes("netshoot")) return { category: "MULTITOOL", commands: MULTITOOL_COMMANDS };
+  if (img.includes("routeros") || img.includes("mikrotik")) return { category: "ROUTEROS", commands: ROUTEROS_COMMANDS };
   if (img.includes("dnsmasq") || img.includes("kea")) return { category: "DHCP/DNS", commands: DNSMASQ_COMMANDS };
   return { category: "LINUX", commands: LINUX_COMMANDS };
 }
@@ -70,7 +101,7 @@ function timeAgo(dateStr: string): string {
 }
 
 /* Router detection for routing table feature */
-const ROUTER_IMAGES = ["frr", "frrouting", "srl", "ceos", "xrd", "vyos", "bird", "quagga", "gobgp"];
+const ROUTER_IMAGES = ["frr", "frrouting", "srl", "ceos", "xrd", "vyos", "bird", "quagga", "gobgp", "routeros", "mikrotik"];
 function isRouterNode(node: NodeResponse): boolean {
   const img = node.image.toLowerCase();
   return ROUTER_IMAGES.some((r) => img.includes(r));

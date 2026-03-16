@@ -34,6 +34,9 @@ function friendlyImageName(image: string): string {
   if (img.includes("frr") || img.includes("frrouting")) return "FRR";
   if (img.includes("routeros") || img.includes("mikrotik")) return "RouterOS CHR";
   if (img.includes("alpine")) return "Alpine Linux";
+  if (img.includes("network-multitool")) return "Network Multitool";
+  if (img.includes("gobgp")) return "GoBGP";
+  if (img.includes("netshoot")) return "Netshoot";
   if (img.includes("srl") || img.includes("srlinux")) return "Nokia SR Linux";
   if (img.includes("ceos")) return "Arista cEOS";
   // Fallback: show image:tag without registry prefix

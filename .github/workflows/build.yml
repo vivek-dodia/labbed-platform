@@ -15,7 +15,7 @@ env:
 
 jobs:
   platform:
-    runs-on: ubuntu-latest-4-cores
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
@@ -51,7 +51,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
   worker:
-    runs-on: ubuntu-latest-4-cores
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
@@ -87,7 +87,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
   frontend:
-    runs-on: ubuntu-latest-4-cores
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write

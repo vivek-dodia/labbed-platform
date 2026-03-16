@@ -101,7 +101,7 @@ function timeAgo(dateStr: string): string {
 }
 
 /* Router detection for routing table feature */
-const ROUTER_IMAGES = ["frr", "frrouting", "srl", "ceos", "xrd", "vyos", "bird", "quagga", "gobgp", "routeros", "mikrotik"];
+const ROUTER_IMAGES = ["frr", "frrouting", "srl", "ceos", "xrd", "vyos", "bird", "quagga", "gobgp", "routeros", "mikrotik", "vr_ros"];
 function isRouterNode(node: NodeResponse): boolean {
   const img = node.image.toLowerCase();
   return ROUTER_IMAGES.some((r) => img.includes(r));

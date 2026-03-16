@@ -103,18 +103,33 @@ func CleanupTopologyFiles(labID string) {
 
 // vrnetlabKinds are containerlab node kinds that use vrnetlab (VM-inside-container).
 // These need serial console access instead of docker exec sh.
+// Containerlab uses vr_ prefix for vrnetlab kinds.
 var vrnetlabKinds = map[string]bool{
-	"mikrotik_ros":  true,
-	"cisco_xrv":     true,
-	"cisco_xrv9k":   true,
-	"cisco_csr1000v": true,
-	"cisco_ftdv":    true,
-	"juniper_vmx":   true,
-	"juniper_vsrx":  true,
-	"juniper_vqfx":  true,
-	"arista_veos":   true,
-	"nokia_sros":    true,
-	"paloalto_panos": true,
+	// MikroTik
+	"vr_ros": true,
+	// Cisco
+	"vr_xrv":    true,
+	"vr_xrv9k":  true,
+	"vr_csr":    true,
+	"vr_n9kv":   true,
+	"vr_c8000v": true,
+	"vr_ftdv":   true,
+	"vr_cat9kv": true,
+	// Juniper
+	"vr_vmx":            true,
+	"vr_vqfx":           true,
+	"vr_vsrx":           true,
+	"vr_vjunosrouter":   true,
+	"vr_vjunosswitch":   true,
+	"vr_vjunosevolved":  true,
+	// Arista
+	"vr_veos": true,
+	// Nokia
+	"vr_sros": true,
+	// Others
+	"vr_aoscx": true,
+	"vr_ftosv": true,
+	"vr_pan":   true,
 }
 
 // IsVrnetlabKind returns true if the kind uses vrnetlab (VM-inside-container).

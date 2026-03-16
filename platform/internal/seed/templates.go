@@ -91,7 +91,7 @@ func SeedNosImages(db *gorm.DB) {
 		{
 			UUID:        uuid.New().String(),
 			Name:        "RouterOS CHR 7.20.8",
-			ClabKind:    "vr_ros",
+			ClabKind:    "mikrotik_ros",
 			DockerImage: "vrnetlab/mikrotik_routeros:7.20.8",
 			DefaultUser: "admin",
 			DefaultPass: "",

@@ -94,6 +94,35 @@ const BRIDGE_COMMANDS: QuickCmd[] = [
   { label: "LINKS", cmd: "ip link show", description: "Link status" },
 ];
 
+const KEA_COMMANDS: QuickCmd[] = [
+  { label: "LEASES", cmd: "cat /var/lib/kea/kea-leases4.csv 2>/dev/null || echo 'No leases'", description: "DHCP leases" },
+  { label: "CONFIG", cmd: "cat /etc/kea/kea-dhcp4.conf 2>/dev/null || echo 'No config'", description: "Kea config" },
+  { label: "STATUS", cmd: "pgrep -a kea || echo 'Kea not running'", description: "Process status" },
+  { label: "IP ADDR", cmd: "ip addr show", description: "Interface addresses" },
+];
+
+const COREDNS_COMMANDS: QuickCmd[] = [
+  { label: "CONFIG", cmd: "cat /etc/coredns/Corefile 2>/dev/null || cat /Corefile 2>/dev/null || echo 'No Corefile'", description: "CoreDNS config" },
+  { label: "STATUS", cmd: "pgrep -a coredns || echo 'CoreDNS not running'", description: "Process status" },
+  { label: "DIG", cmd: "dig @localhost version.bind chaos txt +short 2>/dev/null || echo 'dig not available'", description: "DNS self-test" },
+  { label: "IP ADDR", cmd: "ip addr show", description: "Interface addresses" },
+];
+
+const NGINX_COMMANDS: QuickCmd[] = [
+  { label: "CONFIG", cmd: "nginx -T 2>/dev/null | head -50", description: "Nginx config" },
+  { label: "STATUS", cmd: "nginx -t 2>&1", description: "Config test" },
+  { label: "CONNS", cmd: "netstat -tlnp 2>/dev/null || ss -tlnp", description: "Listening ports" },
+  { label: "IP ADDR", cmd: "ip addr show", description: "Interface addresses" },
+  { label: "LOGS", cmd: "tail -20 /var/log/nginx/access.log 2>/dev/null || echo 'No logs'", description: "Access log" },
+];
+
+const IPERF_COMMANDS: QuickCmd[] = [
+  { label: "SERVER", cmd: "iperf3 -s -D 2>/dev/null && echo 'Server started' || echo 'Already running or failed'", description: "Start server" },
+  { label: "STATUS", cmd: "pgrep -a iperf3 || echo 'Not running'", description: "Process status" },
+  { label: "IP ADDR", cmd: "ip addr show", description: "Interface addresses" },
+  { label: "ROUTE", cmd: "ip route show", description: "Routing table" },
+];
+
 const DNSMASQ_COMMANDS: QuickCmd[] = [
   { label: "LEASES", cmd: "cat /var/lib/misc/dnsmasq.leases 2>/dev/null || echo 'No leases'", description: "DHCP leases" },
   { label: "CONF", cmd: "cat /etc/dnsmasq.conf", description: "Dnsmasq config" },
@@ -106,6 +135,10 @@ function getCommandsForImage(image: string): { category: string; commands: Quick
   if (img.includes("frr") || img.includes("frrouting")) return { category: "FRR", commands: FRR_COMMANDS };
   if (img.includes("gobgp")) return { category: "GoBGP", commands: GOBGP_COMMANDS };
   if (img.includes("network-multitool") || img.includes("netshoot")) return { category: "MULTITOOL", commands: MULTITOOL_COMMANDS };
+  if (img.includes("kea")) return { category: "KEA DHCP", commands: KEA_COMMANDS };
+  if (img.includes("coredns")) return { category: "COREDNS", commands: COREDNS_COMMANDS };
+  if (img.includes("nginx")) return { category: "NGINX", commands: NGINX_COMMANDS };
+  if (img.includes("iperf")) return { category: "IPERF3", commands: IPERF_COMMANDS };
   if (img.includes("osvbng")) return { category: "OSVBNG", commands: OSVBNG_COMMANDS };
   if (img.includes("freebsd")) return { category: "FREEBSD", commands: FREEBSD_COMMANDS };
   if (img.includes("openwrt")) return { category: "OPENWRT", commands: OPENWRT_COMMANDS };

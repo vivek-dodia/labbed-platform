@@ -12,7 +12,7 @@ RUN CGO_ENABLED=0 go build -o /labbed-worker .
 
 FROM ghcr.io/srl-labs/clab:0.74.0
 
-RUN apt-get update && apt-get install -y --no-install-recommends tcpdump && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache tcpdump
 
 WORKDIR /app
 COPY --from=builder /labbed-worker .

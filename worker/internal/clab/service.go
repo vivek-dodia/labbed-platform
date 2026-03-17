@@ -126,6 +126,7 @@ var vrnetlabKinds = map[string]bool{
 	// Nokia
 	"nokia_sros": true,
 	// Others
+	"openwrt":           true,
 	"aruba_aoscx":       true,
 	"dell_ftosv":        true,
 	"huawei_vrp":        true,

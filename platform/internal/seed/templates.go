@@ -90,6 +90,16 @@ func SeedNosImages(db *gorm.DB) {
 		},
 		{
 			UUID:        uuid.New().String(),
+			Name:        "OpenWrt 24.10.0",
+			ClabKind:    "openwrt",
+			DockerImage: "vrnetlab/openwrt_openwrt:24.10.0",
+			DefaultUser: "root",
+			DefaultPass: "VR-netlab9",
+			IsSystem:    true,
+			OrgID:       0,
+		},
+		{
+			UUID:        uuid.New().String(),
 			Name:        "RouterOS CHR 7.20.8",
 			ClabKind:    "mikrotik_ros",
 			DockerImage: "vrnetlab/mikrotik_routeros:7.20.8",

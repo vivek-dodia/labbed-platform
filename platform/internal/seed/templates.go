@@ -90,6 +90,16 @@ func SeedNosImages(db *gorm.DB) {
 		},
 		{
 			UUID:        uuid.New().String(),
+			Name:        "FreeBSD 14",
+			ClabKind:    "freebsd",
+			DockerImage: "vrnetlab/freebsd:14",
+			DefaultUser: "admin",
+			DefaultPass: "admin",
+			IsSystem:    true,
+			OrgID:       0,
+		},
+		{
+			UUID:        uuid.New().String(),
 			Name:        "OpenWrt 24.10.0",
 			ClabKind:    "openwrt",
 			DockerImage: "vrnetlab/openwrt_openwrt:24.10.0",

@@ -50,6 +50,15 @@ const GOBGP_COMMANDS: QuickCmd[] = [
   { label: "ROUTE", cmd: "ip route show", description: "Routing table" },
 ];
 
+const FREEBSD_COMMANDS: QuickCmd[] = [
+  { label: "IFCONFIG", cmd: "ifconfig", description: "Interface status" },
+  { label: "ROUTE", cmd: "netstat -rn", description: "Routing table" },
+  { label: "PING", cmd: "ping -c 3 8.8.8.8", description: "Internet connectivity" },
+  { label: "ARP", cmd: "arp -a", description: "ARP cache" },
+  { label: "PF", cmd: "pfctl -sr 2>/dev/null || echo 'PF not active'", description: "Firewall rules" },
+  { label: "SYSCTL", cmd: "sysctl kern.hostname kern.osrelease hw.ncpu hw.physmem", description: "System info" },
+];
+
 const OPENWRT_COMMANDS: QuickCmd[] = [
   { label: "INTF", cmd: "ifconfig", description: "Interface status" },
   { label: "ROUTE", cmd: "ip route show", description: "Routing table" },
@@ -81,6 +90,7 @@ function getCommandsForImage(image: string): { category: string; commands: Quick
   if (img.includes("frr") || img.includes("frrouting")) return { category: "FRR", commands: FRR_COMMANDS };
   if (img.includes("gobgp")) return { category: "GoBGP", commands: GOBGP_COMMANDS };
   if (img.includes("network-multitool") || img.includes("netshoot")) return { category: "MULTITOOL", commands: MULTITOOL_COMMANDS };
+  if (img.includes("freebsd")) return { category: "FREEBSD", commands: FREEBSD_COMMANDS };
   if (img.includes("openwrt")) return { category: "OPENWRT", commands: OPENWRT_COMMANDS };
   if (img.includes("routeros") || img.includes("mikrotik")) return { category: "ROUTEROS", commands: ROUTEROS_COMMANDS };
   if (img.includes("dnsmasq") || img.includes("kea")) return { category: "DHCP/DNS", commands: DNSMASQ_COMMANDS };
@@ -112,7 +122,7 @@ function timeAgo(dateStr: string): string {
 }
 
 /* Router detection for routing table feature */
-const ROUTER_IMAGES = ["frr", "frrouting", "srl", "ceos", "xrd", "vyos", "bird", "quagga", "gobgp", "routeros", "mikrotik", "openwrt"];
+const ROUTER_IMAGES = ["frr", "frrouting", "srl", "ceos", "xrd", "vyos", "bird", "quagga", "gobgp", "routeros", "mikrotik", "openwrt", "freebsd"];
 function isRouterNode(node: NodeResponse): boolean {
   const img = node.image.toLowerCase();
   return ROUTER_IMAGES.some((r) => img.includes(r));

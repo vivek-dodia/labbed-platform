@@ -90,6 +90,16 @@ func SeedNosImages(db *gorm.DB) {
 		},
 		{
 			UUID:        uuid.New().String(),
+			Name:        "osvBNG 0.3.1",
+			ClabKind:    "veesix_osvbng",
+			DockerImage: "veesixnetworks/osvbng:0.3.1",
+			DefaultUser: "root",
+			DefaultPass: "",
+			IsSystem:    true,
+			OrgID:       0,
+		},
+		{
+			UUID:        uuid.New().String(),
 			Name:        "FreeBSD 14",
 			ClabKind:    "freebsd",
 			DockerImage: "vrnetlab/freebsd:14",

@@ -50,6 +50,14 @@ const GOBGP_COMMANDS: QuickCmd[] = [
   { label: "ROUTE", cmd: "ip route show", description: "Routing table" },
 ];
 
+const OSVBNG_COMMANDS: QuickCmd[] = [
+  { label: "IP ADDR", cmd: "ip addr show", description: "Interface addresses" },
+  { label: "ROUTE", cmd: "ip route show", description: "Routing table" },
+  { label: "API", cmd: "curl -s http://localhost:8080/api/docs/ -o /dev/null -w '%{http_code}'", description: "API status" },
+  { label: "CONFIG", cmd: "cat /etc/osvbng/osvbng.yaml 2>/dev/null || echo 'No config'", description: "BNG config" },
+  { label: "PORTS", cmd: "ss -tlnp", description: "Listening ports" },
+];
+
 const FREEBSD_COMMANDS: QuickCmd[] = [
   { label: "IFCONFIG", cmd: "ifconfig", description: "Interface status" },
   { label: "ROUTE", cmd: "netstat -rn", description: "Routing table" },
@@ -90,6 +98,7 @@ function getCommandsForImage(image: string): { category: string; commands: Quick
   if (img.includes("frr") || img.includes("frrouting")) return { category: "FRR", commands: FRR_COMMANDS };
   if (img.includes("gobgp")) return { category: "GoBGP", commands: GOBGP_COMMANDS };
   if (img.includes("network-multitool") || img.includes("netshoot")) return { category: "MULTITOOL", commands: MULTITOOL_COMMANDS };
+  if (img.includes("osvbng")) return { category: "OSVBNG", commands: OSVBNG_COMMANDS };
   if (img.includes("freebsd")) return { category: "FREEBSD", commands: FREEBSD_COMMANDS };
   if (img.includes("openwrt")) return { category: "OPENWRT", commands: OPENWRT_COMMANDS };
   if (img.includes("routeros") || img.includes("mikrotik")) return { category: "ROUTEROS", commands: ROUTEROS_COMMANDS };

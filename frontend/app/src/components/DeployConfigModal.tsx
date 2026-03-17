@@ -36,6 +36,7 @@ function friendlyImageName(image: string): string {
   if (img.includes("alpine")) return "Alpine Linux";
   if (img.includes("network-multitool")) return "Network Multitool";
   if (img.includes("gobgp")) return "GoBGP";
+  if (img.includes("osvbng")) return "osvBNG";
   if (img.includes("freebsd")) return "FreeBSD";
   if (img.includes("openwrt")) return "OpenWrt";
   if (img.includes("netshoot")) return "Netshoot";

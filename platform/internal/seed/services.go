@@ -199,7 +199,7 @@ httpd -p 80 -h /var/www
 		},
 		{
 			Name: "Bandwidth Testing - iperf3",
-			Definition: `# iperf3 server and client connected through an FRR router
+			Definition: `# iperf3 server and client connected through a CHR router
 name: iperf3-bench
 topology:
   nodes:
@@ -216,29 +216,19 @@ topology:
         - ip addr add 10.10.2.10/24 dev eth1
         - ip route add 10.10.1.0/24 via 10.10.2.1
     router:
-      kind: linux
-      image: quay.io/frrouting/frr:10.3.1
-      binds:
-        - router-daemons:/etc/frr/daemons
-        - router.conf:/etc/frr/frr.conf
+      kind: mikrotik_ros
+      image: vrnetlab/mikrotik_routeros:7.20.8
+      startup-config: router.rsc
 
   links:
     - endpoints: ["server:eth1", "router:eth1"]
     - endpoints: ["router:eth2", "client:eth1"]
 `,
 			BindFiles: []BindFile{
-				{FilePath: "router-daemons", Content: ospfDaemons},
-				{FilePath: "router.conf", Content: `frr version 10.3
-frr defaults datacenter
-hostname router
-!
-interface eth1
- ip address 10.10.1.1/24
-!
-interface eth2
- ip address 10.10.2.1/24
-!
-line vty
+				{FilePath: "router.rsc", Content: `# Simple L3 forwarding between server and client subnets
+/ip address
+add address=10.10.1.1/24 interface=ether2
+add address=10.10.2.1/24 interface=ether3
 `},
 			},
 		},

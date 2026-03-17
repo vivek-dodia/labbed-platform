@@ -5,28 +5,22 @@ var campusCollection = CollectionDef{
 	Templates: []Template{
 		{
 			Name: "Campus Core - OSPF + Hosts",
-			Definition: `# Two-tier campus: core + distribution routers with host endpoints
+			Definition: `# Two-tier campus: CHR core + distribution routers with host endpoints
 name: campus-core
 topology:
   nodes:
     core:
-      kind: linux
-      image: quay.io/frrouting/frr:10.3.1
-      binds:
-        - core-daemons:/etc/frr/daemons
-        - core.conf:/etc/frr/frr.conf
+      kind: mikrotik_ros
+      image: vrnetlab/mikrotik_routeros:7.20.8
+      startup-config: core.rsc
     dist1:
-      kind: linux
-      image: quay.io/frrouting/frr:10.3.1
-      binds:
-        - dist1-daemons:/etc/frr/daemons
-        - dist1.conf:/etc/frr/frr.conf
+      kind: mikrotik_ros
+      image: vrnetlab/mikrotik_routeros:7.20.8
+      startup-config: dist1.rsc
     dist2:
-      kind: linux
-      image: quay.io/frrouting/frr:10.3.1
-      binds:
-        - dist2-daemons:/etc/frr/daemons
-        - dist2.conf:/etc/frr/frr.conf
+      kind: mikrotik_ros
+      image: vrnetlab/mikrotik_routeros:7.20.8
+      startup-config: dist2.rsc
     pc1:
       kind: linux
       image: alpine:3.20
@@ -47,96 +41,57 @@ topology:
     - endpoints: ["dist2:eth2", "pc2:eth1"]
 `,
 			BindFiles: []BindFile{
-				{FilePath: "core-daemons", Content: ospfDaemons},
-				{FilePath: "core.conf", Content: `frr version 10.3
-frr defaults datacenter
-hostname core
-!
-interface lo
- ip address 10.255.0.1/32
- ip ospf area 0
-!
-interface eth1
- ip address 172.16.1.1/30
- ip ospf area 0
- ip ospf network point-to-point
-!
-interface eth2
- ip address 172.16.2.1/30
- ip ospf area 0
- ip ospf network point-to-point
-!
-router ospf
- ospf router-id 10.255.0.1
-!
-line vty
+				{FilePath: "core.rsc", Content: `# core — OSPF backbone, uplinks to dist1 and dist2
+/ip address
+add address=172.16.1.1/30 interface=ether2
+add address=172.16.2.1/30 interface=ether3
+/routing ospf instance
+add name=default router-id=10.255.0.1
+/routing ospf area
+add name=backbone instance=default area-id=0.0.0.0
+/routing ospf interface-template
+add area=backbone interfaces=ether2,ether3 type=ptp
 `},
-				{FilePath: "dist1-daemons", Content: ospfDaemons},
-				{FilePath: "dist1.conf", Content: `frr version 10.3
-frr defaults datacenter
-hostname dist1
-!
-interface lo
- ip address 10.255.0.2/32
- ip ospf area 0
-!
-interface eth1
- ip address 172.16.1.2/30
- ip ospf area 0
- ip ospf network point-to-point
-!
-interface eth2
- ip address 10.10.1.1/24
- ip ospf area 0
-!
-router ospf
- ospf router-id 10.255.0.2
-!
-line vty
+				{FilePath: "dist1.rsc", Content: `# dist1 — distribution router, OSPF uplink + access
+/ip address
+add address=172.16.1.2/30 interface=ether2
+add address=10.10.1.1/24 interface=ether3
+/routing ospf instance
+add name=default router-id=10.255.0.2
+/routing ospf area
+add name=backbone instance=default area-id=0.0.0.0
+/routing ospf interface-template
+add area=backbone interfaces=ether2 type=ptp
+add area=backbone interfaces=ether3
 `},
-				{FilePath: "dist2-daemons", Content: ospfDaemons},
-				{FilePath: "dist2.conf", Content: `frr version 10.3
-frr defaults datacenter
-hostname dist2
-!
-interface lo
- ip address 10.255.0.3/32
- ip ospf area 0
-!
-interface eth1
- ip address 172.16.2.2/30
- ip ospf area 0
- ip ospf network point-to-point
-!
-interface eth2
- ip address 10.10.2.1/24
- ip ospf area 0
-!
-router ospf
- ospf router-id 10.255.0.3
-!
-line vty
+				{FilePath: "dist2.rsc", Content: `# dist2 — distribution router, OSPF uplink + access
+/ip address
+add address=172.16.2.2/30 interface=ether2
+add address=10.10.2.1/24 interface=ether3
+/routing ospf instance
+add name=default router-id=10.255.0.3
+/routing ospf area
+add name=backbone instance=default area-id=0.0.0.0
+/routing ospf interface-template
+add area=backbone interfaces=ether2 type=ptp
+add area=backbone interfaces=ether3
 `},
 			},
 		},
 		{
 			Name: "Campus with DHCP + DNS",
-			Definition: `# Campus network with Kea DHCP, CoreDNS, and client endpoints
+			Definition: `# Campus network with CHR routing, Kea DHCP, CoreDNS, and clients
 name: campus-dhcp-dns
 topology:
   nodes:
     core:
-      kind: linux
-      image: quay.io/frrouting/frr:10.3.1
-      binds:
-        - core-daemons:/etc/frr/daemons
-        - core.conf:/etc/frr/frr.conf
+      kind: mikrotik_ros
+      image: vrnetlab/mikrotik_routeros:7.20.8
+      startup-config: core.rsc
     dist:
-      kind: linux
-      image: quay.io/frrouting/frr:10.3.1
-      binds:
-        - dist-daemons:/etc/frr/daemons
-        - dist.conf:/etc/frr/frr.conf
+      kind: mikrotik_ros
+      image: vrnetlab/mikrotik_routeros:7.20.8
+      startup-config: dist.rsc
     dhcp:
       kind: linux
       image: docker.cloudsmith.io/isc/docker/kea-dhcp4:2.6
@@ -176,59 +131,30 @@ topology:
     - endpoints: ["dist:eth5", "pc2:eth1"]
 `,
 			BindFiles: []BindFile{
-				{FilePath: "core-daemons", Content: ospfDaemons},
-				{FilePath: "core.conf", Content: `frr version 10.3
-frr defaults datacenter
-hostname core
-!
-interface lo
- ip address 10.255.0.1/32
- ip ospf area 0
-!
-interface eth1
- ip address 172.16.0.1/30
- ip ospf area 0
- ip ospf network point-to-point
-!
-router ospf
- ospf router-id 10.255.0.1
-!
-line vty
+				{FilePath: "core.rsc", Content: `# core — OSPF backbone uplink
+/ip address
+add address=172.16.0.1/30 interface=ether2
+/routing ospf instance
+add name=default router-id=10.255.0.1
+/routing ospf area
+add name=backbone instance=default area-id=0.0.0.0
+/routing ospf interface-template
+add area=backbone interfaces=ether2 type=ptp
 `},
-				{FilePath: "dist-daemons", Content: ospfDaemons},
-				{FilePath: "dist.conf", Content: `frr version 10.3
-frr defaults datacenter
-hostname dist
-!
-interface lo
- ip address 10.255.0.2/32
- ip ospf area 0
-!
-interface eth1
- ip address 172.16.0.2/30
- ip ospf area 0
- ip ospf network point-to-point
-!
-interface eth2
- ip address 10.10.1.1/24
- ip ospf area 0
-!
-interface eth3
- ip address 10.10.2.1/24
- ip ospf area 0
-!
-interface eth4
- ip address 10.10.3.1/24
- ip ospf area 0
-!
-interface eth5
- ip address 10.10.4.1/24
- ip ospf area 0
-!
-router ospf
- ospf router-id 10.255.0.2
-!
-line vty
+				{FilePath: "dist.rsc", Content: `# dist — distribution router, OSPF uplink + service/access subnets
+/ip address
+add address=172.16.0.2/30 interface=ether2
+add address=10.10.1.1/24 interface=ether3
+add address=10.10.2.1/24 interface=ether4
+add address=10.10.3.1/24 interface=ether5
+add address=10.10.4.1/24 interface=ether6
+/routing ospf instance
+add name=default router-id=10.255.0.2
+/routing ospf area
+add name=backbone instance=default area-id=0.0.0.0
+/routing ospf interface-template
+add area=backbone interfaces=ether2 type=ptp
+add area=backbone interfaces=ether3,ether4,ether5,ether6
 `},
 				{FilePath: "kea-dhcp4.conf", Content: `{
   "Dhcp4": {
@@ -272,28 +198,22 @@ line vty
 		},
 		{
 			Name: "Full Campus",
-			Definition: `# Full campus: dual distribution, Kea DHCP, CoreDNS, and multiple hosts
+			Definition: `# Full campus: dual CHR distribution, Kea DHCP, CoreDNS, multiple hosts
 name: full-campus
 topology:
   nodes:
     core:
-      kind: linux
-      image: quay.io/frrouting/frr:10.3.1
-      binds:
-        - core-daemons:/etc/frr/daemons
-        - core.conf:/etc/frr/frr.conf
+      kind: mikrotik_ros
+      image: vrnetlab/mikrotik_routeros:7.20.8
+      startup-config: core.rsc
     dist1:
-      kind: linux
-      image: quay.io/frrouting/frr:10.3.1
-      binds:
-        - dist1-daemons:/etc/frr/daemons
-        - dist1.conf:/etc/frr/frr.conf
+      kind: mikrotik_ros
+      image: vrnetlab/mikrotik_routeros:7.20.8
+      startup-config: dist1.rsc
     dist2:
-      kind: linux
-      image: quay.io/frrouting/frr:10.3.1
-      binds:
-        - dist2-daemons:/etc/frr/daemons
-        - dist2.conf:/etc/frr/frr.conf
+      kind: mikrotik_ros
+      image: vrnetlab/mikrotik_routeros:7.20.8
+      startup-config: dist2.rsc
     dhcp:
       kind: linux
       image: docker.cloudsmith.io/isc/docker/kea-dhcp4:2.6
@@ -344,87 +264,43 @@ topology:
     - endpoints: ["dist2:eth3", "pc3:eth1"]
 `,
 			BindFiles: []BindFile{
-				{FilePath: "core-daemons", Content: ospfDaemons},
-				{FilePath: "core.conf", Content: `frr version 10.3
-frr defaults datacenter
-hostname core
-!
-interface lo
- ip address 10.255.0.1/32
- ip ospf area 0
-!
-interface eth1
- ip address 172.16.1.1/30
- ip ospf area 0
- ip ospf network point-to-point
-!
-interface eth2
- ip address 172.16.2.1/30
- ip ospf area 0
- ip ospf network point-to-point
-!
-router ospf
- ospf router-id 10.255.0.1
-!
-line vty
+				{FilePath: "core.rsc", Content: `# core — OSPF backbone, uplinks to dist1 and dist2
+/ip address
+add address=172.16.1.1/30 interface=ether2
+add address=172.16.2.1/30 interface=ether3
+/routing ospf instance
+add name=default router-id=10.255.0.1
+/routing ospf area
+add name=backbone instance=default area-id=0.0.0.0
+/routing ospf interface-template
+add area=backbone interfaces=ether2,ether3 type=ptp
 `},
-				{FilePath: "dist1-daemons", Content: ospfDaemons},
-				{FilePath: "dist1.conf", Content: `frr version 10.3
-frr defaults datacenter
-hostname dist1
-!
-interface lo
- ip address 10.255.0.2/32
- ip ospf area 0
-!
-interface eth1
- ip address 172.16.1.2/30
- ip ospf area 0
- ip ospf network point-to-point
-!
-interface eth2
- ip address 10.10.1.1/24
- ip ospf area 0
-!
-interface eth3
- ip address 10.10.2.1/24
- ip ospf area 0
-!
-interface eth4
- ip address 10.10.3.1/24
- ip ospf area 0
-!
-router ospf
- ospf router-id 10.255.0.2
-!
-line vty
+				{FilePath: "dist1.rsc", Content: `# dist1 — services distribution, OSPF uplink + service/access subnets
+/ip address
+add address=172.16.1.2/30 interface=ether2
+add address=10.10.1.1/24 interface=ether3
+add address=10.10.2.1/24 interface=ether4
+add address=10.10.3.1/24 interface=ether5
+/routing ospf instance
+add name=default router-id=10.255.0.2
+/routing ospf area
+add name=backbone instance=default area-id=0.0.0.0
+/routing ospf interface-template
+add area=backbone interfaces=ether2 type=ptp
+add area=backbone interfaces=ether3,ether4,ether5
 `},
-				{FilePath: "dist2-daemons", Content: ospfDaemons},
-				{FilePath: "dist2.conf", Content: `frr version 10.3
-frr defaults datacenter
-hostname dist2
-!
-interface lo
- ip address 10.255.0.3/32
- ip ospf area 0
-!
-interface eth1
- ip address 172.16.2.2/30
- ip ospf area 0
- ip ospf network point-to-point
-!
-interface eth2
- ip address 10.20.1.1/24
- ip ospf area 0
-!
-interface eth3
- ip address 10.20.2.1/24
- ip ospf area 0
-!
-router ospf
- ospf router-id 10.255.0.3
-!
-line vty
+				{FilePath: "dist2.rsc", Content: `# dist2 — client distribution, OSPF uplink + access subnets
+/ip address
+add address=172.16.2.2/30 interface=ether2
+add address=10.20.1.1/24 interface=ether3
+add address=10.20.2.1/24 interface=ether4
+/routing ospf instance
+add name=default router-id=10.255.0.3
+/routing ospf area
+add name=backbone instance=default area-id=0.0.0.0
+/routing ospf interface-template
+add area=backbone interfaces=ether2 type=ptp
+add area=backbone interfaces=ether3,ether4
 `},
 				{FilePath: "kea-dhcp4.conf", Content: `{
   "Dhcp4": {

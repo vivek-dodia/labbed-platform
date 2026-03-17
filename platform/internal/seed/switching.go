@@ -153,19 +153,14 @@ brctl show br0
 		},
 		{
 			Name: "Router-on-a-Stick",
-			Definition: `# FRR router with VLAN sub-interfaces, Alpine VLAN-aware bridge, two hosts
+			Definition: `# CHR router with VLAN sub-interfaces, Alpine VLAN-aware bridge, two hosts
 name: router-on-a-stick
 topology:
   nodes:
     router:
-      kind: linux
-      image: quay.io/frrouting/frr:10.3.1
-      binds:
-        - router-daemons:/etc/frr/daemons
-        - router.conf:/etc/frr/frr.conf
-        - router-start.sh:/tmp/start.sh
-      exec:
-        - ash /tmp/start.sh
+      kind: mikrotik_ros
+      image: vrnetlab/mikrotik_routeros:7.20.8
+      startup-config: router.rsc
     switch:
       kind: linux
       image: alpine:3.20
@@ -192,25 +187,13 @@ topology:
     - endpoints: ["host-vlan20:eth1", "switch:eth3"]
 `,
 			BindFiles: []BindFile{
-				{FilePath: "router-daemons", Content: ospfDaemons},
-				{FilePath: "router.conf", Content: `frr version 10.3
-frr defaults datacenter
-hostname router
-!
-interface eth1.10
- ip address 10.10.10.1/24
-!
-interface eth1.20
- ip address 10.20.20.1/24
-!
-line vty
-`},
-				{FilePath: "router-start.sh", Content: `#!/bin/ash
-# Create VLAN sub-interfaces on the trunk link to the switch
-ip link add link eth1 name eth1.10 type vlan id 10
-ip link add link eth1 name eth1.20 type vlan id 20
-ip link set eth1.10 up
-ip link set eth1.20 up
+				{FilePath: "router.rsc", Content: `# Inter-VLAN routing via VLAN sub-interfaces on ether2 (trunk)
+/interface vlan
+add interface=ether2 name=vlan10 vlan-id=10
+add interface=ether2 name=vlan20 vlan-id=20
+/ip address
+add address=10.10.10.1/24 interface=vlan10
+add address=10.20.20.1/24 interface=vlan20
 `},
 				{FilePath: "switch-start.sh", Content: `#!/bin/ash
 # VLAN-aware bridge: trunk on eth1, access ports for VLANs 10 and 20

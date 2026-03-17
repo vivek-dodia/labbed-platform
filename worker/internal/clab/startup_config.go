@@ -41,6 +41,12 @@ func parseStartupConfigs(topoYAML, labName string) []startupConfigNode {
 		return nil
 	}
 
+	// Use topology name for container naming (matches containerlab convention)
+	topoName := schema.Name
+	if topoName == "" {
+		topoName = labName
+	}
+
 	var nodes []startupConfigNode
 	for name, node := range schema.Topology.Nodes {
 		if node.StartupConfig == "" || !IsVrnetlabKind(node.Kind) {
@@ -50,7 +56,7 @@ func parseStartupConfigs(topoYAML, labName string) []startupConfigNode {
 			Name:          name,
 			Kind:          node.Kind,
 			StartupConfig: node.StartupConfig,
-			ContainerName: fmt.Sprintf("clab-%s-%s", labName, name),
+			ContainerName: fmt.Sprintf("clab-%s-%s", topoName, name),
 		})
 	}
 	return nodes

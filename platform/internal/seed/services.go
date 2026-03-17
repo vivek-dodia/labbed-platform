@@ -231,8 +231,7 @@ topology:
 `},
 				{FilePath: "router-daemons", NosKind: "frr", Content: `zebra=yes
 `},
-				{FilePath: "router.conf", NosKind: "frr", Content: `frr version 10.3
-hostname router
+				{FilePath: "router.conf", NosKind: "frr", Content: `hostname router
 !
 interface eth1
  ip address 10.10.1.1/24

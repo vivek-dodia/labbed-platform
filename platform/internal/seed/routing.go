@@ -54,8 +54,7 @@ topology:
 bgpd=yes
 staticd=yes
 `},
-				{FilePath: "router1.conf", NosKind: "frr", Content: `frr version 10.3
-hostname router1
+				{FilePath: "router1.conf", NosKind: "frr", Content: `hostname router1
 !
 interface eth1
  ip address 10.1.1.1/24
@@ -65,6 +64,7 @@ interface eth2
 !
 router bgp 65001
  bgp router-id 1.1.1.1
+ no bgp ebgp-requires-policy
  neighbor 172.16.0.2 remote-as 65002
  address-family ipv4 unicast
   redistribute connected
@@ -75,8 +75,7 @@ router bgp 65001
 bgpd=yes
 staticd=yes
 `},
-				{FilePath: "router2.conf", NosKind: "frr", Content: `frr version 10.3
-hostname router2
+				{FilePath: "router2.conf", NosKind: "frr", Content: `hostname router2
 !
 interface eth1
  ip address 10.2.2.1/24
@@ -86,6 +85,7 @@ interface eth2
 !
 router bgp 65002
  bgp router-id 2.2.2.2
+ no bgp ebgp-requires-policy
  neighbor 172.16.0.1 remote-as 65001
  address-family ipv4 unicast
   redistribute connected
@@ -174,8 +174,7 @@ topology:
 				{FilePath: "r1-daemons", NosKind: "frr", Content: `zebra=yes
 ospfd=yes
 `},
-				{FilePath: "r1.conf", NosKind: "frr", Content: `frr version 10.3
-hostname r1
+				{FilePath: "r1.conf", NosKind: "frr", Content: `hostname r1
 !
 interface eth1
  ip address 10.10.1.1/24
@@ -198,8 +197,7 @@ router ospf
 				{FilePath: "r2-daemons", NosKind: "frr", Content: `zebra=yes
 ospfd=yes
 `},
-				{FilePath: "r2.conf", NosKind: "frr", Content: `frr version 10.3
-hostname r2
+				{FilePath: "r2.conf", NosKind: "frr", Content: `hostname r2
 !
 interface eth1
  ip address 10.10.2.1/24
@@ -222,8 +220,7 @@ router ospf
 				{FilePath: "r3-daemons", NosKind: "frr", Content: `zebra=yes
 ospfd=yes
 `},
-				{FilePath: "r3.conf", NosKind: "frr", Content: `frr version 10.3
-hostname r3
+				{FilePath: "r3.conf", NosKind: "frr", Content: `hostname r3
 !
 interface eth1
  ip address 10.10.3.1/24
@@ -317,8 +314,7 @@ topology:
 				{FilePath: "core-daemons", NosKind: "frr", Content: `zebra=yes
 ospfd=yes
 `},
-				{FilePath: "core.conf", NosKind: "frr", Content: `frr version 10.3
-hostname core
+				{FilePath: "core.conf", NosKind: "frr", Content: `hostname core
 !
 interface lo
  ip address 10.255.0.1/32
@@ -341,8 +337,7 @@ router ospf
 				{FilePath: "area1-daemons", NosKind: "frr", Content: `zebra=yes
 ospfd=yes
 `},
-				{FilePath: "area1.conf", NosKind: "frr", Content: `frr version 10.3
-hostname area1
+				{FilePath: "area1.conf", NosKind: "frr", Content: `hostname area1
 !
 interface eth1
  ip address 172.16.1.2/30
@@ -360,8 +355,7 @@ router ospf
 				{FilePath: "area2-daemons", NosKind: "frr", Content: `zebra=yes
 ospfd=yes
 `},
-				{FilePath: "area2.conf", NosKind: "frr", Content: `frr version 10.3
-hostname area2
+				{FilePath: "area2.conf", NosKind: "frr", Content: `hostname area2
 !
 interface eth1
  ip address 172.16.2.2/30
@@ -451,8 +445,7 @@ topology:
 bgpd=yes
 ospfd=yes
 `},
-				{FilePath: "pe1.conf", NosKind: "frr", Content: `frr version 10.3
-hostname pe1
+				{FilePath: "pe1.conf", NosKind: "frr", Content: `hostname pe1
 !
 interface lo
  ip address 10.255.0.1/32
@@ -471,6 +464,7 @@ router ospf
 !
 router bgp 65000
  bgp router-id 10.255.0.1
+ no bgp ebgp-requires-policy
  neighbor 172.16.1.2 remote-as 65001
  neighbor 10.255.0.2 remote-as 65000
  neighbor 10.255.0.2 update-source lo
@@ -483,8 +477,7 @@ router bgp 65000
 bgpd=yes
 ospfd=yes
 `},
-				{FilePath: "pe2.conf", NosKind: "frr", Content: `frr version 10.3
-hostname pe2
+				{FilePath: "pe2.conf", NosKind: "frr", Content: `hostname pe2
 !
 interface lo
  ip address 10.255.0.2/32
@@ -503,6 +496,7 @@ router ospf
 !
 router bgp 65000
  bgp router-id 10.255.0.2
+ no bgp ebgp-requires-policy
  neighbor 172.16.2.2 remote-as 65002
  neighbor 10.255.0.1 remote-as 65000
  neighbor 10.255.0.1 update-source lo
@@ -515,8 +509,7 @@ router bgp 65000
 bgpd=yes
 staticd=yes
 `},
-				{FilePath: "ce1.conf", NosKind: "frr", Content: `frr version 10.3
-hostname ce1
+				{FilePath: "ce1.conf", NosKind: "frr", Content: `hostname ce1
 !
 interface eth1
  ip address 172.16.1.2/30
@@ -525,6 +518,7 @@ ip route 10.1.0.0/24 Null0
 !
 router bgp 65001
  bgp router-id 10.255.1.1
+ no bgp ebgp-requires-policy
  neighbor 172.16.1.1 remote-as 65000
  address-family ipv4 unicast
   redistribute static
@@ -535,8 +529,7 @@ router bgp 65001
 bgpd=yes
 staticd=yes
 `},
-				{FilePath: "ce2.conf", NosKind: "frr", Content: `frr version 10.3
-hostname ce2
+				{FilePath: "ce2.conf", NosKind: "frr", Content: `hostname ce2
 !
 interface eth1
  ip address 172.16.2.2/30
@@ -545,6 +538,7 @@ ip route 10.2.0.0/24 Null0
 !
 router bgp 65002
  bgp router-id 10.255.2.1
+ no bgp ebgp-requires-policy
  neighbor 172.16.2.1 remote-as 65000
  address-family ipv4 unicast
   redistribute static

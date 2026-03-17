@@ -69,8 +69,7 @@ topology:
 				{FilePath: "core-daemons", NosKind: "frr", Content: `zebra=yes
 ospfd=yes
 `},
-				{FilePath: "core.conf", NosKind: "frr", Content: `frr version 10.3
-hostname core
+				{FilePath: "core.conf", NosKind: "frr", Content: `hostname core
 !
 interface eth1
  ip address 172.16.1.1/30
@@ -89,8 +88,7 @@ router ospf
 				{FilePath: "dist1-daemons", NosKind: "frr", Content: `zebra=yes
 ospfd=yes
 `},
-				{FilePath: "dist1.conf", NosKind: "frr", Content: `frr version 10.3
-hostname dist1
+				{FilePath: "dist1.conf", NosKind: "frr", Content: `hostname dist1
 !
 interface eth1
  ip address 172.16.1.2/30
@@ -108,8 +106,7 @@ router ospf
 				{FilePath: "dist2-daemons", NosKind: "frr", Content: `zebra=yes
 ospfd=yes
 `},
-				{FilePath: "dist2.conf", NosKind: "frr", Content: `frr version 10.3
-hostname dist2
+				{FilePath: "dist2.conf", NosKind: "frr", Content: `hostname dist2
 !
 interface eth1
  ip address 172.16.2.2/30
@@ -240,8 +237,7 @@ topology:
 				{FilePath: "core-daemons", NosKind: "frr", Content: `zebra=yes
 ospfd=yes
 `},
-				{FilePath: "core.conf", NosKind: "frr", Content: `frr version 10.3
-hostname core
+				{FilePath: "core.conf", NosKind: "frr", Content: `hostname core
 !
 interface eth1
  ip address 172.16.0.1/30
@@ -255,8 +251,7 @@ router ospf
 				{FilePath: "dist-daemons", NosKind: "frr", Content: `zebra=yes
 ospfd=yes
 `},
-				{FilePath: "dist.conf", NosKind: "frr", Content: `frr version 10.3
-hostname dist
+				{FilePath: "dist.conf", NosKind: "frr", Content: `hostname dist
 !
 interface eth1
  ip address 172.16.0.2/30
@@ -424,8 +419,7 @@ topology:
 				{FilePath: "core-daemons", NosKind: "frr", Content: `zebra=yes
 ospfd=yes
 `},
-				{FilePath: "core.conf", NosKind: "frr", Content: `frr version 10.3
-hostname core
+				{FilePath: "core.conf", NosKind: "frr", Content: `hostname core
 !
 interface eth1
  ip address 172.16.1.1/30
@@ -444,8 +438,7 @@ router ospf
 				{FilePath: "dist1-daemons", NosKind: "frr", Content: `zebra=yes
 ospfd=yes
 `},
-				{FilePath: "dist1.conf", NosKind: "frr", Content: `frr version 10.3
-hostname dist1
+				{FilePath: "dist1.conf", NosKind: "frr", Content: `hostname dist1
 !
 interface eth1
  ip address 172.16.1.2/30
@@ -471,8 +464,7 @@ router ospf
 				{FilePath: "dist2-daemons", NosKind: "frr", Content: `zebra=yes
 ospfd=yes
 `},
-				{FilePath: "dist2.conf", NosKind: "frr", Content: `frr version 10.3
-hostname dist2
+				{FilePath: "dist2.conf", NosKind: "frr", Content: `hostname dist2
 !
 interface eth1
  ip address 172.16.2.2/30

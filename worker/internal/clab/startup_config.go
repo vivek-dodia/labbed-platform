@@ -206,14 +206,15 @@ func flattenRSC(config string) []string {
 	return commands
 }
 
-// joinContinuationLines merges lines ending with \ into single lines.
+// joinContinuationLines merges lines ending with \ into single lines
+// and normalizes whitespace to avoid double-space issues in RouterOS.
 func joinContinuationLines(content string) []string {
 	raw := strings.Split(content, "\n")
 	var result []string
 	for _, line := range raw {
 		line = strings.TrimRight(line, "\r")
 		if len(result) > 0 && strings.HasSuffix(result[len(result)-1], `\`) {
-			prev := strings.TrimSuffix(result[len(result)-1], `\`)
+			prev := strings.TrimRight(strings.TrimSuffix(result[len(result)-1], `\`), " ")
 			result[len(result)-1] = prev + " " + strings.TrimSpace(line)
 		} else {
 			result = append(result, line)

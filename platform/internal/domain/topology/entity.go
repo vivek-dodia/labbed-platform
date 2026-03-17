@@ -48,8 +48,9 @@ type UpdateBindFileRequest struct {
 }
 
 type BindFileResponse struct {
-	UUID     string    `json:"uuid"`
-	FilePath string    `json:"filePath"`
+	UUID      string    `json:"uuid"`
+	FilePath  string    `json:"filePath"`
+	Content   string    `json:"content"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 

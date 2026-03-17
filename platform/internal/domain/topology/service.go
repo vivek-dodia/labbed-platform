@@ -325,6 +325,7 @@ func buildBindFileResponse(f *BindFile) BindFileResponse {
 	return BindFileResponse{
 		UUID:      f.UUID,
 		FilePath:  f.FilePath,
+		Content:   string(f.Content),
 		CreatedAt: f.CreatedAt,
 	}
 }

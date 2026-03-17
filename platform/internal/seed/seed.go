@@ -177,7 +177,7 @@ func SeedNosImages(db *gorm.DB) {
 			ClabKind:    "mikrotik_ros",
 			DockerImage: "vrnetlab/mikrotik_routeros:7.20.8",
 			DefaultUser: "admin",
-			DefaultPass: "",
+			DefaultPass: "admin",
 			IsSystem:    true,
 			OrgID:       0,
 		},

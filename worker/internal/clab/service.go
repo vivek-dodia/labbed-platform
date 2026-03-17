@@ -143,7 +143,7 @@ var vrnetlabKinds = map[string]bool{
 
 // vrnetlabCreds maps node kinds to their default SSH credentials.
 var vrnetlabCreds = map[string][2]string{
-	"mikrotik_ros":          {"admin", ""},
+	"mikrotik_ros":          {"admin", "admin"},
 	"openwrt":               {"root", "VR-netlab9"},
 	"freebsd":               {"admin", "admin"},
 	"cisco_xrv":             {"admin", "admin"},

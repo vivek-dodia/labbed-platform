@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -91,7 +92,7 @@ func (h *Handler) HandleDeploy(c *gin.Context) {
 	c.JSON(http.StatusAccepted, gin.H{"message": "deployment started"})
 
 	// Deploy in background
-	go h.deployAsync(req.LabID, req.ClabName, topoPath)
+	go h.deployAsync(req.LabID, req.ClabName, topoPath, req.Topology)
 }
 
 func (h *Handler) pushLog(ctx context.Context, labID, line, level string) {
@@ -102,7 +103,7 @@ func (h *Handler) pushLog(ctx context.Context, labID, line, level string) {
 	})
 }
 
-func (h *Handler) deployAsync(labID, clabName, topoPath string) {
+func (h *Handler) deployAsync(labID, clabName, topoPath, topoYAML string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 
@@ -148,6 +149,11 @@ func (h *Handler) deployAsync(labID, clabName, topoPath string) {
 		h.mu.Unlock()
 		return
 	}
+
+	// Apply startup-configs to vrnetlab nodes (clab.Deploy doesn't wait for VMs)
+	topoDir := filepath.Dir(topoPath)
+	h.pushLog(ctx, labID, "Applying startup configs to VM nodes...", "info")
+	h.clabService.ApplyStartupConfigs(ctx, topoDir, topoYAML, clabName)
 
 	h.pushLog(ctx, labID, fmt.Sprintf("Containers created, pushing node info (%d nodes)...", len(nodes)), "info")
 

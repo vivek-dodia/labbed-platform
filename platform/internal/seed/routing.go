@@ -37,24 +37,16 @@ topology:
 `,
 			BindFiles: []BindFile{
 				{FilePath: "router1.rsc", Content: `# router1 — AS 65001, eBGP peer with router2
-/ip address
-add address=10.1.1.1/24 interface=ether2
-add address=172.16.0.1/30 interface=ether3
-/routing bgp connection
-add name=to-router2 remote.address=172.16.0.2 remote.as=65002 \
-    as=65001 router-id=1.1.1.1 address-families=ip \
-    local.role=ebgp connect=yes listen=yes \
-    output.redistribute=connected
+/ip/address/add address=10.1.1.1/24 interface=ether2
+/ip/address/add address=172.16.0.1/30 interface=ether3
+/routing/bgp/instance/add name=default as=65001 router-id=1.1.1.1
+/routing/bgp/connection/add name=to-router2 remote.address=172.16.0.2 remote.as=65002 template=default instance=default local.role=ebgp connect=yes listen=yes output.redistribute=connected
 `},
 				{FilePath: "router2.rsc", Content: `# router2 — AS 65002, eBGP peer with router1
-/ip address
-add address=10.2.2.1/24 interface=ether2
-add address=172.16.0.2/30 interface=ether3
-/routing bgp connection
-add name=to-router1 remote.address=172.16.0.1 remote.as=65001 \
-    as=65002 router-id=2.2.2.2 address-families=ip \
-    local.role=ebgp connect=yes listen=yes \
-    output.redistribute=connected
+/ip/address/add address=10.2.2.1/24 interface=ether2
+/ip/address/add address=172.16.0.2/30 interface=ether3
+/routing/bgp/instance/add name=default as=65002 router-id=2.2.2.2
+/routing/bgp/connection/add name=to-router1 remote.address=172.16.0.1 remote.as=65001 template=default instance=default local.role=ebgp connect=yes listen=yes output.redistribute=connected
 `},
 			},
 		},
@@ -107,43 +99,31 @@ topology:
 `,
 			BindFiles: []BindFile{
 				{FilePath: "r1.rsc", Content: `# r1 — OSPF area 0
-/ip address
-add address=10.10.1.1/24 interface=ether2
-add address=172.16.12.1/30 interface=ether3
-add address=172.16.13.1/30 interface=ether4
-/routing ospf instance
-add name=default router-id=1.1.1.1
-/routing ospf area
-add name=backbone instance=default area-id=0.0.0.0
-/routing ospf interface-template
-add area=backbone interfaces=ether2
-add area=backbone interfaces=ether3,ether4 type=ptp
+/ip/address/add address=10.10.1.1/24 interface=ether2
+/ip/address/add address=172.16.12.1/30 interface=ether3
+/ip/address/add address=172.16.13.1/30 interface=ether4
+/routing/ospf/instance/add name=default router-id=1.1.1.1
+/routing/ospf/area/add name=backbone instance=default area-id=0.0.0.0
+/routing/ospf/interface-template/add area=backbone interfaces=ether2
+/routing/ospf/interface-template/add area=backbone interfaces=ether3,ether4 type=ptp
 `},
 				{FilePath: "r2.rsc", Content: `# r2 — OSPF area 0
-/ip address
-add address=10.10.2.1/24 interface=ether2
-add address=172.16.12.2/30 interface=ether3
-add address=172.16.23.1/30 interface=ether4
-/routing ospf instance
-add name=default router-id=2.2.2.2
-/routing ospf area
-add name=backbone instance=default area-id=0.0.0.0
-/routing ospf interface-template
-add area=backbone interfaces=ether2
-add area=backbone interfaces=ether3,ether4 type=ptp
+/ip/address/add address=10.10.2.1/24 interface=ether2
+/ip/address/add address=172.16.12.2/30 interface=ether3
+/ip/address/add address=172.16.23.1/30 interface=ether4
+/routing/ospf/instance/add name=default router-id=2.2.2.2
+/routing/ospf/area/add name=backbone instance=default area-id=0.0.0.0
+/routing/ospf/interface-template/add area=backbone interfaces=ether2
+/routing/ospf/interface-template/add area=backbone interfaces=ether3,ether4 type=ptp
 `},
 				{FilePath: "r3.rsc", Content: `# r3 — OSPF area 0
-/ip address
-add address=10.10.3.1/24 interface=ether2
-add address=172.16.23.2/30 interface=ether3
-add address=172.16.13.2/30 interface=ether4
-/routing ospf instance
-add name=default router-id=3.3.3.3
-/routing ospf area
-add name=backbone instance=default area-id=0.0.0.0
-/routing ospf interface-template
-add area=backbone interfaces=ether2
-add area=backbone interfaces=ether3,ether4 type=ptp
+/ip/address/add address=10.10.3.1/24 interface=ether2
+/ip/address/add address=172.16.23.2/30 interface=ether3
+/ip/address/add address=172.16.13.2/30 interface=ether4
+/routing/ospf/instance/add name=default router-id=3.3.3.3
+/routing/ospf/area/add name=backbone instance=default area-id=0.0.0.0
+/routing/ospf/interface-template/add area=backbone interfaces=ether2
+/routing/ospf/interface-template/add area=backbone interfaces=ether3,ether4 type=ptp
 `},
 			},
 		},
@@ -186,46 +166,33 @@ topology:
 `,
 			BindFiles: []BindFile{
 				{FilePath: "core.rsc", Content: `# core — ABR connecting area 1 and area 2 via backbone
-/interface bridge
-add name=loopback
-/ip address
-add address=10.255.0.1/32 interface=loopback
-add address=172.16.1.1/30 interface=ether2
-add address=172.16.2.1/30 interface=ether3
-/routing ospf instance
-add name=default router-id=10.255.0.1
-/routing ospf area
-add name=backbone instance=default area-id=0.0.0.0
-add name=area1 instance=default area-id=0.0.0.1
-add name=area2 instance=default area-id=0.0.0.2
-/routing ospf interface-template
-add area=backbone interfaces=loopback
-add area=area1 interfaces=ether2 type=ptp
-add area=area2 interfaces=ether3 type=ptp
+/interface/bridge/add name=loopback
+/ip/address/add address=10.255.0.1/32 interface=loopback
+/ip/address/add address=172.16.1.1/30 interface=ether2
+/ip/address/add address=172.16.2.1/30 interface=ether3
+/routing/ospf/instance/add name=default router-id=10.255.0.1
+/routing/ospf/area/add name=backbone instance=default area-id=0.0.0.0
+/routing/ospf/area/add name=area1 instance=default area-id=0.0.0.1
+/routing/ospf/area/add name=area2 instance=default area-id=0.0.0.2
+/routing/ospf/interface-template/add area=backbone interfaces=loopback
+/routing/ospf/interface-template/add area=area1 interfaces=ether2 type=ptp
+/routing/ospf/interface-template/add area=area2 interfaces=ether3 type=ptp
 `},
 				{FilePath: "area1.rsc", Content: `# area1 — router in OSPF area 1
-/ip address
-add address=172.16.1.2/30 interface=ether2
-add address=10.1.0.1/24 interface=ether3
-/routing ospf instance
-add name=default router-id=10.255.0.2
-/routing ospf area
-add name=area1 instance=default area-id=0.0.0.1
-/routing ospf interface-template
-add area=area1 interfaces=ether2 type=ptp
-add area=area1 interfaces=ether3
+/ip/address/add address=172.16.1.2/30 interface=ether2
+/ip/address/add address=10.1.0.1/24 interface=ether3
+/routing/ospf/instance/add name=default router-id=10.255.0.2
+/routing/ospf/area/add name=area1 instance=default area-id=0.0.0.1
+/routing/ospf/interface-template/add area=area1 interfaces=ether2 type=ptp
+/routing/ospf/interface-template/add area=area1 interfaces=ether3
 `},
 				{FilePath: "area2.rsc", Content: `# area2 — router in OSPF area 2
-/ip address
-add address=172.16.2.2/30 interface=ether2
-add address=10.2.0.1/24 interface=ether3
-/routing ospf instance
-add name=default router-id=10.255.0.3
-/routing ospf area
-add name=area2 instance=default area-id=0.0.0.2
-/routing ospf interface-template
-add area=area2 interfaces=ether2 type=ptp
-add area=area2 interfaces=ether3
+/ip/address/add address=172.16.2.2/30 interface=ether2
+/ip/address/add address=10.2.0.1/24 interface=ether3
+/routing/ospf/instance/add name=default router-id=10.255.0.3
+/routing/ospf/area/add name=area2 instance=default area-id=0.0.0.2
+/routing/ospf/interface-template/add area=area2 interfaces=ether2 type=ptp
+/routing/ospf/interface-template/add area=area2 interfaces=ether3
 `},
 			},
 		},
@@ -259,72 +226,42 @@ topology:
 `,
 			BindFiles: []BindFile{
 				{FilePath: "pe1.rsc", Content: `# pe1 — AS 65000 PE, iBGP to pe2, eBGP to ce1, OSPF core
-/interface bridge
-add name=loopback
-/ip address
-add address=10.255.0.1/32 interface=loopback
-add address=172.16.1.1/30 interface=ether2
-add address=172.16.0.1/30 interface=ether3
-/routing ospf instance
-add name=default router-id=10.255.0.1
-/routing ospf area
-add name=backbone instance=default area-id=0.0.0.0
-/routing ospf interface-template
-add area=backbone interfaces=loopback
-add area=backbone interfaces=ether3 type=ptp
-/routing bgp connection
-add name=ebgp-ce1 remote.address=172.16.1.2 remote.as=65001 \
-    as=65000 router-id=10.255.0.1 address-families=ip \
-    local.role=ebgp connect=yes listen=yes
-add name=ibgp-pe2 remote.address=10.255.0.2 remote.as=65000 \
-    as=65000 router-id=10.255.0.1 address-families=ip \
-    local.role=ibgp update-source=loopback connect=yes listen=yes \
-    nexthop-choice=force-self
+/interface/bridge/add name=loopback
+/ip/address/add address=10.255.0.1/32 interface=loopback
+/ip/address/add address=172.16.1.1/30 interface=ether2
+/ip/address/add address=172.16.0.1/30 interface=ether3
+/routing/ospf/instance/add name=default router-id=10.255.0.1
+/routing/ospf/area/add name=backbone instance=default area-id=0.0.0.0
+/routing/ospf/interface-template/add area=backbone interfaces=loopback
+/routing/ospf/interface-template/add area=backbone interfaces=ether3 type=ptp
+/routing/bgp/instance/add name=default as=65000 router-id=10.255.0.1
+/routing/bgp/connection/add name=ebgp-ce1 remote.address=172.16.1.2 remote.as=65001 template=default instance=default local.role=ebgp connect=yes listen=yes
+/routing/bgp/connection/add name=ibgp-pe2 remote.address=10.255.0.2 remote.as=65000 template=default instance=default local.role=ibgp connect=yes listen=yes nexthop-choice=force-self
 `},
 				{FilePath: "pe2.rsc", Content: `# pe2 — AS 65000 PE, iBGP to pe1, eBGP to ce2, OSPF core
-/interface bridge
-add name=loopback
-/ip address
-add address=10.255.0.2/32 interface=loopback
-add address=172.16.2.1/30 interface=ether2
-add address=172.16.0.2/30 interface=ether3
-/routing ospf instance
-add name=default router-id=10.255.0.2
-/routing ospf area
-add name=backbone instance=default area-id=0.0.0.0
-/routing ospf interface-template
-add area=backbone interfaces=loopback
-add area=backbone interfaces=ether3 type=ptp
-/routing bgp connection
-add name=ebgp-ce2 remote.address=172.16.2.2 remote.as=65002 \
-    as=65000 router-id=10.255.0.2 address-families=ip \
-    local.role=ebgp connect=yes listen=yes
-add name=ibgp-pe1 remote.address=10.255.0.1 remote.as=65000 \
-    as=65000 router-id=10.255.0.2 address-families=ip \
-    local.role=ibgp update-source=loopback connect=yes listen=yes \
-    nexthop-choice=force-self
+/interface/bridge/add name=loopback
+/ip/address/add address=10.255.0.2/32 interface=loopback
+/ip/address/add address=172.16.2.1/30 interface=ether2
+/ip/address/add address=172.16.0.2/30 interface=ether3
+/routing/ospf/instance/add name=default router-id=10.255.0.2
+/routing/ospf/area/add name=backbone instance=default area-id=0.0.0.0
+/routing/ospf/interface-template/add area=backbone interfaces=loopback
+/routing/ospf/interface-template/add area=backbone interfaces=ether3 type=ptp
+/routing/bgp/instance/add name=default as=65000 router-id=10.255.0.2
+/routing/bgp/connection/add name=ebgp-ce2 remote.address=172.16.2.2 remote.as=65002 template=default instance=default local.role=ebgp connect=yes listen=yes
+/routing/bgp/connection/add name=ibgp-pe1 remote.address=10.255.0.1 remote.as=65000 template=default instance=default local.role=ibgp connect=yes listen=yes nexthop-choice=force-self
 `},
 				{FilePath: "ce1.rsc", Content: `# ce1 — AS 65001, eBGP to pe1, advertises 10.1.0.0/24
-/ip address
-add address=172.16.1.2/30 interface=ether2
-/ip route
-add dst-address=10.1.0.0/24 type=blackhole
-/routing bgp connection
-add name=ebgp-pe1 remote.address=172.16.1.1 remote.as=65000 \
-    as=65001 router-id=10.255.1.1 address-families=ip \
-    local.role=ebgp connect=yes listen=yes \
-    output.redistribute=static
+/ip/address/add address=172.16.1.2/30 interface=ether2
+/ip/route/add dst-address=10.1.0.0/24 type=blackhole
+/routing/bgp/instance/add name=default as=65001 router-id=10.255.1.1
+/routing/bgp/connection/add name=ebgp-pe1 remote.address=172.16.1.1 remote.as=65000 template=default instance=default local.role=ebgp connect=yes listen=yes output.redistribute=static
 `},
 				{FilePath: "ce2.rsc", Content: `# ce2 — AS 65002, eBGP to pe2, advertises 10.2.0.0/24
-/ip address
-add address=172.16.2.2/30 interface=ether2
-/ip route
-add dst-address=10.2.0.0/24 type=blackhole
-/routing bgp connection
-add name=ebgp-pe2 remote.address=172.16.2.1 remote.as=65000 \
-    as=65002 router-id=10.255.2.1 address-families=ip \
-    local.role=ebgp connect=yes listen=yes \
-    output.redistribute=static
+/ip/address/add address=172.16.2.2/30 interface=ether2
+/ip/route/add dst-address=10.2.0.0/24 type=blackhole
+/routing/bgp/instance/add name=default as=65002 router-id=10.255.2.1
+/routing/bgp/connection/add name=ebgp-pe2 remote.address=172.16.2.1 remote.as=65000 template=default instance=default local.role=ebgp connect=yes listen=yes output.redistribute=static
 `},
 			},
 		},

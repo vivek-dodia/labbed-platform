@@ -226,9 +226,8 @@ topology:
 `,
 			BindFiles: []BindFile{
 				{FilePath: "router.rsc", Content: `# Simple L3 forwarding between server and client subnets
-/ip address
-add address=10.10.1.1/24 interface=ether2
-add address=10.10.2.1/24 interface=ether3
+/ip/address/add address=10.10.1.1/24 interface=ether2
+/ip/address/add address=10.10.2.1/24 interface=ether3
 `},
 			},
 		},

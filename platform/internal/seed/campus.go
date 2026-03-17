@@ -42,39 +42,27 @@ topology:
 `,
 			BindFiles: []BindFile{
 				{FilePath: "core.rsc", Content: `# core — OSPF backbone, uplinks to dist1 and dist2
-/ip address
-add address=172.16.1.1/30 interface=ether2
-add address=172.16.2.1/30 interface=ether3
-/routing ospf instance
-add name=default router-id=10.255.0.1
-/routing ospf area
-add name=backbone instance=default area-id=0.0.0.0
-/routing ospf interface-template
-add area=backbone interfaces=ether2,ether3 type=ptp
+/ip/address/add address=172.16.1.1/30 interface=ether2
+/ip/address/add address=172.16.2.1/30 interface=ether3
+/routing/ospf/instance/add name=default router-id=10.255.0.1
+/routing/ospf/area/add name=backbone instance=default area-id=0.0.0.0
+/routing/ospf/interface-template/add area=backbone interfaces=ether2,ether3 type=ptp
 `},
 				{FilePath: "dist1.rsc", Content: `# dist1 — distribution router, OSPF uplink + access
-/ip address
-add address=172.16.1.2/30 interface=ether2
-add address=10.10.1.1/24 interface=ether3
-/routing ospf instance
-add name=default router-id=10.255.0.2
-/routing ospf area
-add name=backbone instance=default area-id=0.0.0.0
-/routing ospf interface-template
-add area=backbone interfaces=ether2 type=ptp
-add area=backbone interfaces=ether3
+/ip/address/add address=172.16.1.2/30 interface=ether2
+/ip/address/add address=10.10.1.1/24 interface=ether3
+/routing/ospf/instance/add name=default router-id=10.255.0.2
+/routing/ospf/area/add name=backbone instance=default area-id=0.0.0.0
+/routing/ospf/interface-template/add area=backbone interfaces=ether2 type=ptp
+/routing/ospf/interface-template/add area=backbone interfaces=ether3
 `},
 				{FilePath: "dist2.rsc", Content: `# dist2 — distribution router, OSPF uplink + access
-/ip address
-add address=172.16.2.2/30 interface=ether2
-add address=10.10.2.1/24 interface=ether3
-/routing ospf instance
-add name=default router-id=10.255.0.3
-/routing ospf area
-add name=backbone instance=default area-id=0.0.0.0
-/routing ospf interface-template
-add area=backbone interfaces=ether2 type=ptp
-add area=backbone interfaces=ether3
+/ip/address/add address=172.16.2.2/30 interface=ether2
+/ip/address/add address=10.10.2.1/24 interface=ether3
+/routing/ospf/instance/add name=default router-id=10.255.0.3
+/routing/ospf/area/add name=backbone instance=default area-id=0.0.0.0
+/routing/ospf/interface-template/add area=backbone interfaces=ether2 type=ptp
+/routing/ospf/interface-template/add area=backbone interfaces=ether3
 `},
 			},
 		},
@@ -132,29 +120,21 @@ topology:
 `,
 			BindFiles: []BindFile{
 				{FilePath: "core.rsc", Content: `# core — OSPF backbone uplink
-/ip address
-add address=172.16.0.1/30 interface=ether2
-/routing ospf instance
-add name=default router-id=10.255.0.1
-/routing ospf area
-add name=backbone instance=default area-id=0.0.0.0
-/routing ospf interface-template
-add area=backbone interfaces=ether2 type=ptp
+/ip/address/add address=172.16.0.1/30 interface=ether2
+/routing/ospf/instance/add name=default router-id=10.255.0.1
+/routing/ospf/area/add name=backbone instance=default area-id=0.0.0.0
+/routing/ospf/interface-template/add area=backbone interfaces=ether2 type=ptp
 `},
 				{FilePath: "dist.rsc", Content: `# dist — distribution router, OSPF uplink + service/access subnets
-/ip address
-add address=172.16.0.2/30 interface=ether2
-add address=10.10.1.1/24 interface=ether3
-add address=10.10.2.1/24 interface=ether4
-add address=10.10.3.1/24 interface=ether5
-add address=10.10.4.1/24 interface=ether6
-/routing ospf instance
-add name=default router-id=10.255.0.2
-/routing ospf area
-add name=backbone instance=default area-id=0.0.0.0
-/routing ospf interface-template
-add area=backbone interfaces=ether2 type=ptp
-add area=backbone interfaces=ether3,ether4,ether5,ether6
+/ip/address/add address=172.16.0.2/30 interface=ether2
+/ip/address/add address=10.10.1.1/24 interface=ether3
+/ip/address/add address=10.10.2.1/24 interface=ether4
+/ip/address/add address=10.10.3.1/24 interface=ether5
+/ip/address/add address=10.10.4.1/24 interface=ether6
+/routing/ospf/instance/add name=default router-id=10.255.0.2
+/routing/ospf/area/add name=backbone instance=default area-id=0.0.0.0
+/routing/ospf/interface-template/add area=backbone interfaces=ether2 type=ptp
+/routing/ospf/interface-template/add area=backbone interfaces=ether3,ether4,ether5,ether6
 `},
 				{FilePath: "kea-dhcp4.conf", Content: `{
   "Dhcp4": {
@@ -265,42 +245,30 @@ topology:
 `,
 			BindFiles: []BindFile{
 				{FilePath: "core.rsc", Content: `# core — OSPF backbone, uplinks to dist1 and dist2
-/ip address
-add address=172.16.1.1/30 interface=ether2
-add address=172.16.2.1/30 interface=ether3
-/routing ospf instance
-add name=default router-id=10.255.0.1
-/routing ospf area
-add name=backbone instance=default area-id=0.0.0.0
-/routing ospf interface-template
-add area=backbone interfaces=ether2,ether3 type=ptp
+/ip/address/add address=172.16.1.1/30 interface=ether2
+/ip/address/add address=172.16.2.1/30 interface=ether3
+/routing/ospf/instance/add name=default router-id=10.255.0.1
+/routing/ospf/area/add name=backbone instance=default area-id=0.0.0.0
+/routing/ospf/interface-template/add area=backbone interfaces=ether2,ether3 type=ptp
 `},
 				{FilePath: "dist1.rsc", Content: `# dist1 — services distribution, OSPF uplink + service/access subnets
-/ip address
-add address=172.16.1.2/30 interface=ether2
-add address=10.10.1.1/24 interface=ether3
-add address=10.10.2.1/24 interface=ether4
-add address=10.10.3.1/24 interface=ether5
-/routing ospf instance
-add name=default router-id=10.255.0.2
-/routing ospf area
-add name=backbone instance=default area-id=0.0.0.0
-/routing ospf interface-template
-add area=backbone interfaces=ether2 type=ptp
-add area=backbone interfaces=ether3,ether4,ether5
+/ip/address/add address=172.16.1.2/30 interface=ether2
+/ip/address/add address=10.10.1.1/24 interface=ether3
+/ip/address/add address=10.10.2.1/24 interface=ether4
+/ip/address/add address=10.10.3.1/24 interface=ether5
+/routing/ospf/instance/add name=default router-id=10.255.0.2
+/routing/ospf/area/add name=backbone instance=default area-id=0.0.0.0
+/routing/ospf/interface-template/add area=backbone interfaces=ether2 type=ptp
+/routing/ospf/interface-template/add area=backbone interfaces=ether3,ether4,ether5
 `},
 				{FilePath: "dist2.rsc", Content: `# dist2 — client distribution, OSPF uplink + access subnets
-/ip address
-add address=172.16.2.2/30 interface=ether2
-add address=10.20.1.1/24 interface=ether3
-add address=10.20.2.1/24 interface=ether4
-/routing ospf instance
-add name=default router-id=10.255.0.3
-/routing ospf area
-add name=backbone instance=default area-id=0.0.0.0
-/routing ospf interface-template
-add area=backbone interfaces=ether2 type=ptp
-add area=backbone interfaces=ether3,ether4
+/ip/address/add address=172.16.2.2/30 interface=ether2
+/ip/address/add address=10.20.1.1/24 interface=ether3
+/ip/address/add address=10.20.2.1/24 interface=ether4
+/routing/ospf/instance/add name=default router-id=10.255.0.3
+/routing/ospf/area/add name=backbone instance=default area-id=0.0.0.0
+/routing/ospf/interface-template/add area=backbone interfaces=ether2 type=ptp
+/routing/ospf/interface-template/add area=backbone interfaces=ether3,ether4
 `},
 				{FilePath: "kea-dhcp4.conf", Content: `{
   "Dhcp4": {

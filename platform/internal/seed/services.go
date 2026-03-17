@@ -18,19 +18,19 @@ topology:
         - ip addr add 10.10.1.2/24 dev eth1
     switch:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       binds:
         - switch-start.sh:/tmp/start.sh
       exec:
         - ash /tmp/start.sh
     client1:
       kind: linux
-      image: ghcr.io/srl-labs/network-multitool
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - udhcpc -i eth1
     client2:
       kind: linux
-      image: ghcr.io/srl-labs/network-multitool
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - udhcpc -i eth1
 
@@ -63,7 +63,6 @@ topology:
 }
 `},
 				{FilePath: "switch-start.sh", Content: `#!/bin/ash
-apk add --no-cache bridge-utils 2>/dev/null
 
 brctl addbr br0
 
@@ -97,7 +96,7 @@ topology:
         - ip addr add 10.10.1.1/24 dev eth1
     client:
       kind: linux
-      image: ghcr.io/srl-labs/network-multitool
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.10.1.10/24 dev eth1
         - sh -c "echo 'nameserver 10.10.1.1' > /etc/resolv.conf"
@@ -139,21 +138,21 @@ topology:
         - nginx -s reload
     web1:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       binds:
         - web1-start.sh:/tmp/start.sh
       exec:
         - ash /tmp/start.sh
     web2:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       binds:
         - web2-start.sh:/tmp/start.sh
       exec:
         - ash /tmp/start.sh
     client:
       kind: linux
-      image: ghcr.io/srl-labs/network-multitool
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.10.0.10/24 dev eth1
 
@@ -205,13 +204,14 @@ topology:
   nodes:
     server:
       kind: linux
-      image: networkstatic/iperf3:latest
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.10.1.10/24 dev eth1
         - ip route add 10.10.2.0/24 via 10.10.1.1
+        - iperf3 -s -D
     client:
       kind: linux
-      image: ghcr.io/srl-labs/network-multitool
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.10.2.10/24 dev eth1
         - ip route add 10.10.1.0/24 via 10.10.2.1

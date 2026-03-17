@@ -14,13 +14,13 @@ topology:
       image: vrnetlab/openwrt_openwrt:24.10.0
     server:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 192.168.1.10/24 dev eth1
         - ip route add default via 192.168.1.1
     client:
       kind: linux
-      image: ghcr.io/srl-labs/network-multitool
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.0.0.10/24 dev eth1
         - ip route add 192.168.1.0/24 via 10.0.0.1
@@ -41,19 +41,19 @@ topology:
       image: vrnetlab/openwrt_openwrt:24.10.0
     lan:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 192.168.1.10/24 dev eth1
         - ip route add default via 192.168.1.1
     dmz:
       kind: linux
-      image: ghcr.io/srl-labs/network-multitool
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 172.16.0.10/24 dev eth1
         - ip route add default via 172.16.0.1
     wan:
       kind: linux
-      image: ghcr.io/srl-labs/network-multitool
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.0.0.10/24 dev eth1
         - ip route add 192.168.1.0/24 via 10.0.0.1
@@ -73,20 +73,20 @@ topology:
   nodes:
     gateway:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       binds:
         - gateway-start.sh:/tmp/start.sh
       exec:
         - ash /tmp/start.sh
     lan1-host:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 192.168.1.10/24 dev eth1
         - ip route add default via 192.168.1.1
     lan2-host:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 192.168.2.10/24 dev eth1
         - ip route add default via 192.168.2.1

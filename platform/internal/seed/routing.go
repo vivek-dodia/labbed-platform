@@ -19,13 +19,13 @@ topology:
       startup-config: router2.rsc
     host1:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.1.1.10/24 dev eth1
         - ip route add 10.2.2.0/24 via 10.1.1.1
     host2:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.2.2.10/24 dev eth1
         - ip route add 10.1.1.0/24 via 10.2.2.1
@@ -114,19 +114,19 @@ topology:
       startup-config: r3.rsc
     pc1:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.10.1.10/24 dev eth1
         - ip route add default via 10.10.1.1
     pc2:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.10.2.10/24 dev eth1
         - ip route add default via 10.10.2.1
     pc3:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.10.3.10/24 dev eth1
         - ip route add default via 10.10.3.1
@@ -262,13 +262,13 @@ topology:
       startup-config: area2.rsc
     host1:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.1.0.10/24 dev eth1
         - ip route add default via 10.1.0.1
     host2:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.2.0.10/24 dev eth1
         - ip route add default via 10.2.0.1

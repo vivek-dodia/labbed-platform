@@ -23,13 +23,13 @@ topology:
       startup-config: dist2.rsc
     pc1:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.10.1.10/24 dev eth1
         - ip route add default via 10.10.1.1
     pc2:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.10.2.10/24 dev eth1
         - ip route add default via 10.10.2.1
@@ -157,13 +157,13 @@ topology:
         - ip route add default via 10.10.2.1
     pc1:
       kind: linux
-      image: ghcr.io/srl-labs/network-multitool
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.10.3.10/24 dev eth1
         - ip route add default via 10.10.3.1
     pc2:
       kind: linux
-      image: ghcr.io/srl-labs/network-multitool
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.10.4.10/24 dev eth1
         - ip route add default via 10.10.4.1
@@ -318,19 +318,19 @@ topology:
         - ip route add default via 10.10.2.1
     pc1:
       kind: linux
-      image: ghcr.io/srl-labs/network-multitool
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.10.3.10/24 dev eth1
         - ip route add default via 10.10.3.1
     pc2:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.20.1.10/24 dev eth1
         - ip route add default via 10.20.1.1
     pc3:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.20.2.10/24 dev eth1
         - ip route add default via 10.20.2.1

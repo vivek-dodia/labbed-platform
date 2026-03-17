@@ -11,29 +11,29 @@ topology:
   nodes:
     switch:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       binds:
         - switch-start.sh:/tmp/start.sh
       exec:
         - ash /tmp/start.sh
     host1:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.0.0.1/24 dev eth1
     host2:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.0.0.2/24 dev eth1
     host3:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.0.0.3/24 dev eth1
     host4:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.0.0.4/24 dev eth1
 
@@ -46,7 +46,6 @@ topology:
 			BindFiles: []BindFile{
 				{FilePath: "switch-start.sh", Content: `#!/bin/ash
 # Create a Linux bridge and attach all data interfaces
-apk add --no-cache bridge-utils 2>/dev/null
 
 brctl addbr br0
 
@@ -71,36 +70,36 @@ topology:
   nodes:
     sw1:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       binds:
         - sw1-start.sh:/tmp/start.sh
       exec:
         - ash /tmp/start.sh
     sw2:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       binds:
         - sw2-start.sh:/tmp/start.sh
       exec:
         - ash /tmp/start.sh
     host1:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.0.0.1/24 dev eth1
     host2:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.0.0.2/24 dev eth1
     host3:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.0.0.3/24 dev eth1
     host4:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.0.0.4/24 dev eth1
 
@@ -116,7 +115,6 @@ topology:
 `,
 			BindFiles: []BindFile{
 				{FilePath: "sw1-start.sh", Content: `#!/bin/ash
-apk add --no-cache bridge-utils 2>/dev/null
 
 brctl addbr br0
 
@@ -133,7 +131,6 @@ echo "sw1 ready:"
 brctl show br0
 `},
 				{FilePath: "sw2-start.sh", Content: `#!/bin/ash
-apk add --no-cache bridge-utils 2>/dev/null
 
 brctl addbr br0
 
@@ -163,20 +160,20 @@ topology:
       startup-config: router.rsc
     switch:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       binds:
         - switch-start.sh:/tmp/start.sh
       exec:
         - ash /tmp/start.sh
     host-vlan10:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.10.10.10/24 dev eth1
         - ip route add 10.20.20.0/24 via 10.10.10.1
     host-vlan20:
       kind: linux
-      image: alpine:3.20
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
         - ip addr add 10.20.20.10/24 dev eth1
         - ip route add 10.10.10.0/24 via 10.20.20.1

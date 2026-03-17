@@ -294,7 +294,7 @@ func (h *Handler) HandleExec(c *gin.Context) {
 	var err error
 
 	if clab.IsVrnetlabKind(req.NodeKind) {
-		output, err = h.clabService.SerialExec(ctx, req.NodeName, req.Command)
+		output, err = h.clabService.VrnetlabExec(ctx, req.NodeName, req.Command, req.NodeKind)
 	} else {
 		output, err = h.clabService.Exec(ctx, req.NodeName, req.Command)
 	}

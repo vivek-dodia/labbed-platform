@@ -7,11 +7,14 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/ssh"
 
 	clabcore "github.com/srl-labs/containerlab/core"
 	clabruntime "github.com/srl-labs/containerlab/runtime"
@@ -102,7 +105,7 @@ func CleanupTopologyFiles(labID string) {
 }
 
 // vrnetlabKinds are containerlab node kinds that use vrnetlab (VM-inside-container).
-// These need serial console access instead of docker exec sh.
+// These need SSH or serial console access instead of docker exec sh.
 var vrnetlabKinds = map[string]bool{
 	// MikroTik
 	"mikrotik_ros": true,
@@ -126,16 +129,36 @@ var vrnetlabKinds = map[string]bool{
 	// Nokia
 	"nokia_sros": true,
 	// Others
-	"openwrt":           true,
-	"aruba_aoscx":       true,
-	"dell_ftosv":        true,
-	"huawei_vrp":        true,
-	"paloalto_panos":    true,
-	"fortinet_fortigate": true,
+	"openwrt":               true,
+	"aruba_aoscx":           true,
+	"dell_ftosv":            true,
+	"huawei_vrp":            true,
+	"paloalto_panos":        true,
+	"fortinet_fortigate":    true,
 	"checkpoint_cloudguard": true,
-	"generic_vm":        true,
-	"openbsd":           true,
-	"freebsd":           true,
+	"generic_vm":            true,
+	"openbsd":               true,
+	"freebsd":               true,
+}
+
+// vrnetlabCreds maps node kinds to their default SSH credentials.
+var vrnetlabCreds = map[string][2]string{
+	"mikrotik_ros":          {"admin", ""},
+	"openwrt":               {"root", "VR-netlab9"},
+	"freebsd":               {"admin", "admin"},
+	"cisco_xrv":             {"admin", "admin"},
+	"cisco_xrv9k":           {"admin", "admin"},
+	"cisco_csr1000v":        {"admin", "admin"},
+	"cisco_n9kv":            {"admin", "admin"},
+	"cisco_c8000v":          {"admin", "admin"},
+	"juniper_vmx":           {"admin", "admin@123"},
+	"juniper_vqfx":          {"admin", "admin@123"},
+	"juniper_vsrx":          {"admin", "admin@123"},
+	"juniper_vjunosrouter":  {"admin", "admin@123"},
+	"juniper_vjunosswitch":  {"admin", "admin@123"},
+	"juniper_vjunosevolved": {"admin", "admin@123"},
+	"arista_veos":           {"admin", "admin"},
+	"nokia_sros":            {"admin", "admin"},
 }
 
 // IsVrnetlabKind returns true if the kind uses vrnetlab (VM-inside-container).
@@ -143,27 +166,93 @@ func IsVrnetlabKind(kind string) bool {
 	return vrnetlabKinds[kind]
 }
 
-// SerialExec sends a command to a vrnetlab container's serial console (QEMU telnet
-// port 5000) and returns the output. This is used for NOS VMs like RouterOS where
-// docker exec only reaches the outer Linux container, not the VM itself.
-func (s *Service) SerialExec(ctx context.Context, containerName, command string) (string, error) {
-	dockerBin, err := exec.LookPath("docker")
+// VrnetlabExec executes a command on a vrnetlab VM via SSH to its management IP.
+// Falls back to serial console if SSH is unavailable.
+func (s *Service) VrnetlabExec(ctx context.Context, containerName, command, kind string) (string, error) {
+	output, err := s.sshExec(ctx, containerName, command, kind)
+	if err == nil {
+		return output, nil
+	}
+	log.Printf("SSH exec failed for %s (kind=%s), falling back to serial: %v", containerName, kind, err)
+	return s.serialExec(ctx, containerName, command)
+}
+
+// sshExec connects to the VM's management IP via SSH and runs the command.
+func (s *Service) sshExec(ctx context.Context, containerName, command, kind string) (string, error) {
+	mgmtIP, err := s.getContainerMgmtIP(containerName)
 	if err != nil {
-		for _, p := range []string{"/usr/bin/docker", "/usr/local/bin/docker"} {
-			if _, ferr := os.Stat(p); ferr == nil {
-				dockerBin = p
-				break
-			}
-		}
-		if dockerBin == "" {
-			return "", fmt.Errorf("docker binary not found: %w", err)
-		}
+		return "", fmt.Errorf("get mgmt IP: %w", err)
 	}
 
-	// Send command via telnet to QEMU serial console on port 5000.
-	// The approach: pipe commands into telnet with sleeps for timing,
-	// capture all output, then clean ANSI escape codes in Go.
-	// Use integer sleeps for busybox/ash compatibility.
+	creds, ok := vrnetlabCreds[kind]
+	if !ok {
+		creds = [2]string{"admin", "admin"}
+	}
+
+	config := &ssh.ClientConfig{
+		User: creds[0],
+		Auth: []ssh.AuthMethod{
+			ssh.Password(creds[1]),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         5 * time.Second,
+	}
+
+	dialer := net.Dialer{Timeout: 5 * time.Second}
+	conn, err := dialer.DialContext(ctx, "tcp", mgmtIP+":22")
+	if err != nil {
+		return "", fmt.Errorf("dial %s:22: %w", mgmtIP, err)
+	}
+
+	sshConn, chans, reqs, err := ssh.NewClientConn(conn, mgmtIP+":22", config)
+	if err != nil {
+		conn.Close()
+		return "", fmt.Errorf("SSH handshake: %w", err)
+	}
+	client := ssh.NewClient(sshConn, chans, reqs)
+	defer client.Close()
+
+	session, err := client.NewSession()
+	if err != nil {
+		return "", fmt.Errorf("SSH session: %w", err)
+	}
+	defer session.Close()
+
+	var buf bytes.Buffer
+	session.Stdout = &buf
+	session.Stderr = &buf
+
+	if err := session.Run(command); err != nil {
+		// Some NOS types return exit code 1 even on success; return output anyway
+		if buf.Len() > 0 {
+			return buf.String(), nil
+		}
+		return "", fmt.Errorf("SSH run: %w", err)
+	}
+	return buf.String(), nil
+}
+
+// getContainerMgmtIP returns the first IP address assigned to the container.
+func (s *Service) getContainerMgmtIP(containerName string) (string, error) {
+	dockerBin := findDockerBin()
+	cmd := exec.Command(dockerBin, "inspect", "--format",
+		"{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}", containerName)
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	ips := strings.Fields(strings.TrimSpace(string(out)))
+	if len(ips) == 0 {
+		return "", fmt.Errorf("no management IP for %s", containerName)
+	}
+	return ips[0], nil
+}
+
+// serialExec sends a command via the QEMU serial console (telnet port 5000).
+// Used as fallback when SSH is not available.
+func (s *Service) serialExec(ctx context.Context, containerName, command string) (string, error) {
+	dockerBin := findDockerBin()
+
 	escapedCmd := strings.ReplaceAll(command, `"`, `\"`)
 	escapedCmd = strings.ReplaceAll(escapedCmd, `$`, `\$`)
 	script := fmt.Sprintf(
@@ -179,6 +268,19 @@ func (s *Service) SerialExec(ctx context.Context, containerName, command string)
 
 	_ = cmd.Run()
 	return cleanSerialOutput(stdout.String(), command), nil
+}
+
+// findDockerBin locates the docker binary.
+func findDockerBin() string {
+	if p, err := exec.LookPath("docker"); err == nil {
+		return p
+	}
+	for _, p := range []string{"/usr/bin/docker", "/usr/local/bin/docker"} {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return "docker"
 }
 
 // cleanSerialOutput strips ANSI escape codes, telnet banners, and prompt lines
@@ -264,22 +366,7 @@ func stripAnsiCodes(s string) string {
 
 // Exec runs a command inside a container using docker exec.
 func (s *Service) Exec(ctx context.Context, containerName, command string) (string, error) {
-	// Find docker binary
-	dockerBin, err := exec.LookPath("docker")
-	if err != nil {
-		// Fallback to common locations
-		for _, p := range []string{"/usr/bin/docker", "/usr/local/bin/docker"} {
-			if _, ferr := os.Stat(p); ferr == nil {
-				dockerBin = p
-				break
-			}
-		}
-		if dockerBin == "" {
-			return "", fmt.Errorf("docker binary not found: %w", err)
-		}
-	}
-
-	// Build args: always use sh -c for consistent behavior
+	dockerBin := findDockerBin()
 	args := []string{"exec", containerName, "sh", "-c", command}
 
 	cmd := exec.CommandContext(ctx, dockerBin, args...)
@@ -287,23 +374,24 @@ func (s *Service) Exec(ctx context.Context, containerName, command string) (stri
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err = cmd.Run()
-	output := stdout.String()
-	if stderr.Len() > 0 {
-		if output != "" {
-			output += "\n"
+	if err := cmd.Run(); err != nil {
+		output := stdout.String()
+		if stderr.Len() > 0 {
+			if output != "" {
+				output += "\n"
+			}
+			output += stderr.String()
 		}
-		output += stderr.String()
-	}
-
-	if err != nil {
-		// Include output even on error (e.g., command not found)
 		if output != "" {
 			return output, nil
 		}
 		return "", fmt.Errorf("exec failed: %w", err)
 	}
 
+	output := stdout.String()
+	if stderr.Len() > 0 {
+		output += "\n" + stderr.String()
+	}
 	return output, nil
 }
 

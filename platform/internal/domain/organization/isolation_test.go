@@ -373,7 +373,7 @@ func TestTopologyIsolation_CrossOrgAccessDenied(t *testing.T) {
 	topoResp, err := env.topoService.CreateWithOrg(env.user1.ID, colDBID, env.org1DBID,
 		topology.CreateRequest{
 			Name:         "Org1 Topo",
-			Definition:   "name: test\ntopology:\n  nodes:\n    n1:\n      kind: linux\n      image: alpine:3.20",
+			Definition:   "name: test\ntopology:\n  nodes:\n    n1:\n      kind: linux\n      image: ghcr.io/vivek-dodia/labbed-host:latest",
 			CollectionID: col.UUID,
 		})
 	if err != nil {

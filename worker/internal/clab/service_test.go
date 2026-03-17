@@ -20,7 +20,7 @@ topology:
   nodes:
     r1:
       kind: linux
-      image: alpine:3.20`
+      image: ghcr.io/vivek-dodia/labbed-host:latest`
 
 	bindFiles := map[string][]byte{
 		"configs/frr.conf":  []byte("hostname test-router"),

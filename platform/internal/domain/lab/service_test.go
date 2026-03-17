@@ -72,7 +72,7 @@ func setupLabService(t *testing.T) (*LabService, *gorm.DB) {
 	}
 	wc := workerclient.NewClient()
 	tl := &mockTopoLoader{
-		definition: "name: test-topo\ntopology:\n  nodes:\n    r1:\n      kind: linux\n      image: alpine:3.20",
+		definition: "name: test-topo\ntopology:\n  nodes:\n    r1:\n      kind: linux\n      image: ghcr.io/vivek-dodia/labbed-host:latest",
 		bindFiles:  map[string][]byte{},
 	}
 	svc := NewService(repo, ws, wc, tl, "http://localhost:8080")
@@ -248,8 +248,8 @@ func TestUpdateNodes(t *testing.T) {
 	})
 
 	nodes := []NodeResponse{
-		{Name: "router1", Kind: "linux", Image: "alpine:3.20", ContainerID: "abc123", IPv4: "172.20.20.2", State: "running"},
-		{Name: "host1", Kind: "linux", Image: "alpine:3.20", ContainerID: "def456", IPv4: "172.20.20.3", State: "running"},
+		{Name: "router1", Kind: "linux", Image: "ghcr.io/vivek-dodia/labbed-host:latest", ContainerID: "abc123", IPv4: "172.20.20.2", State: "running"},
+		{Name: "host1", Kind: "linux", Image: "ghcr.io/vivek-dodia/labbed-host:latest", ContainerID: "def456", IPv4: "172.20.20.3", State: "running"},
 	}
 
 	err := svc.UpdateNodes(created.UUID, nodes)

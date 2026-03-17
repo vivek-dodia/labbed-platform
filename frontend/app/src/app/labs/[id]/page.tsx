@@ -111,34 +111,18 @@ const NGINX_COMMANDS: QuickCmd[] = [
   { label: "LOGS", cmd: "tail -20 /var/log/nginx/access.log 2>/dev/null || echo 'No logs'", description: "Access log" },
 ];
 
-const IPERF_COMMANDS: QuickCmd[] = [
-  { label: "SERVER", cmd: "iperf3 -s -D 2>/dev/null && echo 'Server started' || echo 'Already running or failed'", description: "Start server" },
-  { label: "STATUS", cmd: "pgrep -a iperf3 || echo 'Not running'", description: "Process status" },
-  { label: "IP ADDR", cmd: "ip addr show", description: "Interface addresses" },
-  { label: "ROUTE", cmd: "ip route show", description: "Routing table" },
-];
-
-const DNSMASQ_COMMANDS: QuickCmd[] = [
-  { label: "LEASES", cmd: "cat /var/lib/misc/dnsmasq.leases 2>/dev/null || echo 'No leases'", description: "DHCP leases" },
-  { label: "CONF", cmd: "cat /etc/dnsmasq.conf", description: "Dnsmasq config" },
-  { label: "IP ADDR", cmd: "ip addr show", description: "Interface addresses" },
-  { label: "ROUTE", cmd: "ip route show", description: "Routing table" },
-];
-
 function getCommandsForImage(image: string): { category: string; commands: QuickCmd[] } {
   const img = image.toLowerCase();
   if (img.includes("frr") || img.includes("frrouting")) return { category: "FRR", commands: FRR_COMMANDS };
   if (img.includes("gobgp")) return { category: "GoBGP", commands: GOBGP_COMMANDS };
-  if (img.includes("network-multitool") || img.includes("netshoot")) return { category: "NET TOOLS", commands: LINUX_COMMANDS };
+  if (img.includes("labbed-host")) return { category: "HOST", commands: LINUX_COMMANDS };
   if (img.includes("kea")) return { category: "KEA DHCP", commands: KEA_COMMANDS };
   if (img.includes("coredns")) return { category: "COREDNS", commands: COREDNS_COMMANDS };
   if (img.includes("nginx")) return { category: "NGINX", commands: NGINX_COMMANDS };
-  if (img.includes("iperf")) return { category: "IPERF3", commands: IPERF_COMMANDS };
   if (img.includes("osvbng")) return { category: "OSVBNG", commands: OSVBNG_COMMANDS };
   if (img.includes("freebsd")) return { category: "FREEBSD", commands: FREEBSD_COMMANDS };
   if (img.includes("openwrt")) return { category: "OPENWRT", commands: OPENWRT_COMMANDS };
   if (img.includes("routeros") || img.includes("mikrotik")) return { category: "ROUTEROS", commands: ROUTEROS_COMMANDS };
-  if (img.includes("dnsmasq") || img.includes("kea")) return { category: "DHCP/DNS", commands: DNSMASQ_COMMANDS };
   return { category: "LINUX", commands: LINUX_COMMANDS };
 }
 

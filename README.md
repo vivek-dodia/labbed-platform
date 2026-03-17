@@ -58,12 +58,13 @@ Client Request
 
 ## How Deploy Works
 
-1. User clicks **Deploy** in the frontend
-2. Frontend `POST /api/v1/labs/{id}/deploy` with `X-Org-ID` header
-3. Platform selects an available worker, loads the topology YAML + bind files, and sends a deploy request to the worker
-4. Worker writes topology to disk, calls `containerlab.Deploy()` via the Go library
-5. Worker pushes deployment logs, status updates (`deploying` → `running`), and node info back to the platform
-6. Platform broadcasts updates via WebSocket — frontend receives them in real-time
+1. User clicks **Deploy** in the frontend, optionally selecting per-node NOS images
+2. Frontend `POST /api/v1/labs/{id}/deploy` with `X-Org-ID` header and optional `nodeImages` map
+3. Platform selects an available worker, loads topology YAML, applies NOS image overrides (rewrites `kind`/`image` and config delivery), filters bind files by NOS kind, and sends the deploy request to the worker
+4. Worker writes topology + bind files to disk, calls `containerlab.Deploy()` via the Go library
+5. For vrnetlab nodes (RouterOS, OpenWrt, FreeBSD), worker applies startup-configs via SSH post-deploy
+6. Worker pushes deployment logs, status updates (`deploying` → `running`), and node info back to the platform
+7. Platform broadcasts updates via WebSocket — frontend receives them in real-time
 
 Destroy follows the same pattern in reverse.
 
@@ -132,6 +133,7 @@ Terminal output is persisted per-node in a `Map<string, string[]>` ref, so switc
 ```
 /opt/labbed/
 ├── docker-compose.yaml          # PostgreSQL + platform + worker
+├── images/host/                 # Labbed Host (Alpine Nettools) Dockerfile
 ├── platform/                    # Platform API
 │   ├── main.go                  # Wiring & startup
 │   ├── internal/
@@ -238,7 +240,7 @@ Organization ──< OrganizationMember >── User
      │
      ├── Collection ──< CollectionMember >── User
      │       │
-     │       └── Topology ──< BindFile
+     │       └── Topology ──< BindFile (NosKind: "" | "mikrotik_ros" | "frr" | ...)
      │
      ├── Lab ──< LabNode
      │    │
@@ -281,89 +283,89 @@ bun run test
 
 ## Tech Stack
 
-- **Backend**: Go 1.23, Gin, GORM, gorilla/websocket
+- **Backend**: Go 1.25, Gin, GORM, gorilla/websocket
 - **Database**: PostgreSQL 16 (primary), SQLite (dev option)
-- **Container orchestration**: containerlab v0.73.0 (Go library)
+- **Container orchestration**: containerlab v0.74.0 (Go library)
 - **Frontend**: Next.js 15, TypeScript, React Flow (@xyflow/react), bun
 - **Auth**: JWT (access 30m + refresh 30d), Google OAuth2, org membership validation
+- **CI/CD**: GitHub Actions → GHCR images (platform, worker, frontend, host)
 
 ## Supported Network OS
 
-| NOS | Image | containerlab Kind | Notes |
-|-----|-------|-------------------|-------|
-| FRRouting (FRR) 10.3.1 | `quay.io/frrouting/frr:10.3.1` | `linux` | Native container, no KVM needed |
-| Alpine Linux 3.20 | `alpine:3.20` | `linux` | Native container, no KVM needed |
-| dnsmasq (DHCP/DNS) | `alpine:3.20` + dnsmasq | `linux` | Native container, no KVM needed |
-| MikroTik RouterOS CHR 7.20.8 | `vrnetlab/mikrotik_routeros:7.20.8` | `mikrotik_ros` | vrnetlab (QEMU), requires KVM |
+Topologies are NOS-agnostic — each topology ships with configs for every supported router NOS. Users pick the NOS at deploy time via the image override dropdown; the platform swaps configs automatically.
+
+### Router NOS
+
+| NOS | Image | Kind | Config Delivery | KVM? |
+|-----|-------|------|----------------|------|
+| FRRouting (FRR) 10.3.1 | `quay.io/frrouting/frr:10.3.1` | `linux` | `binds` (daemons + frr.conf) | No |
+| MikroTik RouterOS CHR 7.20.8 | `vrnetlab/mikrotik_routeros:7.20.8` | `mikrotik_ros` | `startup-config` → SSH post-deploy | Yes |
+| OpenWrt 24.10.0 | `vrnetlab/openwrt_openwrt:24.10.0` | `openwrt` | `startup-config` → SSH post-deploy | Yes |
+| FreeBSD 14 | `vrnetlab/freebsd:14` | `freebsd` | `startup-config` → SSH post-deploy | Yes |
+
+### Host / Endpoint Image
+
+All host, endpoint, and switch nodes use a single unified image:
+
+| Image | Description |
+|-------|-------------|
+| `ghcr.io/vivek-dodia/labbed-host:latest` | Alpine 3.20 with iperf3, bridge-utils, bind-tools, curl, traceroute, tcpdump, mtr, nmap-ncat, iptables, jq, iproute2, net-tools, openssh-client |
+
+### NOS-Agnostic Config System
+
+Each topology's bind files are tagged with a `NosKind` field:
+- `""` (empty) — universal files (switch scripts, DHCP configs, etc.), always included
+- `"mikrotik_ros"` — RouterOS `.rsc` configs
+- `"frr"` — FRR `daemons` + `.conf` files
+
+At deploy time:
+1. `applyImageOverrides` changes node `kind`/`image` and rewrites config delivery (`startup-config` ↔ `binds`)
+2. `extractNosKinds` determines which NOS types are in the final YAML
+3. `GetBindFilesForNos` filters bind files to universal + matching NOS kinds
+4. Only relevant config files are sent to the worker
 
 ### vrnetlab Images (KVM required)
 
-RouterOS CHR and other vendor NOS images use [vrnetlab](https://github.com/srl-labs/vrnetlab) — QEMU VMs packaged as Docker containers. These require `/dev/kvm` on the host (bare-metal or VM with nested virtualization).
+RouterOS, OpenWrt, and FreeBSD use [vrnetlab](https://github.com/srl-labs/vrnetlab) — QEMU VMs packaged as Docker containers. These require `/dev/kvm` on the host.
 
-**Building RouterOS CHR:**
-```bash
-git clone https://github.com/srl-labs/vrnetlab && cd vrnetlab/mikrotik/routeros
-# Download CHR VMDK from https://mikrotik.com/download (CHR tab)
-wget https://download.mikrotik.com/routeros/7.20.8/chr-7.20.8.vmdk.zip
-unzip chr-7.20.8.vmdk.zip
-make docker-image
-# Result: vrnetlab/mikrotik_routeros:7.20.8
-```
+**RouterOS interface mapping:** `eth0` → `ether1` (management), `eth1` → `ether2` (first data port), etc.
 
-**RouterOS interface mapping:** `eth0` → `ether1` (management, reserved), `eth1` → `ether2` (first data port), etc.
-
-**Default credentials:** `admin` with empty password (RouterOS v7+)
+**Default credentials:** RouterOS `admin`/empty, OpenWrt `root`/`VR-netlab9`, FreeBSD `admin`/`admin`
 
 ## Deployment
 
-Labbed runs on a Linux host with Docker and KVM (required for vrnetlab NOS images). Development workflow: edit code locally, push to git, pull and rebuild on the server.
+Labbed runs on a Linux host with Docker and KVM (required for vrnetlab NOS images). CI builds Docker images on push to main; deploy by pulling images on the server.
+
+### CI / CD
+
+GitHub Actions builds and pushes 5 images to GHCR on every push to `main`:
+- `ghcr.io/vivek-dodia/labbed-platform:latest`
+- `ghcr.io/vivek-dodia/labbed-worker:latest`
+- `ghcr.io/vivek-dodia/labbed-frontend:latest`
+- `ghcr.io/vivek-dodia/labbed-host:latest`
 
 ### Server Setup
 
 ```bash
-# Prerequisites: Ubuntu 24.04 with /dev/kvm, Docker, Go 1.24+, bun, containerlab
+# Prerequisites: Ubuntu 24.04 with /dev/kvm, Docker
 
-# Clone and build
-git clone https://github.com/vivek-dodia/labbed-platform.git /opt/labbed
-cd /opt/labbed/platform && go build -o labbed-platform .
-cd /opt/labbed/worker && go build -o labbed-worker .
-cd /opt/labbed/frontend/app && bun install
+# Create project dir with docker-compose.prod.yaml and nginx config
+mkdir -p /opt/labbed/nginx
+# Copy docker-compose.prod.yaml and nginx/default.conf
 
-# Start Postgres
-docker run -d --name labbed-postgres \
-  -e POSTGRES_USER=labbed -e POSTGRES_PASSWORD=labbed -e POSTGRES_DB=labbed \
-  -p 5432:5432 postgres:16-alpine
-
-# Start platform
-cd /opt/labbed/platform
-LABBED_SERVER_PLATFORM_URL="http://<SERVER_IP>:8080" \
-./labbed-platform &
-
-# Start worker
-cd /opt/labbed/worker
-LABBED_WORKER_PLATFORM_URL="http://<SERVER_IP>:8080" \
-LABBED_WORKER_PLATFORM_SECRET="change-me-in-production" \
-./labbed-worker &
-
-# Start frontend
-cd /opt/labbed/frontend/app
-echo 'NEXT_PUBLIC_API_URL=http://<SERVER_IP>' > .env.local
-echo 'NEXT_PUBLIC_WS_URL=ws://<SERVER_IP>' >> .env.local
-bun run dev --hostname 0.0.0.0 &
-
-# Nginx reverse proxy (handles CORS, proxies frontend/API/WS on port 80)
-# See deploy/nginx.conf or use Docker:
-docker run -d --name labbed-nginx --network host \
-  -v /path/to/nginx.conf:/etc/nginx/conf.d/default.conf:ro nginx:alpine
+# Deploy
+docker compose -f docker-compose.prod.yaml pull
+docker compose -f docker-compose.prod.yaml up -d
 ```
 
 ### Dev Workflow
 
 ```bash
-# Edit code locally, then deploy:
+# Edit locally → push → CI builds images → pull on server
 git push origin main
-ssh server 'cd /opt/labbed && git pull && cd platform && go build -o labbed-platform . && cd ../worker && go build -o labbed-worker .'
-# Restart affected services
+# Wait for CI to complete, then on server:
+docker compose -f docker-compose.prod.yaml pull
+docker compose -f docker-compose.prod.yaml up -d --force-recreate
 ```
 
 Default credentials: `admin@labbed.local` / `admin`

@@ -52,6 +52,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /var/run/netns:/var/run/netns
+      - /tmp/labbed-worker:/tmp/labbed-worker
     depends_on:
       platform:
         condition: service_healthy

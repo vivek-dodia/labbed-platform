@@ -23,6 +23,7 @@ type Template struct {
 type BindFile struct {
 	FilePath string
 	Content  string
+	NosKind  string // "" = universal, "mikrotik_ros", "frr", "openwrt", "freebsd"
 }
 
 // CollectionDef groups templates under a named collection.
@@ -246,6 +247,7 @@ func SeedSampleTopologies(db *gorm.DB, orgID uint, creatorID uint) {
 					TopologyID: topo.ID,
 					FilePath:   bf.FilePath,
 					Content:    []byte(bf.Content),
+					NosKind:    bf.NosKind,
 				}
 				db.Create(file)
 			}

@@ -147,6 +147,7 @@ func (s *TopologyService) CreateBindFile(topologyUUID string, req CreateBindFile
 		TopologyID: topology.ID,
 		FilePath:   req.FilePath,
 		Content:    []byte(req.Content),
+		NosKind:    req.NosKind,
 	}
 
 	if err := s.repo.CreateBindFile(file); err != nil {
@@ -167,6 +168,9 @@ func (s *TopologyService) UpdateBindFile(fileUUID string, req UpdateBindFileRequ
 	}
 	if req.Content != nil {
 		file.Content = []byte(*req.Content)
+	}
+	if req.NosKind != nil {
+		file.NosKind = *req.NosKind
 	}
 
 	if err := s.repo.UpdateBindFile(file); err != nil {
@@ -326,6 +330,7 @@ func buildBindFileResponse(f *BindFile) BindFileResponse {
 		UUID:      f.UUID,
 		FilePath:  f.FilePath,
 		Content:   string(f.Content),
+		NosKind:   f.NosKind,
 		CreatedAt: f.CreatedAt,
 	}
 }

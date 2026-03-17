@@ -97,10 +97,10 @@ func (s *Service) ApplyStartupConfigs(ctx context.Context, topoDir, topoYAML, la
 			continue
 		}
 
-		if err := applyRSCConfig(client, string(content)); err != nil {
+		if err := applyConfig(client, string(content), node.Kind); err != nil {
 			log.Printf("startup-config: failed to apply config for %s: %v", node.Name, err)
 		} else {
-			log.Printf("startup-config: applied %s to %s", node.StartupConfig, node.Name)
+			log.Printf("startup-config: applied %s to %s (kind=%s)", node.StartupConfig, node.Name, node.Kind)
 		}
 		client.Close()
 	}
@@ -147,6 +147,61 @@ func waitForSSH(ctx context.Context, mgmtIP string, creds [2]string) (*ssh.Clien
 			return ssh.NewClient(sshConn, chans, reqs), nil
 		}
 	}
+}
+
+// applyConfig dispatches config application to the correct handler based on NOS kind.
+func applyConfig(client *ssh.Client, config, kind string) error {
+	switch kind {
+	case "mikrotik_ros":
+		return applyRSCConfig(client, config)
+	case "openwrt":
+		return applyOpenWrtConfig(client, config)
+	case "freebsd":
+		return applyShellConfig(client, config)
+	default:
+		log.Printf("startup-config: no handler for kind %q, skipping", kind)
+		return nil
+	}
+}
+
+// applyOpenWrtConfig executes an OpenWrt UCI configuration script via SSH line-by-line.
+func applyOpenWrtConfig(client *ssh.Client, config string) error {
+	for _, line := range strings.Split(config, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		session, err := client.NewSession()
+		if err != nil {
+			return fmt.Errorf("SSH session: %w", err)
+		}
+		output, err := session.CombinedOutput(line)
+		session.Close()
+		if err != nil {
+			log.Printf("  openwrt command %q: %s (%v)", line, strings.TrimSpace(string(output)), err)
+		}
+	}
+	return nil
+}
+
+// applyShellConfig executes a shell configuration script via SSH line-by-line (FreeBSD, etc.).
+func applyShellConfig(client *ssh.Client, config string) error {
+	for _, line := range strings.Split(config, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		session, err := client.NewSession()
+		if err != nil {
+			return fmt.Errorf("SSH session: %w", err)
+		}
+		output, err := session.CombinedOutput(line)
+		session.Close()
+		if err != nil {
+			log.Printf("  shell command %q: %s (%v)", line, strings.TrimSpace(string(output)), err)
+		}
+	}
+	return nil
 }
 
 // applyRSCConfig executes a RouterOS .rsc config via SSH commands.

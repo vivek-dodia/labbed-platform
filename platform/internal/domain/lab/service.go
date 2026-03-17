@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,8 +23,9 @@ type WorkerSelector interface {
 
 // TopologyLoader loads topology definitions and bind files for deploy dispatch.
 type TopologyLoader interface {
-	GetDefinition(topoUUID string) (string, error)           // returns YAML definition
-	GetBindFiles(topoUUID string) (map[string][]byte, error) // filePath -> content
+	GetDefinition(topoUUID string) (string, error)                                    // returns YAML definition
+	GetBindFiles(topoUUID string) (map[string][]byte, error)                          // filePath -> content
+	GetBindFilesForNos(topoUUID string, nosKinds []string) (map[string][]byte, error) // filtered by NOS kind
 }
 
 // NosImageResolver resolves a NOS image UUID to its clab kind and docker image.
@@ -246,7 +248,7 @@ func (s *LabService) Deploy(labUUID string, nodeImages map[string]string) error 
 		return fmt.Errorf("failed to load topology: %w", err)
 	}
 
-	// Apply image overrides if provided
+	// Apply image overrides if provided (also rewrites config delivery per NOS)
 	if len(nodeImages) > 0 {
 		definition, err = s.applyImageOverrides(definition, nodeImages)
 		if err != nil {
@@ -254,7 +256,14 @@ func (s *LabService) Deploy(labUUID string, nodeImages map[string]string) error 
 		}
 	}
 
-	bindFiles, err := s.topoLoader.GetBindFiles(l.TopologyID)
+	// Load bind files filtered by which NOS kinds are in the final YAML
+	nosKinds := extractNosKinds(definition)
+	var bindFiles map[string][]byte
+	if len(nosKinds) > 0 {
+		bindFiles, err = s.topoLoader.GetBindFilesForNos(l.TopologyID, nosKinds)
+	} else {
+		bindFiles, err = s.topoLoader.GetBindFiles(l.TopologyID)
+	}
 	if err != nil {
 		return fmt.Errorf("failed to load bind files: %w", err)
 	}
@@ -335,6 +344,10 @@ func (s *LabService) applyImageOverrides(definition string, nodeImages map[strin
 
 		nodeData["kind"] = clabKind
 		nodeData["image"] = dockerImage
+
+		// Rewrite config delivery (startup-config / binds) for the new NOS
+		nosKind := resolveNosKind(clabKind, dockerImage)
+		rewriteNodeConfig(nodeData, nodeName, nosKind)
 	}
 
 	out, err := yaml.Marshal(topo)
@@ -342,6 +355,120 @@ func (s *LabService) applyImageOverrides(definition string, nodeImages map[strin
 		return "", fmt.Errorf("failed to marshal modified topology: %w", err)
 	}
 	return string(out), nil
+}
+
+// resolveNosKind maps a containerlab kind and docker image to a NOS config profile.
+// Returns "" for generic nodes that don't have NOS-specific configs.
+func resolveNosKind(clabKind, dockerImage string) string {
+	switch clabKind {
+	case "mikrotik_ros":
+		return "mikrotik_ros"
+	case "openwrt":
+		return "openwrt"
+	case "freebsd":
+		return "freebsd"
+	case "linux":
+		if strings.Contains(dockerImage, "frrouting/frr") {
+			return "frr"
+		}
+		if strings.Contains(dockerImage, "gobgp") {
+			return "gobgp"
+		}
+	}
+	return ""
+}
+
+// extractNosKinds parses topology YAML and returns the set of NOS config profiles in use.
+func extractNosKinds(definition string) []string {
+	var topo map[string]interface{}
+	if err := yaml.Unmarshal([]byte(definition), &topo); err != nil {
+		return nil
+	}
+	topoSection, ok := topo["topology"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	nodes, ok := topoSection["nodes"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	kindSet := make(map[string]bool)
+	for _, nodeRaw := range nodes {
+		nodeData, ok := nodeRaw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		kind, _ := nodeData["kind"].(string)
+		image, _ := nodeData["image"].(string)
+		if nosKind := resolveNosKind(kind, image); nosKind != "" {
+			kindSet[nosKind] = true
+		}
+	}
+
+	kinds := make([]string, 0, len(kindSet))
+	for k := range kindSet {
+		kinds = append(kinds, k)
+	}
+	return kinds
+}
+
+// rewriteNodeConfig updates a node's config delivery based on the NOS kind.
+// Removes old startup-config/config binds and adds the correct delivery mechanism.
+func rewriteNodeConfig(nodeData map[string]interface{}, nodeName, nosKind string) {
+	// Remove old startup-config
+	delete(nodeData, "startup-config")
+
+	// Remove old NOS config binds, keep non-config binds
+	if bindsRaw, ok := nodeData["binds"]; ok {
+		if binds, ok := bindsRaw.([]interface{}); ok {
+			var kept []interface{}
+			for _, b := range binds {
+				bs, ok := b.(string)
+				if !ok {
+					kept = append(kept, b)
+					continue
+				}
+				if !isNodeConfigBind(bs, nodeName) {
+					kept = append(kept, b)
+				}
+			}
+			if len(kept) > 0 {
+				nodeData["binds"] = kept
+			} else {
+				delete(nodeData, "binds")
+			}
+		}
+	}
+
+	// Add new config delivery
+	switch nosKind {
+	case "mikrotik_ros":
+		nodeData["startup-config"] = nodeName + ".rsc"
+	case "frr":
+		existing := []interface{}{}
+		if bindsRaw, ok := nodeData["binds"].([]interface{}); ok {
+			existing = bindsRaw
+		}
+		nodeData["binds"] = append(existing,
+			nodeName+"-daemons:/etc/frr/daemons",
+			nodeName+".conf:/etc/frr/frr.conf",
+		)
+	case "openwrt", "freebsd":
+		nodeData["startup-config"] = nodeName + "-config.sh"
+	}
+}
+
+// isNodeConfigBind returns true if the bind mount is a NOS config file for the given node.
+func isNodeConfigBind(bind, nodeName string) bool {
+	source := bind
+	if idx := strings.Index(bind, ":"); idx >= 0 {
+		source = bind[:idx]
+	}
+	return source == nodeName+".rsc" ||
+		source == nodeName+"-daemons" ||
+		source == nodeName+".conf" ||
+		source == nodeName+"-config.sh"
 }
 
 // Destroy transitions the lab to stopping and dispatches destroy to the worker.

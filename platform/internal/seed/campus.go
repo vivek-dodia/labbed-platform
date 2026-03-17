@@ -41,14 +41,15 @@ topology:
     - endpoints: ["dist2:eth2", "pc2:eth1"]
 `,
 			BindFiles: []BindFile{
-				{FilePath: "core.rsc", Content: `# core — OSPF backbone, uplinks to dist1 and dist2
+				// RouterOS configs
+				{FilePath: "core.rsc", NosKind: "mikrotik_ros", Content: `# core — OSPF backbone, uplinks to dist1 and dist2
 /ip/address/add address=172.16.1.1/30 interface=ether2
 /ip/address/add address=172.16.2.1/30 interface=ether3
 /routing/ospf/instance/add name=default router-id=10.255.0.1
 /routing/ospf/area/add name=backbone instance=default area-id=0.0.0.0
 /routing/ospf/interface-template/add area=backbone interfaces=ether2,ether3 type=ptp
 `},
-				{FilePath: "dist1.rsc", Content: `# dist1 — distribution router, OSPF uplink + access
+				{FilePath: "dist1.rsc", NosKind: "mikrotik_ros", Content: `# dist1 — distribution router, OSPF uplink + access
 /ip/address/add address=172.16.1.2/30 interface=ether2
 /ip/address/add address=10.10.1.1/24 interface=ether3
 /routing/ospf/instance/add name=default router-id=10.255.0.2
@@ -56,13 +57,72 @@ topology:
 /routing/ospf/interface-template/add area=backbone interfaces=ether2 type=ptp
 /routing/ospf/interface-template/add area=backbone interfaces=ether3
 `},
-				{FilePath: "dist2.rsc", Content: `# dist2 — distribution router, OSPF uplink + access
+				{FilePath: "dist2.rsc", NosKind: "mikrotik_ros", Content: `# dist2 — distribution router, OSPF uplink + access
 /ip/address/add address=172.16.2.2/30 interface=ether2
 /ip/address/add address=10.10.2.1/24 interface=ether3
 /routing/ospf/instance/add name=default router-id=10.255.0.3
 /routing/ospf/area/add name=backbone instance=default area-id=0.0.0.0
 /routing/ospf/interface-template/add area=backbone interfaces=ether2 type=ptp
 /routing/ospf/interface-template/add area=backbone interfaces=ether3
+`},
+				// FRR configs
+				{FilePath: "core-daemons", NosKind: "frr", Content: `zebra=yes
+ospfd=yes
+`},
+				{FilePath: "core.conf", NosKind: "frr", Content: `frr version 10.3
+hostname core
+!
+interface eth1
+ ip address 172.16.1.1/30
+ ip ospf area 0.0.0.0
+ ip ospf network point-to-point
+!
+interface eth2
+ ip address 172.16.2.1/30
+ ip ospf area 0.0.0.0
+ ip ospf network point-to-point
+!
+router ospf
+ ospf router-id 10.255.0.1
+!
+`},
+				{FilePath: "dist1-daemons", NosKind: "frr", Content: `zebra=yes
+ospfd=yes
+`},
+				{FilePath: "dist1.conf", NosKind: "frr", Content: `frr version 10.3
+hostname dist1
+!
+interface eth1
+ ip address 172.16.1.2/30
+ ip ospf area 0.0.0.0
+ ip ospf network point-to-point
+!
+interface eth2
+ ip address 10.10.1.1/24
+ ip ospf area 0.0.0.0
+!
+router ospf
+ ospf router-id 10.255.0.2
+!
+`},
+				{FilePath: "dist2-daemons", NosKind: "frr", Content: `zebra=yes
+ospfd=yes
+`},
+				{FilePath: "dist2.conf", NosKind: "frr", Content: `frr version 10.3
+hostname dist2
+!
+interface eth1
+ ip address 172.16.2.2/30
+ ip ospf area 0.0.0.0
+ ip ospf network point-to-point
+!
+interface eth2
+ ip address 10.10.2.1/24
+ ip ospf area 0.0.0.0
+!
+router ospf
+ ospf router-id 10.255.0.3
+!
 `},
 			},
 		},
@@ -119,13 +179,14 @@ topology:
     - endpoints: ["dist:eth5", "pc2:eth1"]
 `,
 			BindFiles: []BindFile{
-				{FilePath: "core.rsc", Content: `# core — OSPF backbone uplink
+				// RouterOS configs
+				{FilePath: "core.rsc", NosKind: "mikrotik_ros", Content: `# core — OSPF backbone uplink
 /ip/address/add address=172.16.0.1/30 interface=ether2
 /routing/ospf/instance/add name=default router-id=10.255.0.1
 /routing/ospf/area/add name=backbone instance=default area-id=0.0.0.0
 /routing/ospf/interface-template/add area=backbone interfaces=ether2 type=ptp
 `},
-				{FilePath: "dist.rsc", Content: `# dist — distribution router, OSPF uplink + service/access subnets
+				{FilePath: "dist.rsc", NosKind: "mikrotik_ros", Content: `# dist — distribution router, OSPF uplink + service/access subnets
 /ip/address/add address=172.16.0.2/30 interface=ether2
 /ip/address/add address=10.10.1.1/24 interface=ether3
 /ip/address/add address=10.10.2.1/24 interface=ether4
@@ -136,6 +197,7 @@ topology:
 /routing/ospf/interface-template/add area=backbone interfaces=ether2 type=ptp
 /routing/ospf/interface-template/add area=backbone interfaces=ether3,ether4,ether5,ether6
 `},
+				// Universal configs
 				{FilePath: "kea-dhcp4.conf", Content: `{
   "Dhcp4": {
     "interfaces-config": {
@@ -173,6 +235,53 @@ topology:
 10.10.2.2  dns.campus.lab
 10.10.3.10 pc1.campus.lab
 10.10.4.10 pc2.campus.lab
+`},
+				// FRR configs
+				{FilePath: "core-daemons", NosKind: "frr", Content: `zebra=yes
+ospfd=yes
+`},
+				{FilePath: "core.conf", NosKind: "frr", Content: `frr version 10.3
+hostname core
+!
+interface eth1
+ ip address 172.16.0.1/30
+ ip ospf area 0.0.0.0
+ ip ospf network point-to-point
+!
+router ospf
+ ospf router-id 10.255.0.1
+!
+`},
+				{FilePath: "dist-daemons", NosKind: "frr", Content: `zebra=yes
+ospfd=yes
+`},
+				{FilePath: "dist.conf", NosKind: "frr", Content: `frr version 10.3
+hostname dist
+!
+interface eth1
+ ip address 172.16.0.2/30
+ ip ospf area 0.0.0.0
+ ip ospf network point-to-point
+!
+interface eth2
+ ip address 10.10.1.1/24
+ ip ospf area 0.0.0.0
+!
+interface eth3
+ ip address 10.10.2.1/24
+ ip ospf area 0.0.0.0
+!
+interface eth4
+ ip address 10.10.3.1/24
+ ip ospf area 0.0.0.0
+!
+interface eth5
+ ip address 10.10.4.1/24
+ ip ospf area 0.0.0.0
+!
+router ospf
+ ospf router-id 10.255.0.2
+!
 `},
 			},
 		},
@@ -244,14 +353,15 @@ topology:
     - endpoints: ["dist2:eth3", "pc3:eth1"]
 `,
 			BindFiles: []BindFile{
-				{FilePath: "core.rsc", Content: `# core — OSPF backbone, uplinks to dist1 and dist2
+				// RouterOS configs
+				{FilePath: "core.rsc", NosKind: "mikrotik_ros", Content: `# core — OSPF backbone, uplinks to dist1 and dist2
 /ip/address/add address=172.16.1.1/30 interface=ether2
 /ip/address/add address=172.16.2.1/30 interface=ether3
 /routing/ospf/instance/add name=default router-id=10.255.0.1
 /routing/ospf/area/add name=backbone instance=default area-id=0.0.0.0
 /routing/ospf/interface-template/add area=backbone interfaces=ether2,ether3 type=ptp
 `},
-				{FilePath: "dist1.rsc", Content: `# dist1 — services distribution, OSPF uplink + service/access subnets
+				{FilePath: "dist1.rsc", NosKind: "mikrotik_ros", Content: `# dist1 — services distribution, OSPF uplink + service/access subnets
 /ip/address/add address=172.16.1.2/30 interface=ether2
 /ip/address/add address=10.10.1.1/24 interface=ether3
 /ip/address/add address=10.10.2.1/24 interface=ether4
@@ -261,7 +371,7 @@ topology:
 /routing/ospf/interface-template/add area=backbone interfaces=ether2 type=ptp
 /routing/ospf/interface-template/add area=backbone interfaces=ether3,ether4,ether5
 `},
-				{FilePath: "dist2.rsc", Content: `# dist2 — client distribution, OSPF uplink + access subnets
+				{FilePath: "dist2.rsc", NosKind: "mikrotik_ros", Content: `# dist2 — client distribution, OSPF uplink + access subnets
 /ip/address/add address=172.16.2.2/30 interface=ether2
 /ip/address/add address=10.20.1.1/24 interface=ether3
 /ip/address/add address=10.20.2.1/24 interface=ether4
@@ -270,6 +380,7 @@ topology:
 /routing/ospf/interface-template/add area=backbone interfaces=ether2 type=ptp
 /routing/ospf/interface-template/add area=backbone interfaces=ether3,ether4
 `},
+				// Universal configs
 				{FilePath: "kea-dhcp4.conf", Content: `{
   "Dhcp4": {
     "interfaces-config": {
@@ -308,6 +419,77 @@ topology:
 10.10.3.10 pc1.campus.lab
 10.20.1.10 pc2.campus.lab
 10.20.2.10 pc3.campus.lab
+`},
+				// FRR configs
+				{FilePath: "core-daemons", NosKind: "frr", Content: `zebra=yes
+ospfd=yes
+`},
+				{FilePath: "core.conf", NosKind: "frr", Content: `frr version 10.3
+hostname core
+!
+interface eth1
+ ip address 172.16.1.1/30
+ ip ospf area 0.0.0.0
+ ip ospf network point-to-point
+!
+interface eth2
+ ip address 172.16.2.1/30
+ ip ospf area 0.0.0.0
+ ip ospf network point-to-point
+!
+router ospf
+ ospf router-id 10.255.0.1
+!
+`},
+				{FilePath: "dist1-daemons", NosKind: "frr", Content: `zebra=yes
+ospfd=yes
+`},
+				{FilePath: "dist1.conf", NosKind: "frr", Content: `frr version 10.3
+hostname dist1
+!
+interface eth1
+ ip address 172.16.1.2/30
+ ip ospf area 0.0.0.0
+ ip ospf network point-to-point
+!
+interface eth2
+ ip address 10.10.1.1/24
+ ip ospf area 0.0.0.0
+!
+interface eth3
+ ip address 10.10.2.1/24
+ ip ospf area 0.0.0.0
+!
+interface eth4
+ ip address 10.10.3.1/24
+ ip ospf area 0.0.0.0
+!
+router ospf
+ ospf router-id 10.255.0.2
+!
+`},
+				{FilePath: "dist2-daemons", NosKind: "frr", Content: `zebra=yes
+ospfd=yes
+`},
+				{FilePath: "dist2.conf", NosKind: "frr", Content: `frr version 10.3
+hostname dist2
+!
+interface eth1
+ ip address 172.16.2.2/30
+ ip ospf area 0.0.0.0
+ ip ospf network point-to-point
+!
+interface eth2
+ ip address 10.20.1.1/24
+ ip ospf area 0.0.0.0
+!
+interface eth3
+ ip address 10.20.2.1/24
+ ip ospf area 0.0.0.0
+!
+router ospf
+ ospf router-id 10.255.0.3
+!
 `},
 			},
 		},

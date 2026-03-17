@@ -36,3 +36,30 @@ func (l *Loader) GetBindFiles(topoUUID string) (map[string][]byte, error) {
 	}
 	return result, nil
 }
+
+// GetBindFilesForNos returns bind files filtered to universal (NosKind="") plus
+// those matching the given NOS kinds. Used at deploy time to send only relevant configs.
+func (l *Loader) GetBindFilesForNos(topoUUID string, nosKinds []string) (map[string][]byte, error) {
+	t, err := l.repo.GetByUUID(topoUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	files, err := l.repo.GetBindFilesByTopologyID(t.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	kindSet := make(map[string]bool, len(nosKinds))
+	for _, k := range nosKinds {
+		kindSet[k] = true
+	}
+
+	result := make(map[string][]byte)
+	for _, f := range files {
+		if f.NosKind == "" || kindSet[f.NosKind] {
+			result[f.FilePath] = f.Content
+		}
+	}
+	return result, nil
+}

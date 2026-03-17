@@ -22,6 +22,7 @@ type BindFile struct {
 	TopologyID uint   `gorm:"index;not null"`
 	FilePath   string `gorm:"not null"`
 	Content    []byte `gorm:"not null"`
+	NosKind    string `gorm:"default:''"` // "" = universal, "mikrotik_ros", "frr", "openwrt", "freebsd"
 }
 
 // --- DTOs ---
@@ -40,17 +41,20 @@ type UpdateRequest struct {
 type CreateBindFileRequest struct {
 	FilePath string `json:"filePath" binding:"required"`
 	Content  string `json:"content" binding:"required"` // base64 or plain text
+	NosKind  string `json:"nosKind"`
 }
 
 type UpdateBindFileRequest struct {
 	FilePath *string `json:"filePath"`
 	Content  *string `json:"content"`
+	NosKind  *string `json:"nosKind"`
 }
 
 type BindFileResponse struct {
 	UUID      string    `json:"uuid"`
 	FilePath  string    `json:"filePath"`
 	Content   string    `json:"content"`
+	NosKind   string    `json:"nosKind"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 

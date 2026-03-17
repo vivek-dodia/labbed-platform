@@ -55,6 +55,9 @@ func (m *mockTopoLoader) GetDefinition(topoUUID string) (string, error) {
 func (m *mockTopoLoader) GetBindFiles(topoUUID string) (map[string][]byte, error) {
 	return m.bindFiles, m.err
 }
+func (m *mockTopoLoader) GetBindFilesForNos(topoUUID string, nosKinds []string) (map[string][]byte, error) {
+	return m.bindFiles, m.err
+}
 
 func setupLabService(t *testing.T) (*LabService, *gorm.DB) {
 	t.Helper()
@@ -462,6 +465,185 @@ func TestDelete(t *testing.T) {
 	_, err = svc.GetByUUID(created.UUID)
 	if err == nil {
 		t.Error("expected error when getting deleted lab")
+	}
+}
+
+// --- NOS-aware config tests ---
+
+func TestResolveNosKind(t *testing.T) {
+	tests := []struct {
+		kind, image, want string
+	}{
+		{"mikrotik_ros", "vrnetlab/mikrotik_routeros:7.20.8", "mikrotik_ros"},
+		{"openwrt", "vrnetlab/openwrt_openwrt:24.10.0", "openwrt"},
+		{"freebsd", "vrnetlab/freebsd:14", "freebsd"},
+		{"linux", "quay.io/frrouting/frr:10.3.1", "frr"},
+		{"linux", "osrg/gobgp:latest", "gobgp"},
+		{"linux", "alpine:3.20", ""},
+		{"linux", "nginx:alpine", ""},
+	}
+	for _, tt := range tests {
+		got := resolveNosKind(tt.kind, tt.image)
+		if got != tt.want {
+			t.Errorf("resolveNosKind(%q, %q) = %q, want %q", tt.kind, tt.image, got, tt.want)
+		}
+	}
+}
+
+func TestExtractNosKinds(t *testing.T) {
+	yaml := `name: test
+topology:
+  nodes:
+    r1:
+      kind: mikrotik_ros
+      image: vrnetlab/mikrotik_routeros:7.20.8
+    r2:
+      kind: linux
+      image: quay.io/frrouting/frr:10.3.1
+    host:
+      kind: linux
+      image: alpine:3.20`
+
+	kinds := extractNosKinds(yaml)
+	kindSet := make(map[string]bool)
+	for _, k := range kinds {
+		kindSet[k] = true
+	}
+	if !kindSet["mikrotik_ros"] {
+		t.Error("expected mikrotik_ros in NOS kinds")
+	}
+	if !kindSet["frr"] {
+		t.Error("expected frr in NOS kinds")
+	}
+	if kindSet[""] {
+		t.Error("should not include empty NOS kind for generic linux")
+	}
+	if len(kinds) != 2 {
+		t.Errorf("expected 2 NOS kinds, got %d: %v", len(kinds), kinds)
+	}
+}
+
+func TestExtractNosKinds_AllRouterOS(t *testing.T) {
+	yaml := `name: test
+topology:
+  nodes:
+    r1:
+      kind: mikrotik_ros
+      image: vrnetlab/mikrotik_routeros:7.20.8
+    host:
+      kind: linux
+      image: alpine:3.20`
+
+	kinds := extractNosKinds(yaml)
+	if len(kinds) != 1 || kinds[0] != "mikrotik_ros" {
+		t.Errorf("expected [mikrotik_ros], got %v", kinds)
+	}
+}
+
+func TestIsNodeConfigBind(t *testing.T) {
+	tests := []struct {
+		bind, node string
+		want       bool
+	}{
+		{"router1.rsc", "router1", true},
+		{"router1-daemons:/etc/frr/daemons", "router1", true},
+		{"router1.conf:/etc/frr/frr.conf", "router1", true},
+		{"router1-config.sh", "router1", true},
+		{"switch-start.sh:/tmp/start.sh", "router1", false},
+		{"kea-dhcp4.conf:/etc/kea/kea-dhcp4.conf", "router1", false},
+		{"router2.rsc", "router1", false},
+	}
+	for _, tt := range tests {
+		got := isNodeConfigBind(tt.bind, tt.node)
+		if got != tt.want {
+			t.Errorf("isNodeConfigBind(%q, %q) = %v, want %v", tt.bind, tt.node, got, tt.want)
+		}
+	}
+}
+
+func TestRewriteNodeConfig_RouterOSToFRR(t *testing.T) {
+	nodeData := map[string]interface{}{
+		"kind":           "mikrotik_ros",
+		"image":          "vrnetlab/mikrotik_routeros:7.20.8",
+		"startup-config": "router1.rsc",
+	}
+
+	rewriteNodeConfig(nodeData, "router1", "frr")
+
+	if _, ok := nodeData["startup-config"]; ok {
+		t.Error("startup-config should be removed for FRR")
+	}
+	binds, ok := nodeData["binds"].([]interface{})
+	if !ok || len(binds) != 2 {
+		t.Fatalf("expected 2 binds for FRR, got %v", nodeData["binds"])
+	}
+	if binds[0] != "router1-daemons:/etc/frr/daemons" {
+		t.Errorf("expected daemons bind, got %v", binds[0])
+	}
+	if binds[1] != "router1.conf:/etc/frr/frr.conf" {
+		t.Errorf("expected frr.conf bind, got %v", binds[1])
+	}
+}
+
+func TestRewriteNodeConfig_FRRToRouterOS(t *testing.T) {
+	nodeData := map[string]interface{}{
+		"kind":  "linux",
+		"image": "quay.io/frrouting/frr:10.3.1",
+		"binds": []interface{}{
+			"router1-daemons:/etc/frr/daemons",
+			"router1.conf:/etc/frr/frr.conf",
+		},
+	}
+
+	rewriteNodeConfig(nodeData, "router1", "mikrotik_ros")
+
+	sc, ok := nodeData["startup-config"].(string)
+	if !ok || sc != "router1.rsc" {
+		t.Errorf("expected startup-config=router1.rsc, got %v", nodeData["startup-config"])
+	}
+	// Config binds should be removed
+	if _, ok := nodeData["binds"]; ok {
+		t.Errorf("FRR binds should be removed, got %v", nodeData["binds"])
+	}
+}
+
+func TestRewriteNodeConfig_PreservesNonConfigBinds(t *testing.T) {
+	nodeData := map[string]interface{}{
+		"kind":           "mikrotik_ros",
+		"image":          "vrnetlab/mikrotik_routeros:7.20.8",
+		"startup-config": "router1.rsc",
+		"binds": []interface{}{
+			"extra-script.sh:/tmp/extra.sh",
+		},
+	}
+
+	rewriteNodeConfig(nodeData, "router1", "frr")
+
+	binds, ok := nodeData["binds"].([]interface{})
+	if !ok {
+		t.Fatal("expected binds to exist")
+	}
+	// Should have the non-config bind + 2 FRR binds = 3
+	if len(binds) != 3 {
+		t.Fatalf("expected 3 binds, got %d: %v", len(binds), binds)
+	}
+	if binds[0] != "extra-script.sh:/tmp/extra.sh" {
+		t.Errorf("expected non-config bind preserved, got %v", binds[0])
+	}
+}
+
+func TestRewriteNodeConfig_OpenWrt(t *testing.T) {
+	nodeData := map[string]interface{}{
+		"kind":           "mikrotik_ros",
+		"image":          "vrnetlab/mikrotik_routeros:7.20.8",
+		"startup-config": "router1.rsc",
+	}
+
+	rewriteNodeConfig(nodeData, "router1", "openwrt")
+
+	sc, ok := nodeData["startup-config"].(string)
+	if !ok || sc != "router1-config.sh" {
+		t.Errorf("expected startup-config=router1-config.sh, got %v", nodeData["startup-config"])
 	}
 }
 

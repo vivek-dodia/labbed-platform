@@ -187,7 +187,7 @@ topology:
     - endpoints: ["host-vlan20:eth1", "switch:eth3"]
 `,
 			BindFiles: []BindFile{
-				{FilePath: "router.rsc", Content: `# Inter-VLAN routing via VLAN sub-interfaces on ether2 (trunk)
+				{FilePath: "router.rsc", NosKind: "mikrotik_ros", Content: `# Inter-VLAN routing via VLAN sub-interfaces on ether2 (trunk)
 /interface/vlan/add interface=ether2 name=vlan10 vlan-id=10
 /interface/vlan/add interface=ether2 name=vlan20 vlan-id=20
 /ip/address/add address=10.10.10.1/24 interface=vlan10

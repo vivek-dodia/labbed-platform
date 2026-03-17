@@ -178,39 +178,36 @@ func (s *Service) SerialExec(ctx context.Context, containerName, command string)
 	cmd.Stderr = &stderr
 
 	_ = cmd.Run()
-	output := cleanSerialOutput(stdout.String(), command)
-
-	if output == "" {
-		// Fall back to raw output if cleaning stripped everything
-		output = stdout.String()
-	}
-
-	return output, nil
+	return cleanSerialOutput(stdout.String(), command), nil
 }
 
 // cleanSerialOutput strips ANSI escape codes, telnet banners, and prompt lines
 // from serial console output to return clean command results.
 func cleanSerialOutput(raw, command string) string {
-	// Strip ANSI/VT100 escape sequences
 	cleaned := stripAnsiCodes(raw)
-
 	lines := strings.Split(cleaned, "\n")
-	var result []string
-	foundCommand := false
 
+	// First pass: strip telnet banners and blank lines
+	var filtered []string
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" {
 			continue
 		}
-		// Skip telnet connection lines
 		if strings.HasPrefix(trimmed, "Trying ") ||
 			strings.HasPrefix(trimmed, "Connected to") ||
 			strings.HasPrefix(trimmed, "Escape character") ||
 			strings.HasPrefix(trimmed, "Connection closed") {
 			continue
 		}
-		// Find the line with our command, start capturing after it
+		filtered = append(filtered, line)
+	}
+
+	// Second pass: try to find the command echo and capture output after it
+	var result []string
+	foundCommand := false
+	for _, line := range filtered {
+		trimmed := strings.TrimSpace(line)
 		if !foundCommand && strings.Contains(trimmed, command) {
 			foundCommand = true
 			continue
@@ -220,7 +217,12 @@ func cleanSerialOutput(raw, command string) string {
 		}
 	}
 
-	// If we captured lines, remove the last prompt line
+	// If command echo wasn't found (ANSI mangling), use all filtered lines
+	if !foundCommand {
+		result = filtered
+	}
+
+	// Remove trailing prompt line
 	if len(result) > 0 {
 		last := strings.TrimSpace(result[len(result)-1])
 		if strings.Contains(last, ">") || strings.Contains(last, "#") || strings.Contains(last, "]") {

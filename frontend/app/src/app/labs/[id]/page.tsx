@@ -23,23 +23,18 @@ const FRR_COMMANDS: QuickCmd[] = [
   { label: "CONFIG", cmd: "vtysh -c 'show running-config'", description: "Active configuration" },
 ];
 
+// Net-tools commands available on ALL Linux hosts — try each tool gracefully
 const LINUX_COMMANDS: QuickCmd[] = [
   { label: "IP ADDR", cmd: "ip addr show", description: "Interface addresses" },
   { label: "ROUTE", cmd: "ip route show", description: "Routing table" },
   { label: "PING", cmd: "ping -c 3 8.8.8.8", description: "Internet connectivity" },
   { label: "ARP", cmd: "ip neigh show", description: "ARP/neighbor cache" },
-  { label: "PORTS", cmd: "netstat -tlnp 2>/dev/null || ss -tlnp", description: "Listening ports" },
-];
-
-const MULTITOOL_COMMANDS: QuickCmd[] = [
-  { label: "IP ADDR", cmd: "ip addr show", description: "Interface addresses" },
-  { label: "ROUTE", cmd: "ip route show", description: "Routing table" },
-  { label: "PING", cmd: "ping -c 3 8.8.8.8", description: "Internet connectivity" },
-  { label: "CURL", cmd: "curl -s -o /dev/null -w '%{http_code}' http://example.com", description: "HTTP check" },
-  { label: "DIG", cmd: "dig +short google.com", description: "DNS lookup" },
-  { label: "TRACE", cmd: "traceroute -n -m 10 8.8.8.8", description: "Traceroute" },
-  { label: "IPERF", cmd: "iperf3 -v 2>&1 | head -1 || echo 'iperf3 not available'", description: "iperf version" },
-  { label: "ARP", cmd: "ip neigh show", description: "ARP/neighbor cache" },
+  { label: "PORTS", cmd: "netstat -tlnp 2>/dev/null || ss -tlnp 2>/dev/null || echo 'no netstat/ss'", description: "Listening ports" },
+  { label: "CURL", cmd: "curl -s -o /dev/null -w 'HTTP %{http_code}' http://example.com 2>/dev/null || wget -q --spider http://example.com 2>/dev/null && echo 'OK' || echo 'curl/wget not available'", description: "HTTP check" },
+  { label: "DIG", cmd: "dig +short google.com 2>/dev/null || nslookup google.com 2>/dev/null | tail -2 || echo 'no dig/nslookup'", description: "DNS lookup" },
+  { label: "TRACE", cmd: "traceroute -n -m 10 8.8.8.8 2>/dev/null || tracepath 8.8.8.8 2>/dev/null || echo 'no traceroute'", description: "Traceroute" },
+  { label: "TCPDUMP", cmd: "timeout 5 tcpdump -nn -c 10 -i any 2>/dev/null || echo 'tcpdump not available'", description: "Packet sniff (5s)" },
+  { label: "MTU", cmd: "ip link show | grep -E 'mtu [0-9]+'", description: "Interface MTUs" },
 ];
 
 const GOBGP_COMMANDS: QuickCmd[] = [
@@ -134,7 +129,7 @@ function getCommandsForImage(image: string): { category: string; commands: Quick
   const img = image.toLowerCase();
   if (img.includes("frr") || img.includes("frrouting")) return { category: "FRR", commands: FRR_COMMANDS };
   if (img.includes("gobgp")) return { category: "GoBGP", commands: GOBGP_COMMANDS };
-  if (img.includes("network-multitool") || img.includes("netshoot")) return { category: "MULTITOOL", commands: MULTITOOL_COMMANDS };
+  if (img.includes("network-multitool") || img.includes("netshoot")) return { category: "NET TOOLS", commands: LINUX_COMMANDS };
   if (img.includes("kea")) return { category: "KEA DHCP", commands: KEA_COMMANDS };
   if (img.includes("coredns")) return { category: "COREDNS", commands: COREDNS_COMMANDS };
   if (img.includes("nginx")) return { category: "NGINX", commands: NGINX_COMMANDS };

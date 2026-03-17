@@ -86,6 +86,14 @@ const ROUTEROS_COMMANDS: QuickCmd[] = [
   { label: "SYSTEM", cmd: "/system resource print", description: "System info" },
 ];
 
+const BRIDGE_COMMANDS: QuickCmd[] = [
+  { label: "BRIDGE", cmd: "brctl show", description: "Bridge status" },
+  { label: "MACs", cmd: "brctl showmacs br0 2>/dev/null || echo 'No bridge'", description: "MAC address table" },
+  { label: "STP", cmd: "brctl showstp br0 2>/dev/null || echo 'No bridge'", description: "Spanning tree" },
+  { label: "IP ADDR", cmd: "ip addr show", description: "Interface addresses" },
+  { label: "LINKS", cmd: "ip link show", description: "Link status" },
+];
+
 const DNSMASQ_COMMANDS: QuickCmd[] = [
   { label: "LEASES", cmd: "cat /var/lib/misc/dnsmasq.leases 2>/dev/null || echo 'No leases'", description: "DHCP leases" },
   { label: "CONF", cmd: "cat /etc/dnsmasq.conf", description: "Dnsmasq config" },

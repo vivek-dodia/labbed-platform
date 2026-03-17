@@ -703,6 +703,73 @@ dnsmasq --no-daemon &
 `},
 		},
 	},
+	{
+		Name: "L2 Switch + Hosts",
+		Definition: `# Alpine Linux bridge acting as L2 switch with 4 hosts on same broadcast domain
+name: l2-switch-lab
+topology:
+  nodes:
+    switch:
+      kind: linux
+      image: alpine:3.20
+      binds:
+        - switch-start.sh:/tmp/start.sh
+      exec:
+        - ash /tmp/start.sh
+    host1:
+      kind: linux
+      image: alpine:3.20
+      exec:
+        - ip addr add 10.0.0.1/24 dev eth1
+    host2:
+      kind: linux
+      image: alpine:3.20
+      exec:
+        - ip addr add 10.0.0.2/24 dev eth1
+    host3:
+      kind: linux
+      image: alpine:3.20
+      exec:
+        - ip addr add 10.0.0.3/24 dev eth1
+    host4:
+      kind: linux
+      image: alpine:3.20
+      exec:
+        - ip addr add 10.0.0.4/24 dev eth1
+
+  links:
+    - endpoints: ["host1:eth1", "switch:eth1"]
+    - endpoints: ["host2:eth1", "switch:eth2"]
+    - endpoints: ["host3:eth1", "switch:eth3"]
+    - endpoints: ["host4:eth1", "switch:eth4"]
+`,
+		BindFiles: []BindFile{
+			{FilePath: "switch-start.sh", Content: `#!/bin/ash
+# Create a Linux bridge and attach all data interfaces
+# This turns the container into a simple L2 switch
+# All connected hosts share the same broadcast domain
+
+apk add --no-cache bridge-utils 2>/dev/null
+
+# Create bridge
+brctl addbr br0
+
+# Add all data interfaces (eth1+) to the bridge
+for iface in eth1 eth2 eth3 eth4; do
+  if ip link show "$iface" > /dev/null 2>&1; then
+    brctl addif br0 "$iface"
+    ip link set "$iface" up
+  fi
+done
+
+# Bring bridge up
+ip link set br0 up
+
+echo "L2 switch ready — bridge br0 with interfaces:"
+brctl show br0
+`},
+		},
+	},
 }
 
 const ospfDaemons = `bgpd=no

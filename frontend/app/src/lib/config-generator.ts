@@ -104,7 +104,7 @@ function getNodeLinks(
 
 function isRouterNode(node: BuilderNode): boolean {
   const nosKind = resolveNosKind(node.clabKind, node.dockerImage);
-  return nosKind === "mikrotik_ros" || nosKind === "frr" || nosKind === "openwrt" || nosKind === "freebsd";
+  return nosKind === "mikrotik_ros" || nosKind === "frr" || nosKind === "openwrt" || nosKind === "freebsd" || nosKind === "gobgp";
 }
 
 // ── Config generators per NOS ──
@@ -259,26 +259,76 @@ function generateShellConfig(
   linkInfos: NodeLinkInfo[],
   allRouterLinks: Map<string, NodeLinkInfo[]>,
   scenario: Scenario,
-  loopback?: LoopbackAllocation,
 ): string {
   const lines: string[] = [`#!/bin/sh`, `# ${node.name} — ${scenario} config`];
   linkInfos.forEach((li) => {
     lines.push(`ip addr add ${li.localIP}/24 dev ${li.iface}`);
   });
-  if (scenario === "static") {
+  // Enable IP forwarding
+  lines.push("sysctl -w net.ipv4.ip_forward=1");
+  // Static routes to remote networks (needed for all scenarios since
+  // OpenWrt/FreeBSD in containerlab can't run native OSPF/BGP)
+  linkInfos.forEach((li) => {
+    const peerLinks = allRouterLinks.get(li.peerId) || [];
+    for (const pl of peerLinks) {
+      if (pl.network !== li.network) {
+        lines.push(`ip route add ${pl.network}.0/24 via ${li.remoteIP}`);
+      }
+    }
+  });
+  return lines.join("\n") + "\n";
+}
+
+// ── GoBGP config (TOML) — only meaningful for eBGP ──
+
+function generateGoBGPExec(
+  node: BuilderNode,
+  linkInfos: NodeLinkInfo[],
+  loopback: LoopbackAllocation,
+  localAS: number,
+  asMap: Map<string, number>,
+  allRouterLinks: Map<string, NodeLinkInfo[]>,
+  scenario: Scenario,
+): string[] {
+  const cmds: string[] = [];
+  // IP addressing + forwarding
+  linkInfos.forEach((li) => {
+    cmds.push(`ip addr add ${li.localIP}/24 dev ${li.iface}`);
+  });
+  cmds.push(`sysctl -w net.ipv4.ip_forward=1`);
+
+  if (scenario === "ebgp") {
+    // Write GoBGP TOML config and start daemon
+    const tomlLines: string[] = [];
+    tomlLines.push(`[global.config]`);
+    tomlLines.push(`  as = ${localAS}`);
+    tomlLines.push(`  router-id = "${loopback.routerId}"`);
+    tomlLines.push(``);
+    linkInfos.forEach((li) => {
+      const peerAS = asMap.get(li.peerId);
+      if (!peerAS || peerAS === localAS) return;
+      tomlLines.push(`[[neighbors]]`);
+      tomlLines.push(`  [neighbors.config]`);
+      tomlLines.push(`    neighbor-address = "${li.remoteIP}"`);
+      tomlLines.push(`    peer-as = ${peerAS}`);
+      tomlLines.push(``);
+    });
+    const toml = tomlLines.join("\\n");
+    cmds.push(`sh -c 'printf "${toml}" > /etc/gobgp.toml'`);
+    cmds.push(`gobgpd -f /etc/gobgp.toml &`);
+  } else {
+    // Static or OSPF: GoBGP can only do BGP, so add static routes
     linkInfos.forEach((li) => {
       const peerLinks = allRouterLinks.get(li.peerId) || [];
       for (const pl of peerLinks) {
         if (pl.network !== li.network) {
-          lines.push(`ip route add ${pl.network}.0/24 via ${li.remoteIP}`);
+          cmds.push(`ip route add ${pl.network}.0/24 via ${li.remoteIP}`);
         }
       }
     });
   }
-  // For OSPF/BGP on openwrt/freebsd, just set up IP addressing
-  // (these NOS types primarily use shell-based config)
-  void loopback;
-  return lines.join("\n") + "\n";
+
+  return cmds;
 }
 
 // ── Host exec commands ──
@@ -354,13 +404,21 @@ export function generateScenarioConfigs(
         break;
       }
       case "openwrt": {
-        const content = generateShellConfig(node, linkInfos, allRouterLinks, scenario, loopback);
+        const content = generateShellConfig(node, linkInfos, allRouterLinks, scenario);
         files.push({ filePath: `${node.name}-config.sh`, nosKind: "openwrt", content });
         break;
       }
       case "freebsd": {
-        const content = generateShellConfig(node, linkInfos, allRouterLinks, scenario, loopback);
+        const content = generateShellConfig(node, linkInfos, allRouterLinks, scenario);
         files.push({ filePath: `${node.name}-config.sh`, nosKind: "freebsd", content });
+        break;
+      }
+      case "gobgp": {
+        // GoBGP is kind: linux — no startup-config, uses exec commands
+        const cmds = generateGoBGPExec(node, linkInfos, loopback, localAS, asNumbers, allRouterLinks, scenario);
+        if (cmds.length > 0) {
+          hostExecs.set(node.id, cmds);
+        }
         break;
       }
     }

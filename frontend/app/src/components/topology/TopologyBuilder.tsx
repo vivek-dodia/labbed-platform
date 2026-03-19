@@ -431,16 +431,20 @@ function BuilderInner({ nosImages, collections, onSave }: TopologyBuilderProps) 
 
     if (routerImgs.length === 0) return;
 
-    const routerCount = randInt(2, Math.min(4, Math.max(2, routerImgs.length)));
+    const routerCount = randInt(2, 4);
     const hostCount = hostImgs.length > 0 ? randInt(1, 3) : 0;
     const serviceCount = serviceImgs.length > 0 ? randInt(0, Math.min(2, serviceImgs.length)) : 0;
 
-    // Build nodes
+    // Pick ONE image per role — all routers same, all hosts same, all services same
+    const routerImg = pick(routerImgs);
+    const hostImg = hostImgs.length > 0 ? pick(hostImgs) : null;
+    const serviceImg = serviceImgs.length > 0 ? pick(serviceImgs) : null;
+
     type TmpNode = { id: string; img: NosImageResponse; prefix: string; num: number };
     const tmpNodes: TmpNode[] = [];
-    for (let i = 0; i < routerCount; i++) tmpNodes.push({ id: uid(), img: pick(routerImgs), prefix: "router", num: i + 1 });
-    for (let i = 0; i < serviceCount; i++) tmpNodes.push({ id: uid(), img: pick(serviceImgs), prefix: "svc", num: i + 1 });
-    for (let i = 0; i < hostCount; i++) tmpNodes.push({ id: uid(), img: pick(hostImgs), prefix: "host", num: i + 1 });
+    for (let i = 0; i < routerCount; i++) tmpNodes.push({ id: uid(), img: routerImg, prefix: "router", num: i + 1 });
+    for (let i = 0; i < serviceCount; i++) tmpNodes.push({ id: uid(), img: serviceImg!, prefix: "svc", num: i + 1 });
+    for (let i = 0; i < hostCount; i++) tmpNodes.push({ id: uid(), img: hostImg!, prefix: "host", num: i + 1 });
 
     // Layout by tier
     const routers = tmpNodes.filter((n) => n.prefix === "router");

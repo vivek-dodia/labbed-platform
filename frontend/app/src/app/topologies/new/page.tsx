@@ -39,14 +39,9 @@ export default function NewTopologyPage() {
   }, [user, authLoading, router]);
 
   const handleSave = async (name: string, yaml: string, collectionId: string, bindFiles: DefaultBindFile[]) => {
-    const req: CreateTopologyRequest = {
-      name,
-      definition: yaml,
-      collectionId,
-    };
+    const req: CreateTopologyRequest = { name, definition: yaml, collectionId };
     const created = await api.post<TopologyResponse>("/api/v1/topologies", req);
 
-    // Create default bind files for NOS-specific nodes
     for (const bf of bindFiles) {
       await api.post<BindFileResponse>(
         `/api/v1/topologies/${created.uuid}/files`,

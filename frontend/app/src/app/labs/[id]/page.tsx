@@ -10,6 +10,7 @@ import { useWSChannel, useShellInput, useWSStatus } from "@/hooks/useWebSocket";
 import { api } from "@/lib/api";
 import { parseContainerlabYAML } from "@/lib/yaml-parser";
 import DeployConfigModal from "@/components/DeployConfigModal";
+import { getCompletions } from "@/lib/completions";
 import type { LabResponse, NodeResponse, TopologyResponse, LabEventResponse, PaginatedResponse, BindFileResponse } from "@/types/api";
 
 /* ── Quick-command definitions ── */
@@ -268,6 +269,7 @@ export default function LabDetailPage() {
   const nodeTermBuffers = useRef<Map<string, TermLine[]>>(new Map());
   const [termLines, setTermLines] = useState<TermLine[]>([]);
   const [termInput, setTermInput] = useState("");
+  const [tabCandidates, setTabCandidates] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const sendInput = useShellInput();
@@ -442,6 +444,21 @@ export default function LabDetailPage() {
   }, [shellChannel, sendInput]);
 
   const handleTermKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const image = selectedNodeData?.image || "";
+      const result = getCompletions(termInput, image);
+      if (result.candidates.length === 1) {
+        setTermInput(result.completed);
+        setTabCandidates([]);
+      } else if (result.candidates.length > 1) {
+        setTermInput(result.completed);
+        setTabCandidates(result.candidates);
+      }
+      return;
+    }
+    // Any non-Tab key clears the suggestion list
+    if (tabCandidates.length > 0) setTabCandidates([]);
     if (e.key === "Enter" && termInput.trim()) {
       runCommand(termInput);
       setTermInput("");
@@ -1228,6 +1245,36 @@ export default function LabDetailPage() {
                         />
                       </div>
                     </div>
+
+                    {/* Tab completion suggestions */}
+                    {tabCandidates.length > 1 && (
+                      <div style={{
+                        borderTop: "1px solid rgba(255,255,255,0.06)",
+                        padding: "0.4rem 1.25rem",
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 4,
+                        maxHeight: "4rem",
+                        overflowY: "auto",
+                      }}>
+                        {tabCandidates.map((c) => (
+                          <button
+                            key={c}
+                            onClick={() => { setTermInput(c + " "); setTabCandidates([]); }}
+                            style={{
+                              background: "rgba(121,246,115,0.08)",
+                              border: "1px solid rgba(121,246,115,0.15)",
+                              borderRadius: 3,
+                              color: "rgba(121,246,115,0.8)",
+                              fontFamily: MONO,
+                              fontSize: "0.75rem",
+                              padding: "2px 8px",
+                              cursor: "pointer",
+                            }}
+                          >{c}</button>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Quick commands */}
                     <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", padding: "0.6rem 1.25rem", flexShrink: 0 }}>

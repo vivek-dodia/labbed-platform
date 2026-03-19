@@ -19,13 +19,30 @@ export interface BuilderLink {
   targetIface: string;
 }
 
+export type Scenario = "ospf" | "ebgp" | "static";
+
 export interface BuilderState {
   name: string;
   collectionId: string;
+  scenario: Scenario;
   nodes: BuilderNode[];
   links: BuilderLink[];
   nextNodeCounters: Record<string, number>;
   nextIfaceCounters: Record<string, number>;
+}
+
+// Maps clab kind + docker image to NOS config profile (matches server-side resolveNosKind)
+export function resolveNosKind(clabKind: string, dockerImage: string): string {
+  switch (clabKind) {
+    case "mikrotik_ros": return "mikrotik_ros";
+    case "openwrt": return "openwrt";
+    case "freebsd": return "freebsd";
+    case "linux":
+      if (dockerImage.includes("frrouting/frr")) return "frr";
+      if (dockerImage.includes("gobgp")) return "gobgp";
+      break;
+  }
+  return "";
 }
 
 export function generateContainerlabYAML(state: BuilderState): string {
@@ -35,9 +52,20 @@ export function generateContainerlabYAML(state: BuilderState): string {
   lines.push("  nodes:");
 
   for (const node of state.nodes) {
+    const nosKind = resolveNosKind(node.clabKind, node.dockerImage);
     lines.push(`    ${node.name}:`);
     lines.push(`      kind: ${node.clabKind}`);
     lines.push(`      image: ${node.dockerImage}`);
+    // Add NOS-specific config delivery
+    if (nosKind === "mikrotik_ros") {
+      lines.push(`      startup-config: ${node.name}.rsc`);
+    } else if (nosKind === "openwrt" || nosKind === "freebsd") {
+      lines.push(`      startup-config: ${node.name}-config.sh`);
+    } else if (nosKind === "frr") {
+      lines.push("      binds:");
+      lines.push(`        - ${node.name}-daemons:/etc/frr/daemons`);
+      lines.push(`        - ${node.name}.conf:/etc/frr/frr.conf`);
+    }
     if (node.exec.length > 0) {
       lines.push("      exec:");
       for (const cmd of node.exec) {
@@ -57,6 +85,59 @@ export function generateContainerlabYAML(state: BuilderState): string {
   }
 
   return lines.join("\n") + "\n";
+}
+
+// Generate default bind files for NOS-specific nodes
+export interface DefaultBindFile {
+  filePath: string;
+  content: string;
+  nosKind: string;
+}
+
+export function generateDefaultBindFiles(state: BuilderState): DefaultBindFile[] {
+  const files: DefaultBindFile[] = [];
+
+  for (const node of state.nodes) {
+    const nosKind = resolveNosKind(node.clabKind, node.dockerImage);
+
+    switch (nosKind) {
+      case "mikrotik_ros":
+        files.push({
+          filePath: `${node.name}.rsc`,
+          nosKind: "mikrotik_ros",
+          content: `# ${node.name} — RouterOS startup config\n# Add your RouterOS commands here\n`,
+        });
+        break;
+      case "frr":
+        files.push({
+          filePath: `${node.name}-daemons`,
+          nosKind: "frr",
+          content: "zebra=yes\nbgpd=yes\nstaticd=yes\n",
+        });
+        files.push({
+          filePath: `${node.name}.conf`,
+          nosKind: "frr",
+          content: `hostname ${node.name}\n!\n`,
+        });
+        break;
+      case "openwrt":
+        files.push({
+          filePath: `${node.name}-config.sh`,
+          nosKind: "openwrt",
+          content: `#!/bin/sh\n# ${node.name} — OpenWrt startup config\n`,
+        });
+        break;
+      case "freebsd":
+        files.push({
+          filePath: `${node.name}-config.sh`,
+          nosKind: "freebsd",
+          content: `#!/bin/sh\n# ${node.name} — FreeBSD startup config\n`,
+        });
+        break;
+    }
+  }
+
+  return files;
 }
 
 import { parseContainerlabYAML } from "./yaml-parser";
@@ -123,6 +204,7 @@ export function parseToBuilderState(
   return {
     name: parsed.name,
     collectionId: "",
+    scenario: "static",
     nodes,
     links,
     nextNodeCounters,

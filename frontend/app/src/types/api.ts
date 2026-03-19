@@ -155,6 +155,7 @@ export interface UpdateTopologyRequest {
 export interface CreateBindFileRequest {
   filePath: string;
   content: string;
+  nosKind?: string;
 }
 
 export interface UpdateBindFileRequest {

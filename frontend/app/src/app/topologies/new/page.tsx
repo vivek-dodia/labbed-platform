@@ -10,7 +10,9 @@ import type {
   CollectionResponse,
   TopologyResponse,
   CreateTopologyRequest,
+  BindFileResponse,
 } from "@/types/api";
+import type { DefaultBindFile } from "@/lib/yaml-generator";
 import TopologyBuilder from "@/components/topology/TopologyBuilder";
 
 export default function NewTopologyPage() {
@@ -36,13 +38,22 @@ export default function NewTopologyPage() {
     });
   }, [user, authLoading, router]);
 
-  const handleSave = async (name: string, yaml: string, collectionId: string) => {
+  const handleSave = async (name: string, yaml: string, collectionId: string, bindFiles: DefaultBindFile[]) => {
     const req: CreateTopologyRequest = {
       name,
       definition: yaml,
       collectionId,
     };
     const created = await api.post<TopologyResponse>("/api/v1/topologies", req);
+
+    // Create default bind files for NOS-specific nodes
+    for (const bf of bindFiles) {
+      await api.post<BindFileResponse>(
+        `/api/v1/topologies/${created.uuid}/files`,
+        { filePath: bf.filePath, content: bf.content, nosKind: bf.nosKind },
+      );
+    }
+
     router.push(`/topologies/${created.uuid}`);
   };
 

@@ -24,7 +24,8 @@ import {
 import "@xyflow/react/dist/style.css";
 import type { NosImageResponse, CollectionResponse } from "@/types/api";
 import { useBuilderState } from "@/hooks/useBuilderState";
-import { generateContainerlabYAML, parseToBuilderState, type BuilderNode, type BuilderLink } from "@/lib/yaml-generator";
+import { generateContainerlabYAML, parseToBuilderState, type BuilderNode, type BuilderLink, type DefaultBindFile, type Scenario } from "@/lib/yaml-generator";
+import { generateScenarioConfigs, SCENARIOS } from "@/lib/config-generator";
 import { NODE_W, NODE_H, getLayoutedPositions } from "@/lib/layout";
 
 // ── Styles ──
@@ -183,7 +184,7 @@ function groupNosImages(images: NosImageResponse[]): ImageGroup[] {
 interface TopologyBuilderProps {
   nosImages: NosImageResponse[];
   collections: CollectionResponse[];
-  onSave: (name: string, yaml: string, collectionId: string) => Promise<void>;
+  onSave: (name: string, yaml: string, collectionId: string, bindFiles: DefaultBindFile[]) => Promise<void>;
 }
 
 // ── Inner Component (needs useReactFlow) ──
@@ -193,7 +194,7 @@ function BuilderInner({ nosImages, collections, onSave }: TopologyBuilderProps) 
     state, rfNodes, rfEdges,
     addNode, removeNode, updateNode,
     addLink, removeLink,
-    setName, setCollection,
+    setName, setCollection, setScenario,
     updatePosition, loadState,
   } = useBuilderState();
 
@@ -370,8 +371,18 @@ function BuilderInner({ nosImages, collections, onSave }: TopologyBuilderProps) 
     if (!state.name.trim() || !state.collectionId || state.nodes.length === 0) return;
     setSaving(true);
     try {
-      const yaml = generateContainerlabYAML(state);
-      await onSave(state.name, yaml, state.collectionId);
+      // Generate configs based on scenario
+      const { bindFiles, hostExecs } = generateScenarioConfigs(state, state.scenario);
+      // Apply host exec commands to state for YAML generation
+      const stateWithExecs: typeof state = {
+        ...state,
+        nodes: state.nodes.map((n) => {
+          const execs = hostExecs.get(n.id);
+          return execs ? { ...n, exec: execs } : n;
+        }),
+      };
+      const yaml = generateContainerlabYAML(stateWithExecs);
+      await onSave(state.name, yaml, state.collectionId, bindFiles);
     } finally {
       setSaving(false);
     }
@@ -497,9 +508,13 @@ function BuilderInner({ nosImages, collections, onSave }: TopologyBuilderProps) 
     const counters: Record<string, number> = {};
     for (const n of tmpNodes) counters[n.prefix] = Math.max(counters[n.prefix] || 0, n.num + 1);
 
+    const scenarios: Scenario[] = ["ospf", "ebgp", "static"];
+    const scenario = pick(scenarios);
+
     loadState({
       name: `${pick(adjectives)}-${pick(nouns)}-net`,
       collectionId: state.collectionId,
+      scenario,
       nodes,
       links,
       nextNodeCounters: counters,
@@ -794,6 +809,41 @@ function BuilderInner({ nosImages, collections, onSave }: TopologyBuilderProps) 
                   <option key={c.uuid} value={c.uuid}>{c.name}</option>
                 ))}
               </select>
+            </div>
+
+            {/* Scenario */}
+            <div style={{ marginBottom: "1.2rem" }}>
+              <label style={{ ...labelStyle, display: "block", marginBottom: "0.3rem", fontSize: "0.6rem" }}>ROUTING SCENARIO</label>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                {SCENARIOS.map((s) => (
+                  <label
+                    key={s.value}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                      padding: "0.4rem 0.6rem",
+                      border: state.scenario === s.value ? "1.5px solid #000" : "1px solid rgba(0,0,0,0.2)",
+                      cursor: "pointer",
+                      background: state.scenario === s.value ? "rgba(0,0,0,0.06)" : "transparent",
+                      transition: "all 0.1s",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="scenario"
+                      value={s.value}
+                      checked={state.scenario === s.value}
+                      onChange={() => setScenario(s.value)}
+                      style={{ accentColor: "#000" }}
+                    />
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: "0.7rem", fontFamily: "'Manrope', sans-serif" }}>{s.label}</div>
+                      <div style={{ fontSize: "0.6rem", opacity: 0.5, fontFamily: "'Space Mono', monospace" }}>{s.description}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
             </div>
 
             {/* Stats */}

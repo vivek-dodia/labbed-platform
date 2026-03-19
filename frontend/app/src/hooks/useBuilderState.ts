@@ -1,7 +1,7 @@
 import { useReducer, useMemo, useCallback } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import type { NosImageResponse } from "@/types/api";
-import type { BuilderState, BuilderNode, BuilderLink } from "@/lib/yaml-generator";
+import type { BuilderState, BuilderNode, BuilderLink, Scenario } from "@/lib/yaml-generator";
 
 // ── Actions ──
 
@@ -13,6 +13,7 @@ type Action =
   | { type: "REMOVE_LINK"; linkId: string }
   | { type: "SET_NAME"; name: string }
   | { type: "SET_COLLECTION"; collectionId: string }
+  | { type: "SET_SCENARIO"; scenario: Scenario }
   | { type: "UPDATE_POSITION"; nodeId: string; position: { x: number; y: number } }
   | { type: "LOAD_STATE"; state: BuilderState };
 
@@ -181,6 +182,9 @@ function builderReducer(state: BuilderState, action: Action): BuilderState {
     case "SET_COLLECTION":
       return { ...state, collectionId: action.collectionId };
 
+    case "SET_SCENARIO":
+      return { ...state, scenario: action.scenario };
+
     case "UPDATE_POSITION":
       return {
         ...state,
@@ -203,6 +207,7 @@ export function createInitialState(): BuilderState {
   return {
     name: "",
     collectionId: "",
+    scenario: "static",
     nodes: [],
     links: [],
     nextNodeCounters: {},
@@ -305,6 +310,11 @@ export function useBuilderState() {
     [],
   );
 
+  const setScenario = useCallback(
+    (scenario: Scenario) => dispatch({ type: "SET_SCENARIO", scenario }),
+    [],
+  );
+
   const updatePosition = useCallback(
     (nodeId: string, position: { x: number; y: number }) =>
       dispatch({ type: "UPDATE_POSITION", nodeId, position }),
@@ -327,6 +337,7 @@ export function useBuilderState() {
     removeLink,
     setName,
     setCollection,
+    setScenario,
     updatePosition,
     loadState,
   };

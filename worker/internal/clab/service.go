@@ -241,7 +241,7 @@ func (s *Service) sshExec(ctx context.Context, containerName, command, kind stri
 
 // sshExecWithPTY runs a command on a RouterOS SSH session using a pseudo-terminal.
 // RouterOS commands like "export" only produce output with a PTY allocated.
-// We send the command via stdin and read stdout until output settles.
+// We open a shell, send the command followed by a quit, and collect all output.
 func (s *Service) sshExecWithPTY(session *ssh.Session, command string) (string, error) {
 	modes := ssh.TerminalModes{ssh.ECHO: 0, ssh.TTY_OP_ISPEED: 115200, ssh.TTY_OP_OSPEED: 115200}
 	if err := session.RequestPty("dumb", 1000, 200, modes); err != nil {
@@ -252,52 +252,31 @@ func (s *Service) sshExecWithPTY(session *ssh.Session, command string) (string, 
 	if err != nil {
 		return "", fmt.Errorf("stdin pipe: %w", err)
 	}
-	stdout, err := session.StdoutPipe()
-	if err != nil {
-		return "", fmt.Errorf("stdout pipe: %w", err)
-	}
+
+	var buf bytes.Buffer
+	session.Stdout = &buf
+	session.Stderr = &buf
 
 	if err := session.Shell(); err != nil {
 		return "", fmt.Errorf("shell: %w", err)
 	}
 
-	// Wait for the initial prompt
-	time.Sleep(500 * time.Millisecond)
-
-	// Send the command
+	// Send command then quit to close the session cleanly
+	time.Sleep(300 * time.Millisecond)
 	fmt.Fprintf(stdin, "%s\r", command)
+	time.Sleep(300 * time.Millisecond)
+	fmt.Fprintf(stdin, "/quit\r")
 
-	// Read output until no new data arrives for a settling period
-	var buf bytes.Buffer
-	tmp := make([]byte, 4096)
-	settled := 800 * time.Millisecond
-	deadline := time.After(10 * time.Second)
+	// Wait for session to end (quit closes it) with a timeout
+	done := make(chan error, 1)
+	go func() { done <- session.Wait() }()
 
-	for {
-		timer := time.NewTimer(settled)
-		done := make(chan struct{})
-
-		go func() {
-			n, _ := stdout.Read(tmp)
-			if n > 0 {
-				buf.Write(tmp[:n])
-			}
-			close(done)
-		}()
-
-		select {
-		case <-done:
-			timer.Stop()
-			continue
-		case <-timer.C:
-			// No new data for the settling period — we're done
-			stdin.Close()
-			return cleanRouterOSOutput(buf.String(), command), nil
-		case <-deadline:
-			stdin.Close()
-			return cleanRouterOSOutput(buf.String(), command), nil
-		}
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
 	}
+
+	return cleanRouterOSOutput(buf.String(), command), nil
 }
 
 // cleanRouterOSOutput strips ANSI codes, the command echo, and the trailing prompt

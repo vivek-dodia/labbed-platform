@@ -218,6 +218,14 @@ func (s *Service) sshExec(ctx context.Context, containerName, command, kind stri
 	}
 	defer session.Close()
 
+	// RouterOS needs a PTY for commands like "export" to produce output
+	if kind == "mikrotik_ros" {
+		modes := ssh.TerminalModes{ssh.ECHO: 0}
+		if err := session.RequestPty("dumb", 200, 200, modes); err != nil {
+			return "", fmt.Errorf("PTY request: %w", err)
+		}
+	}
+
 	var buf bytes.Buffer
 	session.Stdout = &buf
 	session.Stderr = &buf
@@ -225,11 +233,15 @@ func (s *Service) sshExec(ctx context.Context, containerName, command, kind stri
 	if err := session.Run(command); err != nil {
 		// Some NOS types return exit code 1 even on success; return output anyway
 		if buf.Len() > 0 {
-			return buf.String(), nil
+			return stripAnsiCodes(buf.String()), nil
 		}
 		return "", fmt.Errorf("SSH run: %w", err)
 	}
-	return buf.String(), nil
+	output := buf.String()
+	if kind == "mikrotik_ros" {
+		output = stripAnsiCodes(output)
+	}
+	return output, nil
 }
 
 // getContainerMgmtIP returns the first IP address assigned to the container.

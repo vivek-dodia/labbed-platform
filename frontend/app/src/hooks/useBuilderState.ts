@@ -9,6 +9,8 @@ type Action =
   | { type: "ADD_NODE"; nosImage: NosImageResponse; position: { x: number; y: number } }
   | { type: "REMOVE_NODE"; nodeId: string }
   | { type: "UPDATE_NODE"; nodeId: string; changes: Partial<Pick<BuilderNode, "name" | "nosImageId" | "clabKind" | "dockerImage" | "exec">> }
+  | { type: "ADD_INTERFACE"; nodeId: string }
+  | { type: "REMOVE_INTERFACE"; nodeId: string; iface: string }
   | { type: "ADD_LINK"; sourceNodeId: string; targetNodeId: string }
   | { type: "REMOVE_LINK"; linkId: string }
   | { type: "SET_NAME"; name: string }
@@ -120,6 +122,54 @@ function builderReducer(state: BuilderState, action: Action): BuilderState {
           }
           return { ...n, ...changes };
         }),
+      };
+    }
+
+    case "ADD_INTERFACE": {
+      const counter = state.nextIfaceCounters[action.nodeId] || 1;
+      const iface = `eth${counter}`;
+      return {
+        ...state,
+        nodes: state.nodes.map((n) =>
+          n.id === action.nodeId ? { ...n, interfaces: [...n.interfaces, iface] } : n,
+        ),
+        nextIfaceCounters: {
+          ...state.nextIfaceCounters,
+          [action.nodeId]: counter + 1,
+        },
+      };
+    }
+
+    case "REMOVE_INTERFACE": {
+      // Also remove any link using this interface on this node
+      const linksToRemove = state.links.filter(
+        (l) =>
+          (l.sourceNodeId === action.nodeId && l.sourceIface === action.iface) ||
+          (l.targetNodeId === action.nodeId && l.targetIface === action.iface),
+      );
+      // Clean the other side's interface for each removed link
+      let updatedNodes = state.nodes.map((n) =>
+        n.id === action.nodeId
+          ? { ...n, interfaces: n.interfaces.filter((i) => i !== action.iface) }
+          : n,
+      );
+      for (const link of linksToRemove) {
+        const otherId = link.sourceNodeId === action.nodeId ? link.targetNodeId : link.sourceNodeId;
+        const otherIface = link.sourceNodeId === action.nodeId ? link.targetIface : link.sourceIface;
+        updatedNodes = updatedNodes.map((n) =>
+          n.id === otherId
+            ? { ...n, interfaces: n.interfaces.filter((i) => i !== otherIface) }
+            : n,
+        );
+      }
+      return {
+        ...state,
+        nodes: updatedNodes,
+        links: state.links.filter(
+          (l) =>
+            !(l.sourceNodeId === action.nodeId && l.sourceIface === action.iface) &&
+            !(l.targetNodeId === action.nodeId && l.targetIface === action.iface),
+        ),
       };
     }
 
@@ -289,6 +339,16 @@ export function useBuilderState() {
     [],
   );
 
+  const addInterface = useCallback(
+    (nodeId: string) => dispatch({ type: "ADD_INTERFACE", nodeId }),
+    [],
+  );
+
+  const removeInterface = useCallback(
+    (nodeId: string, iface: string) => dispatch({ type: "REMOVE_INTERFACE", nodeId, iface }),
+    [],
+  );
+
   const addLink = useCallback(
     (sourceNodeId: string, targetNodeId: string) =>
       dispatch({ type: "ADD_LINK", sourceNodeId, targetNodeId }),
@@ -333,6 +393,8 @@ export function useBuilderState() {
     addNode,
     removeNode,
     updateNode,
+    addInterface,
+    removeInterface,
     addLink,
     removeLink,
     setName,

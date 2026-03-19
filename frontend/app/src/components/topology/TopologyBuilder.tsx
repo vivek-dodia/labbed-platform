@@ -195,6 +195,7 @@ function BuilderInner({ nosImages, collections, onSave }: TopologyBuilderProps) 
   const {
     state, rfNodes, rfEdges,
     addNode, removeNode, updateNode,
+    addInterface, removeInterface,
     addLink, removeLink,
     setName, setCollection, setScenario,
     updatePosition, loadState,
@@ -710,18 +711,63 @@ function BuilderInner({ nosImages, collections, onSave }: TopologyBuilderProps) 
                 <span style={{ fontSize: "0.75rem", opacity: 0.4, fontFamily: "'Space Mono', monospace" }}>none</span>
               ) : (
                 <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
-                  {selectedNode.interfaces.map((iface) => (
-                    <span key={iface} style={{
-                      padding: "0.2rem 0.5rem",
-                      border: "1px solid rgba(0,0,0,0.3)",
-                      fontSize: "0.7rem",
-                      fontFamily: "'Space Mono', monospace",
-                    }}>
-                      {iface}
-                    </span>
-                  ))}
+                  {selectedNode.interfaces.map((iface) => {
+                    const hasLink = state.links.some(
+                      (l) =>
+                        (l.sourceNodeId === selectedNode.id && l.sourceIface === iface) ||
+                        (l.targetNodeId === selectedNode.id && l.targetIface === iface),
+                    );
+                    return (
+                      <span key={iface} style={{
+                        padding: "0.2rem 0.4rem",
+                        border: "1px solid rgba(0,0,0,0.3)",
+                        fontSize: "0.7rem",
+                        fontFamily: "'Space Mono', monospace",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "0.3rem",
+                      }}>
+                        {iface}
+                        {hasLink && <span style={{ fontSize: "0.55rem", opacity: 0.4 }}>linked</span>}
+                        <button
+                          onClick={() => removeInterface(selectedNode.id, iface)}
+                          title={hasLink ? "Remove interface + connected link" : "Remove interface"}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            fontSize: "0.75rem",
+                            lineHeight: 1,
+                            padding: 0,
+                            color: "rgba(0,0,0,0.4)",
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.color = "#ff5f56"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(0,0,0,0.4)"; }}
+                        >
+                          x
+                        </button>
+                      </span>
+                    );
+                  })}
                 </div>
               )}
+              <button
+                onClick={() => addInterface(selectedNode.id)}
+                style={{
+                  marginTop: "0.4rem",
+                  background: "none",
+                  border: "1px dashed rgba(0,0,0,0.3)",
+                  padding: "0.2rem 0.6rem",
+                  fontSize: "0.65rem",
+                  fontFamily: "'Space Mono', monospace",
+                  cursor: "pointer",
+                  transition: "border-color 0.1s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#000"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.3)"; }}
+              >
+                + add interface
+              </button>
             </div>
 
             {/* Exec */}

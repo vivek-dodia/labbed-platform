@@ -24,7 +24,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import type { NosImageResponse, CollectionResponse } from "@/types/api";
 import { useBuilderState } from "@/hooks/useBuilderState";
-import { generateContainerlabYAML, parseToBuilderState } from "@/lib/yaml-generator";
+import { generateContainerlabYAML, parseToBuilderState, type BuilderNode, type BuilderLink } from "@/lib/yaml-generator";
 import { NODE_W, NODE_H, getLayoutedPositions } from "@/lib/layout";
 
 // ── Styles ──
@@ -406,6 +406,107 @@ function BuilderInner({ nosImages, collections, onSave }: TopologyBuilderProps) 
     [selectedNodeId, nosImages, updateNode],
   );
 
+  // ── Random topology generator ──
+
+  const handleRandomTopology = useCallback(() => {
+    const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+    const randInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+    const uid = () => `node-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+    const groups = groupNosImages(nosImages);
+    const routerImgs = groups.find((g) => g.label === "Routers")?.images || [];
+    const hostImgs = groups.find((g) => g.label === "Hosts")?.images || [];
+    const serviceImgs = groups.find((g) => g.label === "Services")?.images || [];
+
+    if (routerImgs.length === 0) return;
+
+    const routerCount = randInt(2, Math.min(4, Math.max(2, routerImgs.length)));
+    const hostCount = hostImgs.length > 0 ? randInt(1, 3) : 0;
+    const serviceCount = serviceImgs.length > 0 ? randInt(0, Math.min(2, serviceImgs.length)) : 0;
+
+    // Build nodes
+    type TmpNode = { id: string; img: NosImageResponse; prefix: string; num: number };
+    const tmpNodes: TmpNode[] = [];
+    for (let i = 0; i < routerCount; i++) tmpNodes.push({ id: uid(), img: pick(routerImgs), prefix: "router", num: i + 1 });
+    for (let i = 0; i < serviceCount; i++) tmpNodes.push({ id: uid(), img: pick(serviceImgs), prefix: "svc", num: i + 1 });
+    for (let i = 0; i < hostCount; i++) tmpNodes.push({ id: uid(), img: pick(hostImgs), prefix: "host", num: i + 1 });
+
+    // Layout by tier
+    const routers = tmpNodes.filter((n) => n.prefix === "router");
+    const svcs = tmpNodes.filter((n) => n.prefix === "svc");
+    const hosts = tmpNodes.filter((n) => n.prefix === "host");
+    const positions: Record<string, { x: number; y: number }> = {};
+    let row = 0;
+    for (const tier of [routers, svcs, hosts]) {
+      if (tier.length === 0) continue;
+      const totalW = tier.length * (NODE_W + 60) - 60;
+      const startX = -totalW / 2;
+      tier.forEach((n, i) => { positions[n.id] = { x: startX + i * (NODE_W + 60), y: row }; });
+      row += NODE_H + 120;
+    }
+
+    // Build links: router chain/ring + connect each host/svc to a random router
+    const ifaceCounters: Record<string, number> = {};
+    const nextIface = (id: string) => { const n = ifaceCounters[id] || 1; ifaceCounters[id] = n + 1; return `eth${n}`; };
+    const links: BuilderLink[] = [];
+    const mkLink = (a: string, b: string) => {
+      links.push({
+        id: `link-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        sourceNodeId: a, sourceIface: nextIface(a),
+        targetNodeId: b, targetIface: nextIface(b),
+      });
+    };
+
+    // Chain routers, maybe close the ring
+    for (let i = 0; i < routers.length - 1; i++) mkLink(routers[i].id, routers[i + 1].id);
+    if (routers.length >= 3 && Math.random() > 0.4) mkLink(routers[routers.length - 1].id, routers[0].id);
+
+    // Connect services/hosts to random routers
+    for (const n of [...svcs, ...hosts]) mkLink(n.id, pick(routers).id);
+
+    // Collect interfaces per node
+    const nodeIfaces: Record<string, string[]> = {};
+    for (const l of links) {
+      (nodeIfaces[l.sourceNodeId] ??= []).push(l.sourceIface);
+      (nodeIfaces[l.targetNodeId] ??= []).push(l.targetIface);
+    }
+
+    // Assemble state
+    const nodes: BuilderNode[] = tmpNodes.map((n) => ({
+      id: n.id,
+      name: `${n.prefix}${n.num}`,
+      nosImageId: n.img.uuid,
+      clabKind: n.img.clabKind,
+      dockerImage: n.img.dockerImage,
+      interfaces: nodeIfaces[n.id] || [],
+      exec: [],
+      position: positions[n.id],
+    }));
+
+    const adjectives = [
+      "chaotic", "sleepy", "cursed", "mega", "turbo", "quantum", "spicy",
+      "crunchy", "wobbly", "haunted", "chunky", "crispy", "funky", "blazing",
+      "twisted", "radical", "cosmic", "janky", "zesty", "gnarly",
+    ];
+    const nouns = [
+      "spaghetti", "noodle", "pretzel", "burrito", "waffle", "pancake",
+      "tornado", "volcano", "octopus", "penguin", "raccoon", "platypus",
+      "toaster", "blender", "dumpster", "hamster", "goblin", "yeti",
+    ];
+
+    const counters: Record<string, number> = {};
+    for (const n of tmpNodes) counters[n.prefix] = Math.max(counters[n.prefix] || 0, n.num + 1);
+
+    loadState({
+      name: `${pick(adjectives)}-${pick(nouns)}-net`,
+      collectionId: state.collectionId,
+      nodes,
+      links,
+      nextNodeCounters: counters,
+      nextIfaceCounters: ifaceCounters,
+    });
+  }, [nosImages, state.collectionId, loadState]);
+
   // ── Palette drag start ──
 
   const onDragStart = useCallback((e: DragEvent, imageId: string) => {
@@ -459,6 +560,7 @@ function BuilderInner({ nosImages, collections, onSave }: TopologyBuilderProps) 
         ))}
 
         <div style={{ borderTop: "1px solid rgba(0,0,0,0.15)", paddingTop: "1rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          <button onClick={handleRandomTopology} style={{ ...pillBtn(), backgroundColor: "#000", color: "#79f673" }}>Surprise Me, Nerd</button>
           <button onClick={handleAutoLayout} style={pillBtn()}>Auto Layout</button>
           <button onClick={handleImport} style={pillBtn()}>Import YAML</button>
           <input ref={fileInputRef} type="file" accept=".yaml,.yml" onChange={onFileImport} style={{ display: "none" }} />

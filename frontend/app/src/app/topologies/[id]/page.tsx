@@ -294,7 +294,7 @@ export default function TopologyEditorPage() {
                   >
                     <span
                       style={{ fontFamily: "'Space Mono', monospace", fontSize: "0.8rem", cursor: "pointer" }}
-                      onClick={() => { setShowFileEdit(f); setEditContent(""); }}
+                      onClick={() => { setShowFileEdit(f); setEditContent(f.content || ""); }}
                     >
                       {f.filePath}
                     </span>

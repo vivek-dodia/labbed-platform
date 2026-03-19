@@ -823,7 +823,7 @@ export default function LabDetailPage() {
   lab.nodes?.forEach((n) => { nodeStates[n.name] = n.state; });
   const isLive = lab.state === "running" || lab.state === "deploying";
   const canDeploy = lab.state === "stopped" || lab.state === "failed" || lab.state === "scheduled";
-  const selectedNodeData = lab.nodes?.find((n) => n.name === selectedNode);
+  const selectedNodeData = lab.nodes?.find((n) => n.name === selectedNode || n.name.endsWith("-" + selectedNode));
   const { category: cmdCategory, commands: quickCommands } = getCommandsForImage(selectedNodeData?.image || "");
   const nodeCount = lab.nodes?.length || 0;
   const showBottomPanel = bottomOpen;
@@ -939,7 +939,12 @@ export default function LabDetailPage() {
                   <TopologyCanvas
                     definition={topology.definition}
                     selectedNode={selectedNode}
-                    onSelectNode={(name) => setSelectedNode(name || null)}
+                    onSelectNode={(name) => {
+                      if (!name) { setSelectedNode(null); return; }
+                      // Canvas gives short names; resolve to full container name
+                      const full = lab.nodes?.find((n) => n.name.endsWith("-" + name))?.name;
+                      setSelectedNode(full || name);
+                    }}
                     onLinkClick={isLive ? handleLinkClick : undefined}
                     nodeStates={nodeStates}
                   />
@@ -958,7 +963,7 @@ export default function LabDetailPage() {
               </div>
               <div style={{ flex: 1, overflowY: "auto" }}>
                 {(lab.nodes || []).map((node) => {
-                  const isSelected = selectedNode === node.name;
+                  const isSelected = selectedNode === node.name || node.name.endsWith("-" + selectedNode);
                   return (
                     <div
                       key={node.name}
@@ -1154,7 +1159,7 @@ export default function LabDetailPage() {
                       CLEAR
                     </button>
                     {(lab.nodes || []).map((node) => {
-                      const active = selectedNode === node.name;
+                      const active = selectedNode === node.name || node.name.endsWith("-" + selectedNode);
                       const hasBuffer = (nodeTermBuffers.current.get(node.name)?.length || 0) > 0;
                       return (
                         <button

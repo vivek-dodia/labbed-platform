@@ -8,7 +8,6 @@ import { api } from "@/lib/api";
 import type {
   TopologyResponse,
   CollectionResponse,
-  CreateTopologyRequest,
 } from "@/types/api";
 
 export default function TopologiesPage() {
@@ -17,16 +16,7 @@ export default function TopologiesPage() {
   const [topologies, setTopologies] = useState<TopologyResponse[]>([]);
   const [collections, setCollections] = useState<CollectionResponse[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreate, setShowCreate] = useState(false);
   const [filter, setFilter] = useState("");
-
-  // create form state
-  const [newName, setNewName] = useState("");
-  const [newCollection, setNewCollection] = useState("");
-  const [newDef, setNewDef] = useState(
-    'name: my-lab\ntopology:\n  nodes:\n    router1:\n      kind: linux\n      image: quay.io/frrouting/frr:10.3.1\n  links:\n'
-  );
-  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -40,7 +30,6 @@ export default function TopologiesPage() {
     ]).then(([t, c]) => {
       setTopologies(t);
       setCollections(c);
-      if (c.length > 0) setNewCollection(c[0].uuid);
       setLoading(false);
     });
   }, [user, authLoading, router]);
@@ -56,29 +45,6 @@ export default function TopologiesPage() {
     const m = def.match(/^\s{4}\S+:/gm);
     return m ? m.length : 0;
   };
-
-  async function handleCreate() {
-    if (!newName.trim() || !newCollection) return;
-    setCreating(true);
-    try {
-      const req: CreateTopologyRequest = {
-        name: newName,
-        definition: newDef,
-        collectionId: newCollection,
-      };
-      const created = await api.post<TopologyResponse>(
-        "/api/v1/topologies",
-        req
-      );
-      setTopologies((prev) => [created, ...prev]);
-      setShowCreate(false);
-      setNewName("");
-    } catch {
-      // handle error
-    } finally {
-      setCreating(false);
-    }
-  }
 
   const labelStyle: React.CSSProperties = {
     fontSize: "0.65rem",
@@ -172,7 +138,7 @@ export default function TopologiesPage() {
               <p style={{ ...labelStyle, marginTop: "0.75rem", opacity: 0.5 }}>02 / TEMPLATES</p>
             </div>
             <button
-              onClick={() => setShowCreate(true)}
+              onClick={() => router.push("/topologies/new")}
               style={{
                 ...pillBtn(),
                 backgroundColor: "#000000",
@@ -239,120 +205,6 @@ export default function TopologiesPage() {
         </div>
       </div>
 
-      {/* Create modal */}
-      {showCreate && (
-        <div
-          onClick={() => setShowCreate(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0,0,0,0.6)",
-            zIndex: 100,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: "#79f673",
-              border: "1px solid #000000",
-              padding: "2.5rem",
-              maxWidth: "520px",
-              width: "90%",
-            }}
-          >
-            <span style={{ ...labelStyle, opacity: 0.5 }}>LABBED -- CREATE</span>
-            <h2 style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 200, fontSize: "1.8rem", margin: "1rem 0 1.5rem" }}>
-              New Topology
-            </h2>
-
-            {/* Name */}
-            <div style={{ marginBottom: "1.5rem" }}>
-              <label style={{ ...labelStyle, display: "block", marginBottom: "0.4rem" }}>TOPOLOGY NAME</label>
-              <input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="BGP-TRIANGLE-LAB"
-                style={{
-                  width: "100%",
-                  background: "transparent",
-                  border: "none",
-                  borderBottom: "1px solid #000000",
-                  padding: "0.5rem 0",
-                  fontSize: "1rem",
-                  fontFamily: "'Space Mono', monospace",
-                  outline: "none",
-                  color: "#000000",
-                }}
-              />
-            </div>
-
-            {/* Collection */}
-            <div style={{ marginBottom: "1.5rem" }}>
-              <label style={{ ...labelStyle, display: "block", marginBottom: "0.4rem" }}>COLLECTION</label>
-              <select
-                value={newCollection}
-                onChange={(e) => setNewCollection(e.target.value)}
-                style={{
-                  width: "100%",
-                  background: "transparent",
-                  border: "none",
-                  borderBottom: "1px solid #000000",
-                  padding: "0.5rem 0",
-                  fontSize: "1rem",
-                  fontFamily: "'Manrope', sans-serif",
-                  outline: "none",
-                  color: "#000000",
-                }}
-              >
-                {collections.map((c) => (
-                  <option key={c.uuid} value={c.uuid}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* YAML */}
-            <div style={{ marginBottom: "1.5rem" }}>
-              <label style={{ ...labelStyle, display: "block", marginBottom: "0.4rem" }}>DEFINITION (YAML)</label>
-              <textarea
-                value={newDef}
-                onChange={(e) => setNewDef(e.target.value)}
-                rows={10}
-                style={{
-                  width: "100%",
-                  background: "transparent",
-                  border: "1px solid #000000",
-                  padding: "0.8rem",
-                  fontFamily: "'Space Mono', monospace",
-                  fontSize: "0.8rem",
-                  outline: "none",
-                  resize: "vertical",
-                  color: "#000000",
-                  lineHeight: 1.5,
-                }}
-              />
-            </div>
-
-            <div style={{ display: "flex", gap: "1rem" }}>
-              <button
-                onClick={handleCreate}
-                disabled={creating}
-                style={{
-                  ...pillBtn(),
-                  backgroundColor: "#000000",
-                  color: "#79f673",
-                  opacity: creating ? 0.5 : 1,
-                }}
-              >
-                {creating ? "Creating..." : "Create Topology"}
-              </button>
-              <button onClick={() => setShowCreate(false)} style={pillBtn()}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -162,12 +162,14 @@ function groupNosImages(images: NosImageResponse[]): ImageGroup[] {
     const imgLower = img.dockerImage.toLowerCase();
     if (routerKinds.has(img.clabKind) || routerImages.some((r) => imgLower.includes(r))) {
       routers.push(img);
+    } else if (img.clabKind !== "linux") {
+      // Any non-linux kind is a network device (vrnetlab etc.)
+      routers.push(img);
     } else if (hostImages.some((h) => imgLower.includes(h))) {
       hosts.push(img);
     } else if (serviceImages.some((s) => imgLower.includes(s))) {
       services.push(img);
     } else {
-      // Default to services
       services.push(img);
     }
   }
@@ -425,9 +427,14 @@ function BuilderInner({ nosImages, collections, onSave }: TopologyBuilderProps) 
     const uid = () => `node-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
     const groups = groupNosImages(nosImages);
-    const routerImgs = groups.find((g) => g.label === "Routers")?.images || [];
-    const hostImgs = groups.find((g) => g.label === "Hosts")?.images || [];
-    const serviceImgs = groups.find((g) => g.label === "Services")?.images || [];
+    // Only pick router images that the config generator supports
+    const supportedKinds = new Set(["mikrotik_ros", "openwrt", "freebsd"]);
+    const supportedImages = ["frrouting/frr", "gobgp"];
+    const routerImgs = (groups.find((g) => g.label === "Routers")?.images || []).filter((img) =>
+      supportedKinds.has(img.clabKind) || supportedImages.some((s) => img.dockerImage.includes(s)),
+    );
+    const hostImgs = (groups.find((g) => g.label === "Hosts")?.images || []).filter((img) => img.clabKind === "linux");
+    const serviceImgs = (groups.find((g) => g.label === "Services")?.images || []).filter((img) => img.clabKind === "linux");
 
     if (routerImgs.length === 0) return;
 

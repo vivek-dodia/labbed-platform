@@ -218,12 +218,11 @@ func (s *Service) sshExec(ctx context.Context, containerName, command, kind stri
 	}
 	defer session.Close()
 
-	// RouterOS needs a PTY for commands like "export" to produce output
+	// RouterOS needs a PTY for commands like "export" to produce output.
+	// With a PTY, Run() enters interactive mode and won't return, so we
+	// use Start() + a read deadline to collect output then close.
 	if kind == "mikrotik_ros" {
-		modes := ssh.TerminalModes{ssh.ECHO: 0}
-		if err := session.RequestPty("dumb", 200, 200, modes); err != nil {
-			return "", fmt.Errorf("PTY request: %w", err)
-		}
+		return s.sshExecWithPTY(session, command)
 	}
 
 	var buf bytes.Buffer
@@ -233,15 +232,109 @@ func (s *Service) sshExec(ctx context.Context, containerName, command, kind stri
 	if err := session.Run(command); err != nil {
 		// Some NOS types return exit code 1 even on success; return output anyway
 		if buf.Len() > 0 {
-			return stripAnsiCodes(buf.String()), nil
+			return buf.String(), nil
 		}
 		return "", fmt.Errorf("SSH run: %w", err)
 	}
-	output := buf.String()
-	if kind == "mikrotik_ros" {
-		output = stripAnsiCodes(output)
+	return buf.String(), nil
+}
+
+// sshExecWithPTY runs a command on a RouterOS SSH session using a pseudo-terminal.
+// RouterOS commands like "export" only produce output with a PTY allocated.
+// We send the command via stdin and read stdout until output settles.
+func (s *Service) sshExecWithPTY(session *ssh.Session, command string) (string, error) {
+	modes := ssh.TerminalModes{ssh.ECHO: 0, ssh.TTY_OP_ISPEED: 115200, ssh.TTY_OP_OSPEED: 115200}
+	if err := session.RequestPty("dumb", 1000, 200, modes); err != nil {
+		return "", fmt.Errorf("PTY request: %w", err)
 	}
-	return output, nil
+
+	stdin, err := session.StdinPipe()
+	if err != nil {
+		return "", fmt.Errorf("stdin pipe: %w", err)
+	}
+	stdout, err := session.StdoutPipe()
+	if err != nil {
+		return "", fmt.Errorf("stdout pipe: %w", err)
+	}
+
+	if err := session.Shell(); err != nil {
+		return "", fmt.Errorf("shell: %w", err)
+	}
+
+	// Wait for the initial prompt
+	time.Sleep(500 * time.Millisecond)
+
+	// Send the command
+	fmt.Fprintf(stdin, "%s\r", command)
+
+	// Read output until no new data arrives for a settling period
+	var buf bytes.Buffer
+	tmp := make([]byte, 4096)
+	settled := 800 * time.Millisecond
+	deadline := time.After(10 * time.Second)
+
+	for {
+		timer := time.NewTimer(settled)
+		done := make(chan struct{})
+
+		go func() {
+			n, _ := stdout.Read(tmp)
+			if n > 0 {
+				buf.Write(tmp[:n])
+			}
+			close(done)
+		}()
+
+		select {
+		case <-done:
+			timer.Stop()
+			continue
+		case <-timer.C:
+			// No new data for the settling period — we're done
+			stdin.Close()
+			return cleanRouterOSOutput(buf.String(), command), nil
+		case <-deadline:
+			stdin.Close()
+			return cleanRouterOSOutput(buf.String(), command), nil
+		}
+	}
+}
+
+// cleanRouterOSOutput strips ANSI codes, the command echo, and the trailing prompt
+// from RouterOS PTY output.
+func cleanRouterOSOutput(raw, command string) string {
+	cleaned := stripAnsiCodes(raw)
+	lines := strings.Split(cleaned, "\n")
+
+	// Find where the command echo ends and real output begins
+	var result []string
+	foundCmd := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if !foundCmd {
+			if strings.Contains(trimmed, command) || strings.Contains(trimmed, strings.TrimSpace(command)) {
+				foundCmd = true
+			}
+			continue
+		}
+		result = append(result, line)
+	}
+
+	if !foundCmd {
+		result = lines
+	}
+
+	// Remove trailing prompt lines
+	for len(result) > 0 {
+		last := strings.TrimSpace(result[len(result)-1])
+		if last == "" || strings.HasSuffix(last, ">") || strings.HasSuffix(last, "] >") {
+			result = result[:len(result)-1]
+		} else {
+			break
+		}
+	}
+
+	return strings.TrimSpace(strings.Join(result, "\n"))
 }
 
 // getContainerMgmtIP returns the first IP address assigned to the container.

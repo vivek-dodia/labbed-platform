@@ -284,25 +284,38 @@ export default function TopologyEditorPage() {
                 {topology.bindFiles.map((f) => (
                   <div
                     key={f.uuid}
+                    onClick={() => { setShowFileEdit(f); setEditContent(f.content || ""); }}
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
-                      padding: "0.6rem 0",
-                      borderBottom: "1px solid rgba(0,0,0,0.1)",
+                      padding: "0.5rem 0.6rem",
+                      marginBottom: 2,
+                      borderRadius: 4,
+                      cursor: "pointer",
+                      background: "rgba(0,0,0,0.03)",
+                      transition: "background 0.1s",
                     }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.08)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.03)")}
                   >
-                    <span
-                      style={{ fontFamily: "'Space Mono', monospace", fontSize: "0.8rem", cursor: "pointer" }}
-                      onClick={() => { setShowFileEdit(f); setEditContent(f.content || ""); }}
-                    >
-                      {f.filePath}
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "0.8rem" }}>
+                        {f.filePath}
+                      </span>
+                      {f.nosKind && (
+                        <span style={{
+                          fontSize: "0.55rem", fontWeight: 700, textTransform: "uppercase",
+                          letterSpacing: "0.06em", padding: "1px 6px", borderRadius: 3,
+                          background: "rgba(0,0,0,0.08)", opacity: 0.5,
+                        }}>{f.nosKind}</span>
+                      )}
+                    </div>
                     <button
-                      onClick={() => handleDeleteFile(f.uuid)}
-                      style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.3, fontSize: "0.9rem", fontFamily: "inherit" }}
+                      onClick={(e) => { e.stopPropagation(); handleDeleteFile(f.uuid); }}
+                      style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.3, fontSize: "0.9rem", fontFamily: "inherit", padding: "0 4px" }}
                     >
-                      x
+                      ×
                     </button>
                   </div>
                 ))}
@@ -389,30 +402,62 @@ export default function TopologyEditorPage() {
 
       {/* Edit file modal */}
       {showFileEdit && (
-        <div onClick={() => setShowFileEdit(null)} style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "#79f673", border: "1px solid #000000", padding: "2.5rem", maxWidth: "520px", width: "90%" }}>
-            <span style={{ ...labelStyle, opacity: 0.5 }}>EDIT FILE</span>
-            <h2 style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 200, fontSize: "1.5rem", margin: "1rem 0 1.5rem", wordBreak: "break-all" }}>{showFileEdit.filePath}</h2>
-            <div style={{ marginBottom: "1.5rem" }}>
+        <div onClick={() => setShowFileEdit(null)} style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.7)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "#111", border: "1px solid rgba(121,246,115,0.2)", borderRadius: 6, maxWidth: 720, width: "95%", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+            {/* Header */}
+            <div style={{ padding: "1rem 1.5rem", borderBottom: "1px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "0.9rem", color: "#79f673" }}>{showFileEdit.filePath}</span>
+                {showFileEdit.nosKind && (
+                  <span style={{
+                    fontSize: "0.6rem", fontWeight: 700, textTransform: "uppercase",
+                    letterSpacing: "0.06em", padding: "2px 8px", borderRadius: 3,
+                    background: "rgba(121,246,115,0.1)", color: "rgba(121,246,115,0.6)", border: "1px solid rgba(121,246,115,0.15)",
+                  }}>{showFileEdit.nosKind}</span>
+                )}
+              </div>
+              <button onClick={() => setShowFileEdit(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", fontSize: "1.2rem", padding: 0 }}>×</button>
+            </div>
+            {/* Editor */}
+            <div style={{ flex: 1, minHeight: 0, position: "relative", display: "flex" }}>
+              {/* Line numbers */}
+              <div style={{
+                padding: "0.8rem 0", width: 40, textAlign: "right", fontFamily: "'Space Mono', monospace",
+                fontSize: "0.75rem", lineHeight: "1.45rem", color: "rgba(255,255,255,0.15)", userSelect: "none",
+                borderRight: "1px solid rgba(255,255,255,0.06)", flexShrink: 0, overflowY: "hidden",
+              }}>
+                {editContent.split("\n").map((_, i) => (
+                  <div key={i} style={{ paddingRight: 8 }}>{i + 1}</div>
+                ))}
+              </div>
               <textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
-                rows={15}
-                style={{ width: "100%", background: "transparent", border: "1px solid #000000", padding: "0.8rem", fontFamily: "'Space Mono', monospace", fontSize: "0.8rem", outline: "none", resize: "vertical", color: "#000000" }}
+                style={{
+                  flex: 1, minHeight: 350, maxHeight: "60vh", background: "transparent", border: "none",
+                  padding: "0.8rem 1rem", fontFamily: "'Space Mono', monospace", fontSize: "0.8rem",
+                  lineHeight: "1.45rem", outline: "none", resize: "none", color: "#e0e0e0",
+                  overflowY: "auto", whiteSpace: "pre", tabSize: 2,
+                }}
+                spellCheck={false}
               />
             </div>
-            <div style={{ display: "flex", gap: "1rem" }}>
-              <button
-                onClick={async () => {
-                  if (!showFileEdit) return;
-                  await api.patch(`/api/v1/topologies/${id}/files/${showFileEdit.uuid}`, { content: editContent });
-                  setShowFileEdit(null);
-                }}
-                style={{ ...pillBtn(), backgroundColor: "#000000", color: "#79f673" }}
-              >
-                Update File
-              </button>
-              <button onClick={() => setShowFileEdit(null)} style={pillBtn()}>Cancel</button>
+            {/* Footer */}
+            <div style={{ padding: "0.8rem 1.5rem", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>
+                {editContent.split("\n").length} lines · {editContent.length} chars
+              </span>
+              <div style={{ display: "flex", gap: "0.75rem" }}>
+                <button onClick={() => setShowFileEdit(null)} style={{ background: "none", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 4, color: "rgba(255,255,255,0.5)", cursor: "pointer", padding: "6px 16px", fontSize: "0.75rem", fontFamily: "inherit" }}>Cancel</button>
+                <button
+                  onClick={async () => {
+                    if (!showFileEdit) return;
+                    await api.patch(`/api/v1/topologies/${id}/files/${showFileEdit.uuid}`, { content: editContent });
+                    setShowFileEdit(null);
+                  }}
+                  style={{ background: "#79f673", border: "none", borderRadius: 4, color: "#000", cursor: "pointer", padding: "6px 16px", fontSize: "0.75rem", fontWeight: 600, fontFamily: "inherit" }}
+                >Save</button>
+              </div>
             </div>
           </div>
         </div>

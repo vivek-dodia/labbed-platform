@@ -126,6 +126,7 @@ export interface BindFileResponse {
   uuid: string;
   filePath: string;
   content?: string;
+  nosKind?: string;
   createdAt: string;
 }
 

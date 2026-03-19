@@ -403,7 +403,7 @@ export default function TopologyEditorPage() {
       {/* Edit file modal */}
       {showFileEdit && (
         <div onClick={() => setShowFileEdit(null)} style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.7)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "#111", border: "1px solid rgba(121,246,115,0.2)", borderRadius: 6, maxWidth: 720, width: "95%", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "#111", border: "1px solid rgba(121,246,115,0.2)", borderRadius: 6, maxWidth: 960, width: "95%", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
             {/* Header */}
             <div style={{ padding: "1rem 1.5rem", borderBottom: "1px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

@@ -8,281 +8,107 @@ import type { AuthConfigResponse, LoginResponse, GoogleAuthorizeResponse } from 
 
 type Mode = "login" | "signup";
 
-/* ── Design tokens ─────────────────────────────────────────── */
-const T = {
-  bg: "#0a0a0a",
-  ink: "#ffffff",
-  accent: "#79f673",
-  muted: "rgba(255,255,255,0.5)",
-  border: "rgba(255,255,255,0.12)",
-  inputBg: "rgba(255,255,255,0.05)",
-  inputBgFocus: "rgba(255,255,255,0.1)",
-} as const;
+const FONT = "'Manrope', -apple-system, sans-serif";
+const MONO = "'Space Mono', monospace";
+const GREEN = "#79f673";
+const BORDER = "rgba(255,255,255,0.1)";
 
 /* ── Animated network nodes (right panel) ──────────────────── */
 const nodePositions = [
-  [
-    { top: "30%", left: "30%" },
-    { top: "60%", left: "50%" },
-    { top: "35%", left: "70%" },
-  ],
-  [
-    { top: "20%", left: "60%" },
-    { top: "70%", left: "20%" },
-    { top: "40%", left: "40%" },
-  ],
-  [
-    { top: "50%", left: "20%" },
-    { top: "20%", left: "45%" },
-    { top: "70%", left: "75%" },
-  ],
+  [{ top: "25%", left: "25%" }, { top: "55%", left: "55%" }, { top: "30%", left: "72%" }, { top: "70%", left: "25%" }],
+  [{ top: "18%", left: "55%" }, { top: "65%", left: "20%" }, { top: "38%", left: "38%" }, { top: "55%", left: "75%" }],
+  [{ top: "45%", left: "18%" }, { top: "18%", left: "42%" }, { top: "65%", left: "70%" }, { top: "40%", left: "65%" }],
 ];
 
-const nodeColors = ["rgba(121,246,115,0.12)", "rgba(121,246,115,0.08)", "rgba(121,246,115,0.15)"];
-
 const nodeData = [
-  { label: "CORE-SW-01", meta: "VLAN 10.10.1.1" },
-  { label: "DIST-RTR-02", meta: "BGP AS 65002" },
-  { label: "EDGE-FW-01", meta: "EXT-INT Gi0/1" },
+  { label: "CORE-RTR-01", meta: "OSPF Area 0", color: GREEN },
+  { label: "DIST-SW-02", meta: "VLAN 10.10.1.0/24", color: GREEN },
+  { label: "EDGE-FW-01", meta: "BGP AS 65001", color: "#38bdf8" },
+  { label: "AWS-VPC", meta: "10.0.0.0/16", color: "#38bdf8" },
 ];
 
 function VisualPanel() {
   const panelRef = useRef<HTMLDivElement>(null);
   const nodeRefs: RefObject<HTMLDivElement | null>[] = [
-    useRef<HTMLDivElement>(null),
-    useRef<HTMLDivElement>(null),
-    useRef<HTMLDivElement>(null),
+    useRef(null), useRef(null), useRef(null), useRef(null),
   ];
   const [stateIdx, setStateIdx] = useState(0);
-  const [paths, setPaths] = useState({ p12: "", p23: "", p31: "" });
-  const [handPos, setHandPos] = useState({ left: "45%", top: "55%" });
+  const [paths, setPaths] = useState<string[]>([]);
   const animFrameRef = useRef<number | null>(null);
 
   const updateLines = () => {
     if (!panelRef.current) return;
-    const parentRect = panelRef.current.getBoundingClientRect();
-    if (parentRect.width === 0 || parentRect.height === 0) return;
-
+    const pr = panelRef.current.getBoundingClientRect();
+    if (pr.width === 0) return;
     const coords = nodeRefs.map((ref) => {
       if (!ref.current) return { x: 500, y: 500 };
-      const rect = ref.current.getBoundingClientRect();
-      return {
-        x:
-          ((rect.left + rect.width / 2 - parentRect.left) * 1000) /
-          parentRect.width,
-        y:
-          ((rect.top + rect.height / 2 - parentRect.top) * 1000) /
-          parentRect.height,
-      };
+      const r = ref.current.getBoundingClientRect();
+      return { x: ((r.left + r.width / 2 - pr.left) * 1000) / pr.width, y: ((r.top + r.height / 2 - pr.top) * 1000) / pr.height };
     });
-
-    setPaths({
-      p12: `M ${coords[0].x} ${coords[0].y} L ${coords[1].x} ${coords[1].y}`,
-      p23: `M ${coords[1].x} ${coords[1].y} L ${coords[2].x} ${coords[2].y}`,
-      p31: `M ${coords[2].x} ${coords[2].y} L ${coords[0].x} ${coords[0].y}`,
-    });
-
-    setHandPos({
-      left: coords[1].x / 10 + 2 + "%",
-      top: coords[1].y / 10 + 2 + "%",
-    });
-  };
-
-  const startLineAnimation = () => {
-    let start: number | null = null;
-    const duration = 1100;
-    const animate = (timestamp: number) => {
-      if (!start) start = timestamp;
-      updateLines();
-      if (timestamp - start < duration) {
-        animFrameRef.current = requestAnimationFrame(animate);
+    const lines = [];
+    for (let i = 0; i < coords.length; i++) {
+      for (let j = i + 1; j < coords.length; j++) {
+        const dx = coords[i].x - coords[j].x, dy = coords[i].y - coords[j].y;
+        if (Math.sqrt(dx * dx + dy * dy) < 600) {
+          lines.push(`M ${coords[i].x} ${coords[i].y} L ${coords[j].x} ${coords[j].y}`);
+        }
       }
-    };
-    animFrameRef.current = requestAnimationFrame(animate);
+    }
+    setPaths(lines);
   };
 
-  useEffect(() => {
-    const t = setTimeout(() => updateLines(), 100);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    const iv = setInterval(() => setStateIdx((p) => (p + 1) % 3), 4000);
-    return () => clearInterval(iv);
-  }, []);
-
+  useEffect(() => { const t = setTimeout(updateLines, 100); return () => clearTimeout(t); }, []);
+  useEffect(() => { const iv = setInterval(() => setStateIdx((p) => (p + 1) % 3), 4000); return () => clearInterval(iv); }, []);
   useEffect(() => {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    const t = setTimeout(() => startLineAnimation(), 50);
+    let start: number | null = null;
+    const animate = (ts: number) => { if (!start) start = ts; updateLines(); if (ts - start < 1100) animFrameRef.current = requestAnimationFrame(animate); };
+    const t = setTimeout(() => { animFrameRef.current = requestAnimationFrame(animate); }, 50);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stateIdx]);
-
-  useEffect(() => {
-    const h = () => updateLines();
-    window.addEventListener("resize", h);
-    return () => window.removeEventListener("resize", h);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { const h = () => updateLines(); window.addEventListener("resize", h); return () => window.removeEventListener("resize", h); }, []);
 
   const positions = nodePositions[stateIdx];
 
   return (
-    <section
-      ref={panelRef}
-      style={{
-        background: "rgba(121,246,115,0.02)",
-        position: "relative",
-        overflow: "hidden",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flex: 1,
-      }}
-    >
-      {/* Faint grid */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          backgroundImage:
-            "linear-gradient(to right, rgba(121,246,115,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(121,246,115,0.06) 1px, transparent 1px)",
-          backgroundSize: "40px 40px",
-        }}
-      />
+    <section ref={panelRef} style={{ background: "rgba(121,246,115,0.015)", position: "relative", overflow: "hidden", flex: 1 }}>
+      {/* Grid */}
+      <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(to right, rgba(121,246,115,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(121,246,115,0.04) 1px, transparent 1px)", backgroundSize: "50px 50px" }} />
 
-      {/* Dashed animated SVG lines */}
-      <svg
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          zIndex: 1,
-        }}
-        viewBox="0 0 1000 1000"
-        preserveAspectRatio="none"
-      >
-        <style>{`
-          .ed2-path {
-            stroke: rgba(121,246,115,0.3);
-            stroke-width: 1.5;
-            fill: none;
-            stroke-dasharray: 6;
-            animation: dash 30s linear infinite;
-          }
-        `}</style>
-        <path className="ed2-path" d={paths.p12} />
-        <path className="ed2-path" d={paths.p23} />
-        <path className="ed2-path" d={paths.p31} />
+      {/* Lines */}
+      <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 1 }} viewBox="0 0 1000 1000" preserveAspectRatio="none">
+        {paths.map((d, i) => (
+          <path key={i} d={d} stroke="rgba(121,246,115,0.15)" strokeWidth="1" fill="none" strokeDasharray="8 6">
+            <animate attributeName="stroke-dashoffset" from="0" to="-28" dur="2s" repeatCount="indefinite" />
+          </path>
+        ))}
       </svg>
 
-      {/* Network nodes */}
+      {/* Nodes */}
       {nodeData.map((node, i) => (
-        <div
-          key={i}
-          ref={nodeRefs[i]}
-          style={{
-            position: "absolute",
-            border: `1px solid rgba(121,246,115,0.2)`,
-            background: nodeColors[i],
-            padding: "0.75rem 1.25rem",
-            borderRadius: 6,
-            zIndex: 2,
-            display: "flex",
-            flexDirection: "column",
-            gap: "0.2rem",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
-            backdropFilter: "blur(8px)",
-            transition:
-              "top 1s cubic-bezier(0.4, 0, 0.2, 1), left 1s cubic-bezier(0.4, 0, 0.2, 1)",
-            top: positions[i].top,
-            left: positions[i].left,
-          }}
-        >
-          <span
-            style={{
-              fontSize: "0.65rem",
-              fontWeight: 800,
-              letterSpacing: "0.05em",
-              fontFamily: "'Manrope', -apple-system, sans-serif",
-              color: "#79f673",
-            }}
-          >
-            {node.label}
-          </span>
-          <span
-            style={{
-              fontFamily: "'Space Mono', monospace",
-              fontSize: "0.65rem",
-              opacity: 0.5,
-              color: "rgba(255,255,255,0.7)",
-            }}
-          >
-            {node.meta}
-          </span>
+        <div key={i} ref={nodeRefs[i]} style={{
+          position: "absolute", zIndex: 2,
+          border: `1px solid ${node.color}30`,
+          background: `${node.color}0a`,
+          backdropFilter: "blur(12px)",
+          padding: "0.65rem 1rem",
+          display: "flex", flexDirection: "column", gap: "0.15rem",
+          transition: "top 1.2s cubic-bezier(0.4, 0, 0.2, 1), left 1.2s cubic-bezier(0.4, 0, 0.2, 1)",
+          top: positions[i].top, left: positions[i].left,
+        }}>
+          <span style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.06em", fontFamily: MONO, color: node.color }}>{node.label}</span>
+          <span style={{ fontFamily: MONO, fontSize: "0.55rem", color: "rgba(255,255,255,0.4)" }}>{node.meta}</span>
         </div>
       ))}
 
-      {/* Floating orange hand cursor */}
-      <svg
-        viewBox="0 0 40 40"
-        fill="none"
-        style={{
-          position: "absolute",
-          width: 40,
-          height: 40,
-          zIndex: 10,
-          pointerEvents: "none",
-          left: handPos.left,
-          top: handPos.top,
-          animation: "float-hand 4s ease-in-out infinite",
-        }}
-      >
-        <style>{`
-          @keyframes float-hand {
-            0%, 100% { transform: translate(0, 0); }
-            50% { transform: translate(10px, 10px); }
-          }
-        `}</style>
-        <path
-          d="M12 20L20 8L28 20"
-          fill={T.accent}
-          stroke={T.accent}
-          strokeWidth="2"
-          strokeLinejoin="round"
-        />
-        <rect
-          x="16"
-          y="20"
-          width="8"
-          height="14"
-          fill={T.accent}
-          stroke={T.accent}
-          strokeWidth="2"
-        />
-        <path
-          d="M28 20C32 20 34 22 34 25C34 28 30 34 24 34H16"
-          stroke={T.accent}
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
-      </svg>
+      {/* Subtle label */}
+      <div style={{ position: "absolute", bottom: 20, right: 20, fontSize: "0.55rem", fontFamily: MONO, color: "rgba(255,255,255,0.1)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+        live topology preview
+      </div>
     </section>
   );
 }
-
-/* ── Label style helper ────────────────────────────────────── */
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: "0.65rem",
-  textTransform: "uppercase",
-  letterSpacing: "0.05em",
-  fontWeight: 700,
-  marginBottom: "0.5rem",
-  color: "rgba(255,255,255,0.5)",
-};
 
 /* ── Main page ─────────────────────────────────────────────── */
 export default function LoginPage() {
@@ -296,21 +122,9 @@ export default function LoginPage() {
   const [authConfig, setAuthConfig] = useState<AuthConfigResponse | null>(null);
   const { login, loginWithTokens } = useAuth();
   const router = useRouter();
+  const [focused, setFocused] = useState("");
 
-  /* Focus tracking for input bg change */
-  const [emailFocused, setEmailFocused] = useState(false);
-  const [passwordFocused, setPasswordFocused] = useState(false);
-  const [nameFocused, setNameFocused] = useState(false);
-  const [orgFocused, setOrgFocused] = useState(false);
-  const [primaryHover, setPrimaryHover] = useState(false);
-  const [googleHover, setGoogleHover] = useState(false);
-
-  useEffect(() => {
-    api
-      .get<AuthConfigResponse>("/api/v1/auth/config")
-      .then(setAuthConfig)
-      .catch(() => {});
-  }, []);
+  useEffect(() => { api.get<AuthConfigResponse>("/api/v1/auth/config").then(setAuthConfig).catch(() => {}); }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -318,21 +132,14 @@ export default function LoginPage() {
     setLoading(true);
     try {
       if (mode === "signup") {
-        await api.post<LoginResponse>("/api/v1/auth/signup", {
-          email,
-          password,
-          name,
-          orgName: orgName || name + "'s Org",
-        });
+        await api.post<LoginResponse>("/api/v1/auth/signup", { email, password, name, orgName: orgName || name + "'s Org" });
         await login({ email, password });
       } else {
         await login({ email, password });
       }
       router.push("/");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Authentication failed"
-      );
+      setError(err instanceof Error ? err.message : "Authentication failed");
     } finally {
       setLoading(false);
     }
@@ -340,408 +147,134 @@ export default function LoginPage() {
 
   async function handleGoogleAuth() {
     try {
-      const res = await api.get<GoogleAuthorizeResponse>(
-        "/api/v1/auth/google/authorize"
-      );
+      const res = await api.get<GoogleAuthorizeResponse>("/api/v1/auth/google/authorize");
       sessionStorage.setItem("google_oauth_state", res.state);
       window.location.href = res.url;
-    } catch {
-      setError("Failed to initialize Google sign-in");
-    }
+    } catch { setError("Failed to initialize Google sign-in"); }
   }
 
-  const inputStyle = (focused: boolean): React.CSSProperties => ({
-    width: "100%",
-    padding: "1rem",
-    border: `1px solid ${T.border}`,
-    background: focused ? T.inputBgFocus : T.inputBg,
-    fontFamily: "'Space Mono', monospace",
-    fontSize: "0.9rem",
-    outline: "none",
-    color: T.ink,
-    transition: "background 0.2s, border-color 0.2s",
-    borderRadius: 6,
-    ...(focused ? { borderColor: T.accent } : {}),
+  const inputStyle = (field: string): React.CSSProperties => ({
+    width: "100%", padding: "0.85rem 1rem",
+    border: `1px solid ${focused === field ? GREEN + "66" : BORDER}`,
+    background: focused === field ? "rgba(121,246,115,0.03)" : "rgba(255,255,255,0.03)",
+    fontFamily: MONO, fontSize: "0.85rem", outline: "none", color: "#fff",
+    transition: "all 0.2s",
   });
 
+  const labelStyle: React.CSSProperties = {
+    display: "block", fontSize: "0.6rem", textTransform: "uppercase",
+    letterSpacing: "0.08em", fontWeight: 700, marginBottom: "0.4rem",
+    color: "rgba(255,255,255,0.4)", fontFamily: MONO,
+  };
+
   return (
-    <div
-      style={{
-        display: "flex",
-        height: "100vh",
-        backgroundColor: "#000",
-        color: T.ink,
-        fontFamily: "'Manrope', -apple-system, sans-serif",
-        WebkitFontSmoothing: "antialiased",
-        overflow: "hidden",
-      }}
-    >
-      {/* ── 48px Sidebar ─────────────────────────────────── */}
-      <aside
-        style={{
-          width: 48,
-          borderRight: `1px solid ${T.border}`,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          padding: "1rem 0",
-          flexShrink: 0,
-          backgroundColor: T.bg,
-          zIndex: 10,
-        }}
-      >
-        {/* Hamburger */}
-        <div
-          style={{
-            width: 24,
-            height: 20,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            marginBottom: "2rem",
-            cursor: "pointer",
-          }}
-        >
-          <span
-            style={{
-              display: "block",
-              height: 1,
-              backgroundColor: "rgba(255,255,255,0.3)",
-              width: "100%",
-            }}
-          />
-          <span
-            style={{
-              display: "block",
-              height: 1,
-              backgroundColor: "rgba(255,255,255,0.3)",
-              width: "100%",
-            }}
-          />
-          <span
-            style={{
-              display: "block",
-              height: 1,
-              backgroundColor: "rgba(255,255,255,0.3)",
-              width: "100%",
-            }}
-          />
-        </div>
+    <div style={{ display: "flex", height: "100vh", backgroundColor: "#000", color: "#fff", fontFamily: FONT, overflow: "hidden" }}>
 
-        {/* Vertical CLI / GUI / API */}
-        <div
-          style={{
-            writingMode: "vertical-rl",
-            transform: "scale(-1)",
-            fontSize: "0.65rem",
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            gap: "1rem",
-            display: "flex",
-          }}
-        >
-          <span style={{ opacity: 0.5 }}>CLI</span>
-          <span style={{ opacity: 0.5 }}>GUI</span>
-          <span style={{ opacity: 0.5 }}>API</span>
-        </div>
-      </aside>
+      {/* Grain overlay */}
+      <div style={{
+        position: "fixed", inset: 0, pointerEvents: "none", zIndex: 50, opacity: 0.12,
+        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+        backgroundRepeat: "repeat", backgroundSize: "256px 256px", mixBlendMode: "screen",
+      }} />
 
-      {/* ── Main container ───────────────────────────────── */}
-      <main
-        style={{
-          flexGrow: 1,
-          display: "grid",
-          gridTemplateColumns: "500px 1fr",
-        }}
-      >
-        {/* ── Form Panel ─────────────────────────────────── */}
-        <section
-          style={{
-            borderRight: `1px solid ${T.border}`,
-            display: "flex",
-            flexDirection: "column",
-            backgroundColor: T.bg,
-            zIndex: 2,
-          }}
-        >
-          {/* Mini nav bar */}
-          <nav
-            style={{
-              height: 48,
-              borderBottom: `1px solid ${T.border}`,
-              display: "flex",
-              alignItems: "center",
-            }}
-          >
-            <a
-              href="/landing"
-              style={{
-                padding: "0 1.5rem",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                height: "100%",
-                borderRight: `1px solid ${T.border}`,
-                fontSize: "0.75rem",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                fontWeight: 800,
-                textDecoration: "none",
-                color: T.ink,
-              }}
-            >
-              <img src="/logo.png" alt="" style={{ width: 20, height: 20, borderRadius: 3 }} />
-              LABBED
-            </a>
-          </nav>
+      {/* ── Form side ── */}
+      <div style={{ width: 480, minWidth: 480, display: "flex", flexDirection: "column", borderRight: `1px solid ${BORDER}`, position: "relative", zIndex: 2 }}>
+        {/* Nav */}
+        <nav style={{ height: 48, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", padding: "0 2rem" }}>
+          <a href="/landing" style={{ display: "flex", alignItems: "center", gap: "0.5rem", textDecoration: "none", color: "#fff" }}>
+            <img src="/logo.png" alt="" style={{ width: 20, height: 20, borderRadius: 3 }} />
+            <span style={{ fontSize: "0.8rem", fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>LABBED</span>
+          </a>
+        </nav>
 
-          {/* Form content */}
-          <div
-            style={{
-              flexGrow: 1,
-              padding: "4rem 3rem",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              overflowY: "auto",
-            }}
-          >
-            <h1
-              style={{
-                fontFamily: "'Manrope', -apple-system, sans-serif",
-                fontWeight: 200,
-                fontSize: "3.5rem",
-                letterSpacing: "-0.02em",
-                marginBottom: "2.5rem",
-              }}
-            >
-              {mode === "login" ? "Welcome back" : "Create account"}
-            </h1>
-
-            <form onSubmit={handleSubmit}>
-              {/* Signup-only fields */}
-              {mode === "signup" && (
-                <>
-                  <div style={{ marginBottom: "1.5rem" }}>
-                    <span style={labelStyle}>Display Name</span>
-                    <input
-                      type="text"
-                      placeholder="Your name"
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      onFocus={() => setNameFocused(true)}
-                      onBlur={() => setNameFocused(false)}
-                      style={inputStyle(nameFocused)}
-                    />
-                  </div>
-                  <div style={{ marginBottom: "1.5rem" }}>
-                    <span style={labelStyle}>Organization</span>
-                    <input
-                      type="text"
-                      placeholder="Your team or org name"
-                      value={orgName}
-                      onChange={(e) => setOrgName(e.target.value)}
-                      onFocus={() => setOrgFocused(true)}
-                      onBlur={() => setOrgFocused(false)}
-                      style={inputStyle(orgFocused)}
-                    />
-                  </div>
-                </>
-              )}
-
-              {/* Email */}
-              <div style={{ marginBottom: "1.5rem" }}>
-                <span style={labelStyle}>Email Address</span>
-                <input
-                  type="email"
-                  placeholder="engineer@network.com"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onFocus={() => setEmailFocused(true)}
-                  onBlur={() => setEmailFocused(false)}
-                  style={inputStyle(emailFocused)}
-                />
-              </div>
-
-              {/* Password */}
-              <div style={{ marginBottom: "1.5rem" }}>
-                <span style={labelStyle}>Password</span>
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onFocus={() => setPasswordFocused(true)}
-                  onBlur={() => setPasswordFocused(false)}
-                  style={inputStyle(passwordFocused)}
-                />
-              </div>
-
-              {/* Error */}
-              {error && (
-                <p
-                  style={{
-                    color: T.accent,
-                    fontSize: "0.8rem",
-                    marginBottom: "1rem",
-                  }}
-                >
-                  {error}
-                </p>
-              )}
-
-              {/* Primary submit button */}
-              <button
-                type="submit"
-                disabled={loading}
-                onMouseEnter={() => setPrimaryHover(true)}
-                onMouseLeave={() => setPrimaryHover(false)}
-                style={{
-                  width: "100%",
-                  padding: "1rem",
-                  border: "none",
-                  fontFamily: "'Manrope', -apple-system, sans-serif",
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  fontSize: "0.75rem",
-                  cursor: loading ? "wait" : "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "0.5rem",
-                  transition: "all 0.2s",
-                  marginTop: "1rem",
-                  background: T.accent,
-                  color: "#000",
-                  opacity: loading ? 0.7 : 1,
-                  borderRadius: 99,
-                }}
-              >
-                {loading
-                  ? mode === "login"
-                    ? "Accessing..."
-                    : "Creating..."
-                  : mode === "login"
-                  ? "Access Console \u2198"
-                  : "Create Account \u2198"}
-              </button>
-            </form>
-
-            {/* Divider + SSO */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                margin: "2rem 0",
-                fontSize: "0.65rem",
-                textTransform: "uppercase",
-                fontWeight: 700,
-                opacity: 0.5,
-              }}
-            >
-              <span
-                style={{
-                  flex: 1,
-                  height: 1,
-                  background: T.border,
-                  marginRight: "1rem",
-                }}
-              />
-              Or continue with
-              <span
-                style={{
-                  flex: 1,
-                  height: 1,
-                  background: T.border,
-                  marginLeft: "1rem",
-                }}
-              />
-            </div>
-
-            {/* Google SSO button (always rendered visually, but only functional if enabled) */}
-            <button
-              type="button"
-              onClick={authConfig?.enableGoogle ? handleGoogleAuth : undefined}
-              onMouseEnter={() => setGoogleHover(true)}
-              onMouseLeave={() => setGoogleHover(false)}
-              style={{
-                width: "100%",
-                padding: "1rem",
-                border: `1px solid ${T.border}`,
-                fontFamily: "'Manrope', -apple-system, sans-serif",
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                fontSize: "0.75rem",
-                cursor: authConfig?.enableGoogle ? "pointer" : "not-allowed",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "0.5rem",
-                transition: "all 0.2s",
-                background: googleHover ? "rgba(255,255,255,0.08)" : "transparent",
-                color: T.ink,
-                opacity: authConfig?.enableGoogle ? 1 : 0.4,
-                borderRadius: 99,
-              }}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.908 3.162-1.908 4.162-1.229 1.23-3.145 2.568-6.932 2.568-6.12 0-10.88-4.94-10.88-11.06s4.76-11.06 10.88-11.06c3.303 0 5.683 1.306 7.468 3.016l2.316-2.316c-2.022-1.936-4.707-3.392-9.784-3.392-8.843 0-16 7.157-16 16s7.157 16 16 16c4.76 0 8.358-1.573 11.235-4.573 2.973-2.973 3.903-7.143 3.903-10.518 0-.998-.078-1.957-.223-2.868h-14.915z" />
-              </svg>
-              Google SSO
-            </button>
-
-            {/* Footer: toggle login/signup */}
-            <div
-              style={{
-                marginTop: "3rem",
-                paddingTop: "2rem",
-                borderTop: `1px solid ${T.border}`,
-                opacity: 0.8,
-              }}
-            >
-              <p
-                style={{
-                  fontSize: "0.65rem",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  fontWeight: 700,
-                  opacity: 0.5,
-                }}
-              >
-                {mode === "login"
-                  ? "New to the engine?"
-                  : "Already have an account?"}
-              </p>
-              <p style={{ marginTop: "0.5rem", fontWeight: 700 }}>
-                {mode === "login" ? "Start for free \u2014 " : "Sign in \u2014 "}
-                <span
-                  onClick={() => setMode(mode === "login" ? "signup" : "login")}
-                  style={{
-                    textDecoration: "underline",
-                    cursor: "pointer",
-                    color: T.accent,
-                  }}
-                >
-                  {mode === "login" ? "Create Account" : "Back to Login"}
-                </span>
-              </p>
-            </div>
+        {/* Form */}
+        <div style={{ flex: 1, padding: "3rem 2.5rem", display: "flex", flexDirection: "column", justifyContent: "center", overflowY: "auto" }}>
+          <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: GREEN, marginBottom: "0.75rem", fontFamily: MONO }}>
+            {mode === "login" ? "Welcome back" : "Get started"}
           </div>
-        </section>
+          <h1 style={{ fontWeight: 200, fontSize: "2.5rem", letterSpacing: "-0.02em", marginBottom: "2rem", lineHeight: 1.1 }}>
+            {mode === "login" ? "Sign in to\nyour console" : "Create your\naccount"}
+          </h1>
 
-        {/* ── Visual Panel (right) ───────────────────────── */}
-        <VisualPanel />
-      </main>
+          <form onSubmit={handleSubmit}>
+            {mode === "signup" && (
+              <>
+                <div style={{ marginBottom: "1.25rem" }}>
+                  <span style={labelStyle}>Name</span>
+                  <input type="text" placeholder="Your name" required value={name} onChange={(e) => setName(e.target.value)}
+                    onFocus={() => setFocused("name")} onBlur={() => setFocused("")} style={inputStyle("name")} />
+                </div>
+                <div style={{ marginBottom: "1.25rem" }}>
+                  <span style={labelStyle}>Organization</span>
+                  <input type="text" placeholder="Team or org name" value={orgName} onChange={(e) => setOrgName(e.target.value)}
+                    onFocus={() => setFocused("org")} onBlur={() => setFocused("")} style={inputStyle("org")} />
+                </div>
+              </>
+            )}
+
+            <div style={{ marginBottom: "1.25rem" }}>
+              <span style={labelStyle}>Email</span>
+              <input type="email" placeholder="engineer@network.com" required value={email} onChange={(e) => setEmail(e.target.value)}
+                onFocus={() => setFocused("email")} onBlur={() => setFocused("")} style={inputStyle("email")} />
+            </div>
+
+            <div style={{ marginBottom: "1.25rem" }}>
+              <span style={labelStyle}>Password</span>
+              <input type="password" placeholder="••••••••" required value={password} onChange={(e) => setPassword(e.target.value)}
+                onFocus={() => setFocused("pass")} onBlur={() => setFocused("")} style={inputStyle("pass")} />
+            </div>
+
+            {error && <p style={{ color: "#ff6b6b", fontSize: "0.75rem", marginBottom: "1rem", fontFamily: MONO }}>{error}</p>}
+
+            <button type="submit" disabled={loading} style={{
+              width: "100%", padding: "0.85rem", border: "none",
+              fontFamily: MONO, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", fontSize: "0.7rem",
+              cursor: loading ? "wait" : "pointer",
+              background: GREEN, color: "#000", opacity: loading ? 0.6 : 1,
+              marginTop: "0.5rem", transition: "opacity 0.2s",
+            }}>
+              {loading ? "..." : mode === "login" ? "ACCESS CONSOLE \u2198" : "CREATE ACCOUNT \u2198"}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div style={{ display: "flex", alignItems: "center", margin: "1.5rem 0", gap: "0.75rem" }}>
+            <span style={{ flex: 1, height: 1, background: BORDER }} />
+            <span style={{ fontSize: "0.55rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(255,255,255,0.25)", fontFamily: MONO }}>or</span>
+            <span style={{ flex: 1, height: 1, background: BORDER }} />
+          </div>
+
+          {/* Google */}
+          <button type="button" onClick={authConfig?.enableGoogle ? handleGoogleAuth : undefined} style={{
+            width: "100%", padding: "0.85rem",
+            border: `1px solid ${BORDER}`, background: "transparent",
+            fontFamily: MONO, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", fontSize: "0.7rem",
+            cursor: authConfig?.enableGoogle ? "pointer" : "not-allowed",
+            color: "#fff", opacity: authConfig?.enableGoogle ? 1 : 0.3,
+            display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem",
+          }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.908 3.162-1.908 4.162-1.229 1.23-3.145 2.568-6.932 2.568-6.12 0-10.88-4.94-10.88-11.06s4.76-11.06 10.88-11.06c3.303 0 5.683 1.306 7.468 3.016l2.316-2.316c-2.022-1.936-4.707-3.392-9.784-3.392-8.843 0-16 7.157-16 16s7.157 16 16 16c4.76 0 8.358-1.573 11.235-4.573 2.973-2.973 3.903-7.143 3.903-10.518 0-.998-.078-1.957-.223-2.868h-14.915z" />
+            </svg>
+            GOOGLE SSO
+          </button>
+
+          {/* Toggle */}
+          <div style={{ marginTop: "2rem", paddingTop: "1.5rem", borderTop: `1px solid ${BORDER}` }}>
+            <span style={{ fontSize: "0.6rem", fontFamily: MONO, color: "rgba(255,255,255,0.35)", letterSpacing: "0.05em" }}>
+              {mode === "login" ? "No account? " : "Have an account? "}
+            </span>
+            <span onClick={() => setMode(mode === "login" ? "signup" : "login")} style={{
+              fontSize: "0.6rem", fontFamily: MONO, color: GREEN, cursor: "pointer", letterSpacing: "0.05em", fontWeight: 700,
+            }}>
+              {mode === "login" ? "CREATE ONE" : "SIGN IN"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Visual panel ── */}
+      <VisualPanel />
     </div>
   );
 }

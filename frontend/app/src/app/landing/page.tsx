@@ -280,6 +280,9 @@ export default function LandingPage() {
           padding: "0.75rem 2rem", borderRadius: 99, display: "inline-block",
         }}>Get Started</Link>
         <div style={{ marginTop: "3rem", fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.25 }}>LABBED</div>
+        <div style={{ marginTop: "1.5rem", fontSize: "0.6rem", color: "rgba(0,0,0,0.3)", lineHeight: 1.6 }}>
+          AWS is a trademark of Amazon.com, Inc. Containerlab is a project by SRL Labs.
+        </div>
       </section>
 
       <style>{`

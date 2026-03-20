@@ -466,6 +466,17 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Noise grain overlay (dark sections only — stops before green footer) */}
+      <div style={{
+        position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+        pointerEvents: "none", zIndex: 1,
+        opacity: 0.035,
+        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+        backgroundRepeat: "repeat",
+        backgroundSize: "256px 256px",
+        mixBlendMode: "overlay",
+      }} />
+
       {/* ── CTA footer (green) ── */}
       <section style={{ background: GREEN, color: "#000", padding: "5rem 3rem", textAlign: "center" }}>
         <h2 style={{ fontSize: "clamp(1.6rem, 3.5vw, 2.5rem)", fontWeight: 200, lineHeight: 1.15, marginBottom: "1rem" }}>

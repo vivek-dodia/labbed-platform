@@ -31,7 +31,7 @@ const plans = [
   },
   {
     name: "Light",
-    price: "$19",
+    price: "$9",
     period: "/month",
     description: "Production NOS for cert prep",
     color: "#38bdf8",
@@ -186,6 +186,25 @@ export default function PricingPage() {
             }}>{p.cta}</Link>
           </div>
         ))}
+      </div>
+
+      {/* Student discount */}
+      <div style={{
+        maxWidth: 1000, margin: "2rem auto 0", padding: "0 2rem",
+        textAlign: "center",
+      }}>
+        <div style={{
+          background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)",
+          padding: "1.5rem 2rem", display: "inline-flex", alignItems: "center", gap: "1rem",
+        }}>
+          <span style={{ fontSize: "1.2rem" }}>🎓</span>
+          <div style={{ textAlign: "left" }}>
+            <div style={{ fontSize: "0.8rem", fontWeight: 600 }}>Student?  50% off any paid plan.</div>
+            <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.45)", marginTop: "0.2rem" }}>
+              Verify with a .edu email or student ID. <span style={{ color: GREEN, fontFamily: MONO, fontSize: "0.6rem" }}>hello@labbed.dev</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* FAQ-ish notes */}

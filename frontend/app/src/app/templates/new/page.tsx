@@ -14,6 +14,7 @@ import type {
 } from "@/types/api";
 import type { DefaultBindFile } from "@/lib/yaml-generator";
 import TopologyBuilder from "@/components/template/TopologyBuilder";
+import CloudTemplateBuilder from "@/components/template/CloudTemplateBuilder";
 
 export default function NewTopologyPage() {
   const { user, loading: authLoading, logout } = useAuth();
@@ -22,10 +23,6 @@ export default function NewTopologyPage() {
   const [collections, setCollections] = useState<CollectionResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [templateType, setTemplateType] = useState<"network" | "cloud">("network");
-  const [cloudName, setCloudName] = useState("");
-  const [cloudCollectionId, setCloudCollectionId] = useState("");
-  const [cloudHcl, setCloudHcl] = useState("");
-  const [cloudSaving, setCloudSaving] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -55,18 +52,6 @@ export default function NewTopologyPage() {
     }
 
     router.push(`/templates/${created.uuid}`);
-  };
-
-  const handleCloudSave = async () => {
-    if (!cloudName.trim() || !cloudCollectionId || !cloudHcl.trim()) return;
-    setCloudSaving(true);
-    try {
-      const req: CreateTemplateRequest = { name: cloudName, type: "cloud", definition: cloudHcl, collectionId: cloudCollectionId };
-      const created = await api.post<TemplateResponse>("/api/v1/templates", req);
-      router.push(`/templates/${created.uuid}`);
-    } finally {
-      setCloudSaving(false);
-    }
   };
 
   const navItemStyle: React.CSSProperties = {
@@ -176,75 +161,14 @@ export default function NewTopologyPage() {
               onSave={handleSave}
             />
           ) : (
-            <div style={{ padding: "2.5rem 3rem", maxWidth: 900 }}>
-              <h2 style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 200, fontSize: "2rem", marginBottom: "1.5rem" }}>
-                New Cloud Template
-              </h2>
-              <div style={{ marginBottom: "1.5rem" }}>
-                <label style={{ ...labelStyle, display: "block", marginBottom: "0.4rem" }}>NAME</label>
-                <input
-                  value={cloudName}
-                  onChange={(e) => setCloudName(e.target.value)}
-                  placeholder="VPC Basics"
-                  style={{ width: "100%", background: "transparent", border: "none", borderBottom: "1px solid #000000", padding: "0.5rem 0", fontSize: "1rem", fontFamily: "'Manrope', sans-serif", outline: "none", color: "#000000" }}
-                />
-              </div>
-              <div style={{ marginBottom: "1.5rem" }}>
-                <label style={{ ...labelStyle, display: "block", marginBottom: "0.4rem" }}>COLLECTION</label>
-                <select
-                  value={cloudCollectionId}
-                  onChange={(e) => setCloudCollectionId(e.target.value)}
-                  style={{ width: "100%", background: "transparent", border: "1px solid #000000", padding: "0.5rem", fontSize: "0.85rem", fontFamily: "'Manrope', sans-serif", outline: "none", color: "#000000" }}
-                >
-                  <option value="">Select collection...</option>
-                  {collections.map((c) => (
-                    <option key={c.uuid} value={c.uuid}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div style={{ marginBottom: "1.5rem" }}>
-                <label style={{ ...labelStyle, display: "block", marginBottom: "0.4rem" }}>TERRAFORM HCL</label>
-                <textarea
-                  value={cloudHcl}
-                  onChange={(e) => setCloudHcl(e.target.value)}
-                  placeholder={`resource "aws_vpc" "main" {\n  cidr_block = "10.0.0.0/16"\n}`}
-                  style={{
-                    width: "100%",
-                    minHeight: 400,
-                    background: "transparent",
-                    border: "1px solid #000000",
-                    padding: "1rem",
-                    fontFamily: "'Space Mono', monospace",
-                    fontSize: "0.8rem",
-                    lineHeight: 1.5,
-                    outline: "none",
-                    resize: "vertical",
-                    color: "#000000",
-                  }}
-                  spellCheck={false}
-                />
-              </div>
-              <button
-                onClick={handleCloudSave}
-                disabled={cloudSaving || !cloudName.trim() || !cloudCollectionId || !cloudHcl.trim()}
-                style={{
-                  padding: "0.6rem 1.5rem",
-                  borderRadius: "99px",
-                  border: "1px solid #000000",
-                  background: "#000000",
-                  color: "#79f673",
-                  fontSize: "0.7rem",
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  cursor: "pointer",
-                  fontFamily: "'Manrope', sans-serif",
-                  opacity: (!cloudName.trim() || !cloudCollectionId || !cloudHcl.trim()) ? 0.4 : 1,
-                }}
-              >
-                {cloudSaving ? "Saving..." : "Create Cloud Template"}
-              </button>
-            </div>
+            <CloudTemplateBuilder
+              collections={collections}
+              onSave={async (name, hcl, colId) => {
+                const req: CreateTemplateRequest = { name, type: "cloud", definition: hcl, collectionId: colId };
+                const created = await api.post<TemplateResponse>("/api/v1/templates", req);
+                router.push(`/templates/${created.uuid}`);
+              }}
+            />
           )}
         </div>
       </div>

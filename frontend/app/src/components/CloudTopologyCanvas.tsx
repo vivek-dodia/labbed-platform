@@ -391,6 +391,49 @@ function buildGraph(resources: NodeResponse[], selectedNode: string | null) {
     });
   });
 
+  // Cross-resource reference edges (from _refs property)
+  // _refs format: "aws_security_group.web:sg-xxx,aws_vpc.main:vpc-yyy"
+  const nodeByContainerId = new Map<string, string>(); // containerId -> nodeId
+  nodes.forEach((n) => {
+    const rid = (n.data as Record<string, unknown>).resourceId as string;
+    if (rid) nodeByContainerId.set(rid, n.id);
+  });
+
+  resources.forEach((r) => {
+    const refs = r.properties?._refs;
+    if (!refs) return;
+    const sourceNodeId = nodeByContainerId.get(r.containerId);
+    if (!sourceNodeId) return;
+
+    refs.split(",").forEach((ref) => {
+      const colonIdx = ref.lastIndexOf(":");
+      if (colonIdx < 0) return;
+      const refId = ref.slice(colonIdx + 1);
+      const refAddr = ref.slice(0, colonIdx);
+      const targetNodeId = nodeByContainerId.get(refId);
+      if (!targetNodeId) return;
+      // Skip VPC membership edges (vpc_id) — those are implicit from layout
+      if (refAddr.startsWith("aws_vpc.")) return;
+
+      const edgeId = `e-ref-${r.containerId}-${refId}`;
+      // Avoid duplicate edges
+      if (edges.some((e) => e.id === edgeId)) return;
+
+      const iconInfo = ICON_MAP[r.kind];
+      edges.push({
+        id: edgeId,
+        source: sourceNodeId,
+        target: targetNodeId,
+        style: { stroke: iconInfo?.color || "#94a3b8", strokeWidth: 1.5 },
+        animated: true,
+        label: r.kind === "aws_security_group" ? "ingress" : undefined,
+        labelStyle: { fontSize: 9, fill: "#94a3b8", fontFamily: FONT },
+        labelBgStyle: { fill: "rgba(0,0,0,0.7)", rx: 3 },
+        labelBgPadding: [4, 2] as [number, number],
+      });
+    });
+  });
+
   // No VPCs fallback: grid
   if (vpcs.length === 0 && resources.length > 0) {
     resources.forEach((r, i) => {
@@ -453,9 +496,9 @@ function CloudCanvas({ resources, selectedNode, onSelectNode }: Props) {
       minZoom={0.3}
       maxZoom={2}
       proOptions={{ hideAttribution: true }}
-      style={{ background: "#000" }}
+      style={{ background: "#79f673" }}
     >
-      <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgba(121,246,115,0.06)" />
+      <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="rgba(0,0,0,0.08)" />
     </ReactFlow>
   );
 }

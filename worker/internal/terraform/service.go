@@ -264,28 +264,81 @@ func parseResources(data []byte) ([]ResourceInfo, error) {
 		return nil, fmt.Errorf("failed to parse terraform state: %w", err)
 	}
 
-	var resources []ResourceInfo
+	// First pass: collect all resource IDs for cross-reference detection
+	type rawResource struct {
+		Type, Name, ID string
+		Props          map[string]string
+		RawJSON        []byte
+	}
+	var raws []rawResource
+
 	for _, r := range state.Values.RootModule.Resources {
-		// Extract key properties from values
 		var vals map[string]interface{}
 		json.Unmarshal(r.Values, &vals)
 
 		props := make(map[string]string)
 		resourceID := ""
-		for _, key := range []string{"id", "arn", "cidr_block", "vpc_id", "subnet_id", "availability_zone", "public_ip", "private_ip"} {
-			if v, ok := vals[key]; ok && v != nil {
-				props[key] = fmt.Sprintf("%v", v)
-				if key == "id" {
-					resourceID = fmt.Sprintf("%v", v)
-				}
+
+		// Extract all simple string/number properties
+		for key, v := range vals {
+			if v == nil {
+				continue
 			}
+			switch tv := v.(type) {
+			case string:
+				if tv != "" {
+					props[key] = tv
+				}
+			case float64:
+				props[key] = fmt.Sprintf("%g", tv)
+			case bool:
+				props[key] = fmt.Sprintf("%v", tv)
+			}
+			if key == "id" {
+				resourceID = fmt.Sprintf("%v", v)
+			}
+		}
+
+		raws = append(raws, rawResource{
+			Type:    r.Type,
+			Name:    r.Name,
+			ID:      resourceID,
+			Props:   props,
+			RawJSON: r.Values,
+		})
+	}
+
+	// Build ID set for cross-reference detection
+	idSet := make(map[string]string) // resourceID -> "type.name"
+	for _, r := range raws {
+		if r.ID != "" {
+			idSet[r.ID] = r.Type + "." + r.Name
+		}
+	}
+
+	// Second pass: deep-scan raw JSON for references to other resources
+	var resources []ResourceInfo
+	for _, r := range raws {
+		// Scan the raw JSON string for any other resource's ID
+		rawStr := string(r.RawJSON)
+		var refs []string
+		for refID, refAddr := range idSet {
+			if refID == r.ID {
+				continue // skip self
+			}
+			if strings.Contains(rawStr, refID) {
+				refs = append(refs, refAddr+":"+refID)
+			}
+		}
+		if len(refs) > 0 {
+			r.Props["_refs"] = strings.Join(refs, ",")
 		}
 
 		resources = append(resources, ResourceInfo{
 			Name:         r.Name,
 			ResourceType: r.Type,
-			ResourceID:   resourceID,
-			Properties:   props,
+			ResourceID:   r.ID,
+			Properties:   r.Props,
 			State:        "created",
 		})
 	}

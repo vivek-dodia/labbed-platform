@@ -20,7 +20,6 @@ const plans = [
       "1 concurrent lab",
       "Lightweight NOS (FRR, Host)",
       "10 cloud resources per lab",
-      "VPC networking (EC2-free)",
       "In-browser shell access",
       "Packet capture",
       "5 min inactivity timeout",

@@ -41,8 +41,10 @@ function VpcNode({ data }: { data: Record<string, unknown> }) {
         <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#fff", fontFamily: FONT }}>{label}</span>
         {cidr && <span style={{ fontSize: "0.6rem", fontFamily: MONO, color: GREEN, opacity: 0.5 }}>{cidr}</span>}
       </div>
-      <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
-      <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
+      <Handle id="top" type="source" position={Position.Top} style={{ opacity: 0 }} />
+      <Handle id="bottom" type="source" position={Position.Bottom} style={{ opacity: 0 }} />
+      <Handle id="left" type="source" position={Position.Left} style={{ opacity: 0 }} />
+      <Handle id="right" type="source" position={Position.Right} style={{ opacity: 0 }} />
     </div>
   );
 }
@@ -82,8 +84,10 @@ function ResourceNode({ data }: { data: Record<string, unknown> }) {
       <div style={{ fontSize: "0.8rem", fontWeight: 600, color: "#fff" }}>{label}</div>
       {detail && <div style={{ fontSize: "0.6rem", fontFamily: MONO, color: GREEN, opacity: 0.5, marginTop: 2 }}>{detail}</div>}
       {rid && <div style={{ fontSize: "0.5rem", fontFamily: MONO, color: "#fff", opacity: 0.2, marginTop: 1 }}>{rid.length > 26 ? rid.slice(0, 26) + "..." : rid}</div>}
-      <Handle type="target" position={Position.Top} style={{ background: info.color, width: 5, height: 5, border: "none" }} />
-      <Handle type="source" position={Position.Bottom} style={{ background: info.color, width: 5, height: 5, border: "none" }} />
+      <Handle id="top" type="source" position={Position.Top} style={{ background: info.color, width: 5, height: 5, border: "none" }} />
+      <Handle id="bottom" type="source" position={Position.Bottom} style={{ background: info.color, width: 5, height: 5, border: "none" }} />
+      <Handle id="left" type="source" position={Position.Left} style={{ background: info.color, width: 5, height: 5, border: "none" }} />
+      <Handle id="right" type="source" position={Position.Right} style={{ background: info.color, width: 5, height: 5, border: "none" }} />
     </div>
   );
 }
@@ -98,10 +102,55 @@ const GAP_Y = 40;
 const VPC_PAD = 40;
 const VPC_TOP = 45;
 
+/* ── Pick closest handles between two nodes ── */
+function bestHandles(
+  srcX: number, srcY: number, srcW: number, srcH: number,
+  tgtX: number, tgtY: number, tgtW: number, tgtH: number,
+): { sourceHandle: string; targetHandle: string } {
+  // Center points
+  const sx = srcX + srcW / 2, sy = srcY + srcH / 2;
+  const tx = tgtX + tgtW / 2, ty = tgtY + tgtH / 2;
+  const dx = tx - sx, dy = ty - sy;
+
+  let sourceHandle: string, targetHandle: string;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    // Horizontal dominant
+    sourceHandle = dx > 0 ? "right" : "left";
+    targetHandle = dx > 0 ? "left" : "right";
+  } else {
+    // Vertical dominant
+    sourceHandle = dy > 0 ? "bottom" : "top";
+    targetHandle = dy > 0 ? "top" : "bottom";
+  }
+  return { sourceHandle, targetHandle };
+}
+
 /* ── Build graph ── */
 function buildGraph(resources: NodeResponse[], selectedNode: string | null) {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
+
+  // Track absolute positions for smart edge routing
+  const absPos = new Map<string, { x: number; y: number; w: number; h: number }>();
+
+  function addEdge(srcId: string, tgtId: string, style: React.CSSProperties, extra?: Partial<Edge>) {
+    const s = absPos.get(srcId);
+    const t = absPos.get(tgtId);
+    const handles = s && t
+      ? bestHandles(s.x, s.y, s.w, s.h, t.x, t.y, t.w, t.h)
+      : { sourceHandle: "bottom", targetHandle: "top" };
+    const eid = `e-${srcId}-${tgtId}`;
+    if (edges.some((e) => e.id === eid)) return;
+    edges.push({
+      id: eid,
+      source: srcId,
+      target: tgtId,
+      sourceHandle: handles.sourceHandle,
+      targetHandle: handles.targetHandle,
+      style,
+      ...extra,
+    } as Edge);
+  }
 
   const vpcs = resources.filter((r) => r.kind === "aws_vpc");
   const subnets = resources.filter((r) => r.kind === "aws_subnet");
@@ -161,6 +210,7 @@ function buildGraph(resources: NodeResponse[], selectedNode: string | null) {
       },
       selectable: false,
     });
+    absPos.set(vpcNodeId, { x: vpcX, y: vpcY, w: vpcW, h: vpcH });
 
     // Row 1 children (positions relative to parent)
     let childY = VPC_TOP;
@@ -185,6 +235,7 @@ function buildGraph(resources: NodeResponse[], selectedNode: string | null) {
           selected: isSel(r.name),
         },
       });
+      absPos.set(nodeId, { x: vpcX + childX, y: vpcY + childY, w: NODE_W, h: NODE_H });
     });
 
     if (row1.length > 0 && row2.length > 0) childY += NODE_H + GAP_Y;
@@ -207,21 +258,9 @@ function buildGraph(resources: NodeResponse[], selectedNode: string | null) {
           selected: isSel(r.name),
         },
       });
+      absPos.set(nodeId, { x: vpcX + childX, y: vpcY + childY, w: NODE_W, h: NODE_H });
 
-      // RT → subnet edge via association
-      if (r.kind === "aws_route_table") {
-        const assoc = rtAssocs.find((a) => a.properties?.route_table_id === r.containerId);
-        if (assoc?.properties?.subnet_id) {
-          const tgt = `aws_subnet-${assoc.properties.subnet_id}`;
-          if (nodes.some((n) => n.id === tgt)) {
-            edges.push({
-              id: `e-rt-${r.containerId}`,
-              source: nodeId, target: tgt,
-              style: { stroke: "#a855f7", strokeWidth: 1.5 },
-            });
-          }
-        }
-      }
+      // RT → subnet edge via association (deferred — added after all nodes placed)
     });
 
     vpcMeta.push({ id: vpcId, nodeId: vpcNodeId, x: vpcX, y: vpcY, w: vpcW, h: vpcH });
@@ -240,13 +279,9 @@ function buildGraph(resources: NodeResponse[], selectedNode: string | null) {
       position: { x, y },
       data: { kind: "aws_internet_gateway", label: igw.name, detail: "internet", resourceId: igw.containerId, selected: isSel(igw.name) },
     });
+    absPos.set(nodeId, { x, y, w: NODE_W, h: NODE_H });
     if (vpc) {
-      edges.push({
-        id: `e-igw-${igw.containerId}`,
-        source: nodeId, target: vpc.nodeId,
-        style: { stroke: "#eab308", strokeWidth: 2, strokeDasharray: "6 3" },
-        animated: true,
-      });
+      addEdge(nodeId, vpc.nodeId, { stroke: "#eab308", strokeWidth: 2, strokeDasharray: "6 3" }, { animated: true });
     }
   });
 
@@ -265,33 +300,47 @@ function buildGraph(resources: NodeResponse[], selectedNode: string | null) {
       position: { x: midX, y: midY },
       data: { kind: "aws_vpc_peering_connection", label: peer.name, detail: "peering", resourceId: peer.containerId, selected: isSel(peer.name) },
     });
+    absPos.set(nodeId, { x: midX, y: midY, w: NODE_W, h: NODE_H });
     vpcMeta.forEach((v) => {
-      edges.push({
-        id: `e-pcx-${peer.containerId}-${v.nodeId}`,
-        source: nodeId, target: v.nodeId,
-        style: { stroke: "#38bdf8", strokeWidth: 2, strokeDasharray: "8 4" },
-        animated: true,
-      });
+      addEdge(nodeId, v.nodeId, { stroke: "#38bdf8", strokeWidth: 2, strokeDasharray: "8 4" }, { animated: true });
     });
   });
 
   // EIPs
   eips.forEach((eip, i) => {
+    const x = i * (NODE_W + GAP_X);
+    const nid = `aws_eip-${eip.containerId}`;
     nodes.push({
-      id: `aws_eip-${eip.containerId}`, type: "resource",
-      position: { x: i * (NODE_W + GAP_X), y: 0 },
+      id: nid, type: "resource",
+      position: { x, y: 0 },
       data: { kind: "aws_eip", label: eip.name, detail: eip.properties?.public_ip || "", resourceId: eip.containerId, selected: isSel(eip.name) },
     });
+    absPos.set(nid, { x, y: 0, w: NODE_W, h: NODE_H });
   });
 
   // Others
   const bottomY = vpcMeta.length > 0 ? Math.max(...vpcMeta.map((v) => v.y + v.h)) + 60 : 300;
   others.forEach((r, i) => {
+    const x = i * (NODE_W + GAP_X);
+    const nid = `other-${r.containerId}`;
     nodes.push({
-      id: `other-${r.containerId}`, type: "resource",
-      position: { x: i * (NODE_W + GAP_X), y: bottomY },
+      id: nid, type: "resource",
+      position: { x, y: bottomY },
       data: { kind: r.kind, label: r.name, detail: r.properties?.cidr_block || "", resourceId: r.containerId, selected: isSel(r.name) },
     });
+    absPos.set(nid, { x, y: bottomY, w: NODE_W, h: NODE_H });
+  });
+
+  // RT → subnet edges (deferred until all positions known)
+  rts.forEach((rt) => {
+    const rtNodeId = `aws_route_table-${rt.containerId}`;
+    const assoc = rtAssocs.find((a) => a.properties?.route_table_id === rt.containerId);
+    if (assoc?.properties?.subnet_id) {
+      const tgt = `aws_subnet-${assoc.properties.subnet_id}`;
+      if (absPos.has(tgt)) {
+        addEdge(rtNodeId, tgt, { stroke: "#a855f7", strokeWidth: 1.5 });
+      }
+    }
   });
 
   // Cross-reference edges from _refs
@@ -312,13 +361,9 @@ function buildGraph(resources: NodeResponse[], selectedNode: string | null) {
       const refAddr = ref.slice(0, ci);
       const tgt = nodeById.get(refId);
       if (!tgt) return;
-      if (refAddr.startsWith("aws_vpc.")) return; // skip vpc membership
-      const eid = `e-ref-${r.containerId}-${refId}`;
-      if (edges.some((e) => e.id === eid)) return;
+      if (refAddr.startsWith("aws_vpc.")) return;
       const info = ICON_MAP[r.kind];
-      edges.push({
-        id: eid, source: src, target: tgt,
-        style: { stroke: info?.color || "#94a3b8", strokeWidth: 1.5 },
+      addEdge(src, tgt, { stroke: info?.color || "#94a3b8", strokeWidth: 1.5 }, {
         animated: true,
         label: r.kind === "aws_security_group" ? "ingress" : undefined,
         labelStyle: { fontSize: 9, fill: "#94a3b8", fontFamily: FONT },

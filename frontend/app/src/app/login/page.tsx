@@ -10,12 +10,13 @@ type Mode = "login" | "signup";
 
 /* ── Design tokens ─────────────────────────────────────────── */
 const T = {
-  bg: "#79f673",
-  ink: "#000000",
-  orange: "#000000",
-  blue: "#000000",
-  yellow: "#000000",
-  pink: "#000000",
+  bg: "#0a0a0a",
+  ink: "#ffffff",
+  accent: "#79f673",
+  muted: "rgba(255,255,255,0.5)",
+  border: "rgba(255,255,255,0.12)",
+  inputBg: "rgba(255,255,255,0.05)",
+  inputBgFocus: "rgba(255,255,255,0.1)",
 } as const;
 
 /* ── Animated network nodes (right panel) ──────────────────── */
@@ -37,7 +38,7 @@ const nodePositions = [
   ],
 ];
 
-const nodeColors = ["rgba(0,0,0,0.7)", "rgba(0,0,0,0.5)", "rgba(0,0,0,0.85)"];
+const nodeColors = ["rgba(121,246,115,0.12)", "rgba(121,246,115,0.08)", "rgba(121,246,115,0.15)"];
 
 const nodeData = [
   { label: "CORE-SW-01", meta: "VLAN 10.10.1.1" },
@@ -131,7 +132,7 @@ function VisualPanel() {
     <section
       ref={panelRef}
       style={{
-        background: "rgba(0,0,0,0.03)",
+        background: "rgba(121,246,115,0.02)",
         position: "relative",
         overflow: "hidden",
         display: "flex",
@@ -146,7 +147,7 @@ function VisualPanel() {
           position: "absolute",
           inset: 0,
           backgroundImage:
-            "linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px)",
+            "linear-gradient(to right, rgba(121,246,115,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(121,246,115,0.06) 1px, transparent 1px)",
           backgroundSize: "40px 40px",
         }}
       />
@@ -165,7 +166,7 @@ function VisualPanel() {
       >
         <style>{`
           .ed2-path {
-            stroke: #000000;
+            stroke: rgba(121,246,115,0.3);
             stroke-width: 1.5;
             fill: none;
             stroke-dasharray: 6;
@@ -184,14 +185,16 @@ function VisualPanel() {
           ref={nodeRefs[i]}
           style={{
             position: "absolute",
-            border: `1px solid ${T.ink}`,
+            border: `1px solid rgba(121,246,115,0.2)`,
             background: nodeColors[i],
             padding: "0.75rem 1.25rem",
+            borderRadius: 6,
             zIndex: 2,
             display: "flex",
             flexDirection: "column",
             gap: "0.2rem",
-            boxShadow: "6px 6px 0 rgba(0,0,0,0.1)",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+            backdropFilter: "blur(8px)",
             transition:
               "top 1s cubic-bezier(0.4, 0, 0.2, 1), left 1s cubic-bezier(0.4, 0, 0.2, 1)",
             top: positions[i].top,
@@ -204,7 +207,7 @@ function VisualPanel() {
               fontWeight: 800,
               letterSpacing: "0.05em",
               fontFamily: "'Manrope', -apple-system, sans-serif",
-              color: "#ffffff",
+              color: "#79f673",
             }}
           >
             {node.label}
@@ -213,8 +216,8 @@ function VisualPanel() {
             style={{
               fontFamily: "'Space Mono', monospace",
               fontSize: "0.65rem",
-              opacity: 0.7,
-              color: "#ffffff",
+              opacity: 0.5,
+              color: "rgba(255,255,255,0.7)",
             }}
           >
             {node.meta}
@@ -245,8 +248,8 @@ function VisualPanel() {
         `}</style>
         <path
           d="M12 20L20 8L28 20"
-          fill={T.orange}
-          stroke={T.ink}
+          fill={T.accent}
+          stroke={T.accent}
           strokeWidth="2"
           strokeLinejoin="round"
         />
@@ -255,13 +258,13 @@ function VisualPanel() {
           y="20"
           width="8"
           height="14"
-          fill={T.orange}
-          stroke={T.ink}
+          fill={T.accent}
+          stroke={T.accent}
           strokeWidth="2"
         />
         <path
           d="M28 20C32 20 34 22 34 25C34 28 30 34 24 34H16"
-          stroke={T.ink}
+          stroke={T.accent}
           strokeWidth="2"
           strokeLinecap="round"
         />
@@ -278,6 +281,7 @@ const labelStyle: React.CSSProperties = {
   letterSpacing: "0.05em",
   fontWeight: 700,
   marginBottom: "0.5rem",
+  color: "rgba(255,255,255,0.5)",
 };
 
 /* ── Main page ─────────────────────────────────────────────── */
@@ -349,14 +353,15 @@ export default function LoginPage() {
   const inputStyle = (focused: boolean): React.CSSProperties => ({
     width: "100%",
     padding: "1rem",
-    border: `1px solid ${T.ink}`,
-    background: focused ? "rgba(0,0,0,0.05)" : "transparent",
+    border: `1px solid ${T.border}`,
+    background: focused ? T.inputBgFocus : T.inputBg,
     fontFamily: "'Space Mono', monospace",
     fontSize: "0.9rem",
     outline: "none",
     color: T.ink,
-    transition: "background 0.2s",
-    borderRadius: 0,
+    transition: "background 0.2s, border-color 0.2s",
+    borderRadius: 6,
+    ...(focused ? { borderColor: T.accent } : {}),
   });
 
   return (
@@ -364,7 +369,7 @@ export default function LoginPage() {
       style={{
         display: "flex",
         height: "100vh",
-        backgroundColor: T.bg,
+        backgroundColor: "#000",
         color: T.ink,
         fontFamily: "'Manrope', -apple-system, sans-serif",
         WebkitFontSmoothing: "antialiased",
@@ -375,7 +380,7 @@ export default function LoginPage() {
       <aside
         style={{
           width: 48,
-          borderRight: `1px solid ${T.ink}`,
+          borderRight: `1px solid ${T.border}`,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -401,7 +406,7 @@ export default function LoginPage() {
             style={{
               display: "block",
               height: 1,
-              backgroundColor: T.ink,
+              backgroundColor: "rgba(255,255,255,0.3)",
               width: "100%",
             }}
           />
@@ -409,7 +414,7 @@ export default function LoginPage() {
             style={{
               display: "block",
               height: 1,
-              backgroundColor: T.ink,
+              backgroundColor: "rgba(255,255,255,0.3)",
               width: "100%",
             }}
           />
@@ -417,7 +422,7 @@ export default function LoginPage() {
             style={{
               display: "block",
               height: 1,
-              backgroundColor: T.ink,
+              backgroundColor: "rgba(255,255,255,0.3)",
               width: "100%",
             }}
           />
@@ -452,7 +457,7 @@ export default function LoginPage() {
         {/* ── Form Panel ─────────────────────────────────── */}
         <section
           style={{
-            borderRight: `1px solid ${T.ink}`,
+            borderRight: `1px solid ${T.border}`,
             display: "flex",
             flexDirection: "column",
             backgroundColor: T.bg,
@@ -463,19 +468,19 @@ export default function LoginPage() {
           <nav
             style={{
               height: 48,
-              borderBottom: `1px solid ${T.ink}`,
+              borderBottom: `1px solid ${T.border}`,
               display: "flex",
               alignItems: "center",
             }}
           >
             <a
-              href="#"
+              href="/landing"
               style={{
                 padding: "0 1.5rem",
                 display: "flex",
                 alignItems: "center",
                 height: "100%",
-                borderRight: `1px solid ${T.ink}`,
+                borderRight: `1px solid ${T.border}`,
                 fontSize: "0.75rem",
                 textTransform: "uppercase",
                 letterSpacing: "0.05em",
@@ -577,7 +582,7 @@ export default function LoginPage() {
               {error && (
                 <p
                   style={{
-                    color: T.orange,
+                    color: T.accent,
                     fontSize: "0.8rem",
                     marginBottom: "1rem",
                   }}
@@ -595,7 +600,7 @@ export default function LoginPage() {
                 style={{
                   width: "100%",
                   padding: "1rem",
-                  border: `1px solid ${T.ink}`,
+                  border: "none",
                   fontFamily: "'Manrope', -apple-system, sans-serif",
                   fontWeight: 700,
                   textTransform: "uppercase",
@@ -608,10 +613,10 @@ export default function LoginPage() {
                   gap: "0.5rem",
                   transition: "all 0.2s",
                   marginTop: "1rem",
-                  background: primaryHover ? T.orange : T.ink,
-                  color: primaryHover ? T.ink : T.bg,
+                  background: T.accent,
+                  color: "#000",
                   opacity: loading ? 0.7 : 1,
-                  borderRadius: 0,
+                  borderRadius: 99,
                 }}
               >
                 {loading
@@ -640,8 +645,7 @@ export default function LoginPage() {
                 style={{
                   flex: 1,
                   height: 1,
-                  background: T.ink,
-                  opacity: 0.2,
+                  background: T.border,
                   marginRight: "1rem",
                 }}
               />
@@ -650,8 +654,7 @@ export default function LoginPage() {
                 style={{
                   flex: 1,
                   height: 1,
-                  background: T.ink,
-                  opacity: 0.2,
+                  background: T.border,
                   marginLeft: "1rem",
                 }}
               />
@@ -666,7 +669,7 @@ export default function LoginPage() {
               style={{
                 width: "100%",
                 padding: "1rem",
-                border: `1px solid ${T.ink}`,
+                border: `1px solid ${T.border}`,
                 fontFamily: "'Manrope', -apple-system, sans-serif",
                 fontWeight: 700,
                 textTransform: "uppercase",
@@ -678,10 +681,10 @@ export default function LoginPage() {
                 justifyContent: "center",
                 gap: "0.5rem",
                 transition: "all 0.2s",
-                background: googleHover ? "rgba(0,0,0,0.08)" : "transparent",
+                background: googleHover ? "rgba(255,255,255,0.08)" : "transparent",
                 color: T.ink,
                 opacity: authConfig?.enableGoogle ? 1 : 0.4,
-                borderRadius: 0,
+                borderRadius: 99,
               }}
             >
               <svg
@@ -700,7 +703,7 @@ export default function LoginPage() {
               style={{
                 marginTop: "3rem",
                 paddingTop: "2rem",
-                borderTop: `1px solid ${T.ink}`,
+                borderTop: `1px solid ${T.border}`,
                 opacity: 0.8,
               }}
             >
@@ -724,7 +727,7 @@ export default function LoginPage() {
                   style={{
                     textDecoration: "underline",
                     cursor: "pointer",
-                    color: T.orange,
+                    color: T.accent,
                   }}
                 >
                   {mode === "login" ? "Create Account" : "Back to Login"}

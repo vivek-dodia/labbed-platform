@@ -57,7 +57,15 @@ export default function AwsCliTerminal({ labId, disabled }: AwsCliTerminalProps)
         setLines((prev) => [...prev, { type: "error" as const, text: res.error! }]);
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
+      let msg: string;
+      if (err && typeof err === "object" && "body" in err) {
+        const body = (err as { body: unknown }).body;
+        msg = typeof body === "object" && body && "error" in body
+          ? String((body as { error: string }).error)
+          : JSON.stringify(body);
+      } else {
+        msg = err instanceof Error ? err.message : String(err);
+      }
       setLines((prev) => [...prev, { type: "error", text: msg }]);
     } finally {
       setRunning(false);

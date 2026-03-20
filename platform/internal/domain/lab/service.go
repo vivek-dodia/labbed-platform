@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labbed/platform/internal/domain/worker"
+	"github.com/labbed/platform/internal/plan"
 	"github.com/labbed/platform/internal/workerclient"
 	"gopkg.in/yaml.v3"
 )
@@ -35,6 +36,11 @@ type NosImageResolver interface {
 	ResolveImage(uuid string) (clabKind, dockerImage string, err error)
 }
 
+// PlanResolver returns the plan name for an org.
+type PlanResolver interface {
+	GetOrgPlan(orgID uint) string
+}
+
 type LabService struct {
 	repo             *LabRepository
 	workerSelector   WorkerSelector
@@ -42,6 +48,7 @@ type LabService struct {
 	templateLoader       TemplateLoader
 	platformURL      string // base URL for worker callbacks
 	nosImageResolver NosImageResolver
+	planResolver     PlanResolver
 }
 
 func NewService(repo *LabRepository, workerSelector WorkerSelector, wc *workerclient.Client, tl TemplateLoader, platformURL string) *LabService {
@@ -57,6 +64,11 @@ func NewService(repo *LabRepository, workerSelector WorkerSelector, wc *workercl
 // SetNosImageResolver sets the NOS image resolver for deploy-time overrides.
 func (s *LabService) SetNosImageResolver(resolver NosImageResolver) {
 	s.nosImageResolver = resolver
+}
+
+// SetPlanResolver sets the plan resolver for deploy-time enforcement.
+func (s *LabService) SetPlanResolver(resolver PlanResolver) {
+	s.planResolver = resolver
 }
 
 // Create creates a new lab in the scheduled state.
@@ -243,6 +255,19 @@ func (s *LabService) Deploy(labUUID string, nodeImages map[string]string) error 
 		return fmt.Errorf("lab cannot be deployed from state %s", l.State)
 	}
 
+	// Plan enforcement
+	orgPlan := "free"
+	if s.planResolver != nil && l.OrgID > 0 {
+		orgPlan = s.planResolver.GetOrgPlan(l.OrgID)
+	}
+	limits := plan.Get(orgPlan)
+
+	// Check concurrent lab limit
+	runningLabs, _ := s.repo.GetRunningLabsByCreator(l.CreatorID)
+	if limits.MaxConcurrentLabs > 0 && len(runningLabs) >= limits.MaxConcurrentLabs {
+		return fmt.Errorf("plan limit reached: %s plan allows %d concurrent lab(s)", orgPlan, limits.MaxConcurrentLabs)
+	}
+
 	w, err := s.workerSelector.SelectWorker()
 	if err != nil {
 		return fmt.Errorf("failed to select worker: %w", err)
@@ -259,13 +284,18 @@ func (s *LabService) Deploy(labUUID string, nodeImages map[string]string) error 
 
 	var bindFiles map[string][]byte
 
-	// For network labs: apply image overrides and load bind files
+	// For network labs: apply image overrides, check NOS tiers, load bind files
 	if l.Type != "cloud" {
 		if len(nodeImages) > 0 {
 			definition, err = s.applyImageOverrides(definition, nodeImages)
 			if err != nil {
 				return fmt.Errorf("failed to apply image overrides: %w", err)
 			}
+		}
+
+		// Check NOS tier restrictions
+		if err := s.checkNosTiers(definition, orgPlan); err != nil {
+			return err
 		}
 
 		nosKinds := extractNosKinds(definition)
@@ -319,6 +349,46 @@ func (s *LabService) Deploy(labUUID string, nodeImages map[string]string) error 
 	}()
 
 	return nil
+}
+
+// checkNosTiers verifies all nodes in a topology use NOS tiers allowed by the plan.
+func (s *LabService) checkNosTiers(definition, orgPlan string) error {
+	var topo map[string]interface{}
+	if err := yaml.Unmarshal([]byte(definition), &topo); err != nil {
+		return nil // can't parse, skip check
+	}
+	topoSection, ok := topo["topology"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	nodes, ok := topoSection["nodes"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	for nodeName, nodeRaw := range nodes {
+		nodeData, ok := nodeRaw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		kind, _ := nodeData["kind"].(string)
+		image, _ := nodeData["image"].(string)
+		tier := plan.NosImageTier(kind, image)
+		if !plan.TierAllowed(orgPlan, tier) {
+			return fmt.Errorf("plan restriction: node %q uses %s NOS (requires %s plan or higher)", nodeName, tier, tierMinPlan(tier))
+		}
+	}
+	return nil
+}
+
+func tierMinPlan(tier string) string {
+	switch tier {
+	case plan.TierMidweight:
+		return plan.Light
+	case plan.TierHeavyweight:
+		return plan.Heavy
+	}
+	return plan.Free
 }
 
 // applyImageOverrides parses the topology YAML, overrides node images based on

@@ -246,7 +246,7 @@ func ensureDefaultOrg(db *gorm.DB, adminUserID uint) uint {
 		UUID:       uuid.New().String(),
 		Name:       "Default",
 		Slug:       "default",
-		Plan:       "free",
+		Plan:       "heavy",
 		MaxLabs:    0,
 		MaxWorkers: 0,
 	}

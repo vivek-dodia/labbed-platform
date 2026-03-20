@@ -282,6 +282,15 @@ func (s *OrgService) CheckMembership(orgUUID string, userDBID uint) (uint, strin
 	return org.ID, string(role), nil
 }
 
+// GetOrgPlan returns the plan name for an org. Satisfies lab.PlanResolver.
+func (s *OrgService) GetOrgPlan(orgID uint) string {
+	var o Organization
+	if err := s.repo.db.First(&o, orgID).Error; err != nil {
+		return "free"
+	}
+	return o.Plan
+}
+
 func (s *OrgService) buildResponse(org *Organization, role OrgRole) Response {
 	return Response{
 		UUID:       org.UUID,

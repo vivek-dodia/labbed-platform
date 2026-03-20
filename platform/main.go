@@ -21,6 +21,7 @@ import (
 	"github.com/labbed/platform/internal/domain/collection"
 	"github.com/labbed/platform/internal/domain/lab"
 	"github.com/labbed/platform/internal/domain/nosimage"
+	"github.com/labbed/platform/internal/plan"
 	"github.com/labbed/platform/internal/domain/organization"
 	tmpl "github.com/labbed/platform/internal/domain/template"
 	"github.com/labbed/platform/internal/domain/user"
@@ -63,6 +64,8 @@ func main() {
 	if db.Migrator().HasTable("lab_nodes") && !db.Migrator().HasColumn(&lab.LabNode{}, "Properties") {
 		db.Exec("ALTER TABLE lab_nodes ADD COLUMN properties TEXT DEFAULT ''")
 	}
+	// Update default org to heavy plan (admin org)
+	db.Exec("UPDATE organizations SET plan = 'heavy' WHERE slug = 'default' AND plan = 'free'")
 
 	// Auto-migrate all models
 	if err := db.AutoMigrate(
@@ -170,6 +173,7 @@ func main() {
 	nosImageService := nosimage.NewService(nosImageRepo)
 	labService := lab.NewService(labRepo, workerService, workerHTTPClient, templateLoader, config.AppConfig.Server.PlatformURL)
 	labService.SetNosImageResolver(nosImageService)
+	labService.SetPlanResolver(orgService)
 
 	// Initialize WebSocket hub
 	hub := ws.NewHub(config.AppConfig.Server.CORSOrigins)
@@ -371,8 +375,8 @@ func main() {
 	// Start orphaned lab cleanup
 	go runOrphanedLabCleanup(labService)
 
-	// Start inactive user lab cleanup (auto-pause after 5 min inactivity)
-	go runInactiveUserCleanup(userRepo, labService)
+	// Start inactive user lab cleanup (per-plan inactivity timeout)
+	go runInactiveUserCleanup(userRepo, labService, orgService)
 
 	// Start server
 	listenAddr := fmt.Sprintf("%s:%s", config.AppConfig.Server.Host, config.AppConfig.Server.Port)
@@ -451,12 +455,14 @@ func runOrphanedLabCleanup(labService *lab.LabService) {
 	}
 }
 
-func runInactiveUserCleanup(userRepo *user.UserRepository, labService *lab.LabService) {
+func runInactiveUserCleanup(userRepo *user.UserRepository, labService *lab.LabService, orgService *organization.OrgService) {
 	ticker := time.NewTicker(60 * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		threshold := time.Now().Add(-5 * time.Minute)
+		// Use the shortest plan timeout (free = 5min) as the query threshold,
+		// then check each user's actual plan timeout individually
+		threshold := time.Now().Add(-plan.Get(plan.Free).InactivityTimeout)
 		userIDs, err := userRepo.GetInactiveUsersWithRunningLabs(threshold)
 		if err != nil {
 			log.Printf("inactive cleanup: query error: %v", err)

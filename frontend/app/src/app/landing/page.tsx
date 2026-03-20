@@ -131,6 +131,7 @@ export default function LandingPage() {
               <span style={{ padding: "0 1.5rem", fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", opacity: 0.4 }}>Platform</span>
             </div>
             <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+              <Link href="/pricing" style={{ color: "rgba(255,255,255,0.5)", textDecoration: "none", fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: MONO }}>Pricing</Link>
               <Link href="/login" style={{ color: "rgba(255,255,255,0.5)", textDecoration: "none", fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: MONO }}>Log In</Link>
               <Link href="/login" style={{
                 background: GREEN, color: "#000", textDecoration: "none",

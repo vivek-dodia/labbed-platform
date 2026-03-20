@@ -429,15 +429,15 @@ export default function LandingPage() {
               <tbody>
                 {[
                   { feature: "Setup time", vals: ["< 1 min", "Days/weeks", "1\u20132 hours", "1\u20132 hours", "30\u201360 min"] },
-                  { feature: "Local install required", vals: ["\u2714 None", "Physical gear", "Desktop app", "Server VM", "Docker + CLI"] },
-                  { feature: "Browser-based UI", vals: ["\u2714 Yes", "\u2718 No", "Web UI (limited)", "Web UI", "\u2718 No"] },
-                  { feature: "Cloud lab support", vals: ["\u2714 AWS (Moto)", "\u2718 No", "\u2718 No", "\u2718 No", "\u2718 No"] },
-                  { feature: "Interactive shell", vals: ["\u2714 In-browser", "SSH only", "Telnet/SSH", "SSH", "Docker exec"] },
-                  { feature: "Packet capture", vals: ["\u2714 Click any link", "Port mirror", "Wireshark setup", "Built-in", "tcpdump (manual)"] },
-                  { feature: "Auto-cleanup", vals: ["\u2714 On logout", "Manual", "Manual", "Manual", "Manual"] },
-                  { feature: "Multi-tenant / RBAC", vals: ["\u2714 Built-in", "\u2718 No", "\u2718 No", "Basic", "\u2718 No"] },
+                  { feature: "Local install required", vals: ["None", "Physical gear", "Desktop app", "Server VM", "Docker + CLI"] },
+                  { feature: "Browser-based UI", vals: ["Yes", "No", "Web UI (limited)", "Web UI", "No"] },
+                  { feature: "Cloud lab support", vals: ["AWS (Moto)", "No", "No", "No", "No"] },
+                  { feature: "Interactive shell", vals: ["In-browser", "SSH only", "Telnet/SSH", "SSH", "Docker exec"] },
+                  { feature: "Packet capture", vals: ["Click any link", "Port mirror", "Wireshark setup", "Built-in", "tcpdump (manual)"] },
+                  { feature: "Auto-cleanup", vals: ["On logout", "Manual", "Manual", "Manual", "Manual"] },
+                  { feature: "Multi-tenant / RBAC", vals: ["Built-in", "No", "No", "Basic", "No"] },
                   { feature: "Cost", vals: ["Free tier", "$$$$ hardware", "Free / paid", "$$ license", "Free (your infra)"] },
-                  { feature: "Real NOS images", vals: ["\u2714 FRR, MikroTik+", "\u2714 Real gear", "Emulated", "\u2714 Cisco IOS", "\u2714 Any container"] },
+                  { feature: "Real NOS images", vals: ["FRR, MikroTik+", "Real gear", "Emulated", "Cisco IOS", "Any container"] },
                 ].map((row, ri) => (
                   <tr key={ri} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                     <td style={{ padding: "0.6rem 1rem", color: "rgba(255,255,255,0.6)", fontFamily: FONT, fontWeight: 600, fontSize: "0.7rem" }}>{row.feature}</td>

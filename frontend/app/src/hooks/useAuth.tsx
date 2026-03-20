@@ -110,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setOrgs([]);
     setActiveOrgState(null);
-    window.location.href = "/login";
+    window.location.href = "/landing";
   }, [pauseAllLabs]);
 
   // Pause labs on tab close

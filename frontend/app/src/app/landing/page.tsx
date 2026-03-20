@@ -260,6 +260,88 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── How it works ── */}
+      <section style={{ background: "#000", padding: "6rem 3rem", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: GREEN, marginBottom: "1rem" }}>
+            How It Works
+          </div>
+          <h2 style={{ fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 200, lineHeight: 1.15, letterSpacing: "-0.01em", marginBottom: "4rem" }}>
+            Three steps. Real infrastructure.
+          </h2>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "2rem" }}>
+            {[
+              { num: "01", title: "Pick a template", desc: "Choose from ready-made network or cloud topologies. OSPF mesh, VPC peering, campus network \u2014 or write your own YAML/HCL.", icon: "\u25A1" },
+              { num: "02", title: "Deploy", desc: "One click. Containerlab spins up real router containers, or Terraform provisions emulated AWS resources via Moto. Running in seconds.", icon: "\u25B7" },
+              { num: "03", title: "Interact", desc: "Shell into any node. Run show commands. Capture packets on any link. Query the AWS CLI. See how traffic actually flows.", icon: "\u25C7" },
+            ].map((step) => (
+              <div key={step.num} style={{ position: "relative" }}>
+                <div style={{ fontSize: "3rem", fontWeight: 200, color: GREEN, opacity: 0.15, fontFamily: MONO, lineHeight: 1 }}>{step.num}</div>
+                <h3 style={{ fontSize: "1.2rem", fontWeight: 600, margin: "0.75rem 0 0.5rem" }}>{step.title}</h3>
+                <p style={{ fontSize: "0.8rem", lineHeight: 1.7, color: "rgba(255,255,255,0.4)", margin: 0 }}>{step.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── What can you lab? ── */}
+      <section style={{ background: "#000", padding: "6rem 3rem", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: GREEN, marginBottom: "1rem" }}>
+            What Can You Lab?
+          </div>
+          <h2 style={{ fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 200, lineHeight: 1.15, letterSpacing: "-0.01em", marginBottom: "1rem" }}>
+            Deploy it. Break it. Understand it.
+          </h2>
+          <p style={{ fontSize: "0.95rem", lineHeight: 1.7, color: "rgba(255,255,255,0.4)", maxWidth: 600, marginBottom: "3.5rem" }}>
+            Stop reading docs and start building. Deploy real topologies in minutes, trace packets across every hop, and understand how networks actually work \u2014 down to the wire.
+          </p>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 1 }}>
+            {[
+              { label: "ROUTING", title: "OSPF & IS-IS Mesh", desc: "Full adjacency formation, SPF calculation, link-state flooding. Watch convergence happen in real time across FRR routers." },
+              { label: "ROUTING", title: "eBGP Multi-AS Peering", desc: "Internet-scale BGP with multiple autonomous systems, route policies, communities, and path selection you can actually trace." },
+              { label: "ROUTING", title: "MPLS & L3VPN", desc: "Label switching, VRFs, PE-CE routing. Build a service provider core and see how labels get pushed, swapped, and popped." },
+              { label: "CAMPUS", title: "Campus Network Design", desc: "Access, distribution, core tiers with VLANs, STP, DHCP relay, and inter-VLAN routing. Full enterprise stack." },
+              { label: "CLOUD", title: "VPC Peering & Transit", desc: "Multi-VPC architectures with peering connections, route tables, and cross-VPC reachability. Terraform + AWS CLI." },
+              { label: "CLOUD", title: "Public & Private Subnets", desc: "IGW, NAT gateway, route table associations. Understand how public vs private networking actually works in AWS." },
+              { label: "CLOUD", title: "Security Groups & NACLs", desc: "Layered security with web, app, and database tiers. Test ingress rules, see what gets blocked and why." },
+              { label: "HYBRID", title: "Cloud + On-Prem Hybrid", desc: "Connect containerlab routers to emulated AWS VPCs. BGP over tunnel overlays, Direct Connect simulation, route leaking." },
+              { label: "SECURITY", title: "Firewall & ACL Labs", desc: "Zone-based policies, stateful inspection, NAT. Deploy OpenWrt or FreeBSD firewalls and test traffic flows with tcpdump." },
+              { label: "SERVICES", title: "DNS, DHCP & Load Balancing", desc: "CoreDNS resolvers, Kea DHCP servers, Nginx load balancers. Full service stack with real traffic." },
+            ].map((item, i) => (
+              <div key={i} style={{
+                padding: "1.5rem 1.5rem",
+                background: "rgba(255,255,255,0.015)",
+                borderBottom: "1px solid rgba(255,255,255,0.04)",
+              }}>
+                <span style={{
+                  fontSize: "0.5rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase",
+                  padding: "2px 6px", fontFamily: MONO,
+                  color: item.label === "CLOUD" ? "#38bdf8" : item.label === "HYBRID" ? "#f59e0b" : GREEN,
+                  border: `1px solid ${item.label === "CLOUD" ? "rgba(56,189,248,0.2)" : item.label === "HYBRID" ? "rgba(245,158,11,0.2)" : GREEN + "33"}`,
+                }}>{item.label}</span>
+                <h4 style={{ fontSize: "0.95rem", fontWeight: 600, margin: "0.6rem 0 0.3rem" }}>{item.title}</h4>
+                <p style={{ fontSize: "0.75rem", lineHeight: 1.6, color: "rgba(255,255,255,0.35)", margin: 0 }}>{item.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: "3rem", textAlign: "center" }}>
+            <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.3)", marginBottom: "1.5rem" }}>
+              Every lab comes with interactive shell access, packet capture on any link, and live deployment logs.
+            </p>
+            <Link href="/login" style={{
+              background: GREEN, color: "#000", textDecoration: "none",
+              fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
+              padding: "0.8rem 2rem", fontFamily: MONO, display: "inline-block",
+            }}>START YOUR FIRST LAB &darr;</Link>
+          </div>
+        </div>
+      </section>
+
       {/* ── Supported platforms ── */}
       <section style={{ background: "#000", padding: "3rem 3rem 6rem", maxWidth: 1100, margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "center", gap: "2.5rem", flexWrap: "wrap", opacity: 0.25 }}>

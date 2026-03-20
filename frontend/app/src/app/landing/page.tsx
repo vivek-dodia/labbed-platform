@@ -128,12 +128,12 @@ export default function LandingPage() {
               <span style={{ padding: "0 1.5rem", fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", opacity: 0.4 }}>Platform</span>
             </div>
             <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-              <Link href="/login" style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none", fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.03em" }}>Log In</Link>
+              <Link href="/login" style={{ color: "rgba(255,255,255,0.5)", textDecoration: "none", fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: MONO }}>Log In</Link>
               <Link href="/login" style={{
                 background: GREEN, color: "#000", textDecoration: "none",
-                fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase",
-                padding: "0.45rem 1.2rem", borderRadius: 99,
-              }}>Get Started</Link>
+                fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
+                padding: "0.5rem 1.2rem", fontFamily: MONO,
+              }}>GET STARTED &darr;</Link>
             </div>
           </nav>
 
@@ -147,8 +147,8 @@ export default function LandingPage() {
               {/* Left: text */}
               <div>
                 <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem" }}>
-                  <span style={{ fontSize: "0.55rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "3px 10px", borderRadius: 99, background: "rgba(121,246,115,0.15)", color: GREEN }}>Network</span>
-                  <span style={{ fontSize: "0.55rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "3px 10px", borderRadius: 99, background: "rgba(56,189,248,0.15)", color: "#38bdf8" }}>Cloud</span>
+                  <span style={{ fontSize: "0.55rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "3px 8px", border: `1px solid ${GREEN}44`, color: GREEN, fontFamily: MONO }}>Network</span>
+                  <span style={{ fontSize: "0.55rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "3px 8px", border: "1px solid rgba(56,189,248,0.25)", color: "#38bdf8", fontFamily: MONO }}>Cloud</span>
                 </div>
                 <h1 style={{ fontSize: "clamp(2.2rem, 5vw, 3.8rem)", fontWeight: 200, lineHeight: 1.05, letterSpacing: "-0.02em", margin: "0 0 1.2rem" }}>
                   Build labs.<br /><span style={{ fontWeight: 600 }}>Break things.</span>
@@ -159,22 +159,22 @@ export default function LandingPage() {
                 <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
                   <Link href="/login" style={{
                     background: GREEN, color: "#000", textDecoration: "none",
-                    fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase",
-                    padding: "0.75rem 2rem", borderRadius: 99,
-                  }}>Start Building</Link>
+                    fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
+                    padding: "0.8rem 2rem", fontFamily: MONO,
+                  }}>START BUILDING &darr;</Link>
                   <a href="#features" style={{
                     background: "transparent", color: "#fff", textDecoration: "none",
-                    fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase",
-                    padding: "0.75rem 2rem", borderRadius: 99,
-                    border: "1px solid rgba(255,255,255,0.2)",
-                  }}>Learn More</a>
+                    fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
+                    padding: "0.8rem 2rem", fontFamily: MONO,
+                    border: "1px solid rgba(255,255,255,0.15)",
+                  }}>LEARN MORE</a>
                 </div>
               </div>
 
               {/* Right: mock terminal */}
               <div style={{
                 background: "rgba(0,0,0,0.7)", border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: 10, overflow: "hidden", backdropFilter: "blur(20px)",
+                borderRadius: 0, overflow: "hidden", backdropFilter: "blur(20px)",
                 boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
                 opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(20px)",
                 transition: "opacity 1s ease 0.5s, transform 1s ease 0.5s",
@@ -276,9 +276,9 @@ export default function LandingPage() {
         </p>
         <Link href="/login" style={{
           background: "#000", color: GREEN, textDecoration: "none",
-          fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase",
-          padding: "0.75rem 2rem", borderRadius: 99, display: "inline-block",
-        }}>Get Started</Link>
+          fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
+          padding: "0.8rem 2rem", display: "inline-block", fontFamily: MONO,
+        }}>GET STARTED &darr;</Link>
         <div style={{ marginTop: "3rem", fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.25 }}>LABBED</div>
         <div style={{ marginTop: "1.5rem", fontSize: "0.6rem", color: "rgba(0,0,0,0.3)", lineHeight: 1.6 }}>
           AWS is a trademark of Amazon.com, Inc. Containerlab is a project by SRL Labs.

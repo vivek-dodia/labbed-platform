@@ -266,6 +266,9 @@ export default function LabDetailPage() {
   /* Bottom panel state */
   const [bottomTab, setBottomTab] = useState<BottomTab>("terminal");
   const [bottomOpen, setBottomOpen] = useState(false);
+  const [panelRatio, setPanelRatio] = useState(0.4); // canvas takes (1-ratio), panel takes ratio
+  const dragRef = useRef<{ startY: number; startRatio: number } | null>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
 
   /* ── Terminal persistence per node ── */
   const nodeTermBuffers = useRef<Map<string, TermLine[]>>(new Map());
@@ -818,6 +821,31 @@ export default function LabDetailPage() {
     setCaptureLines([]);
   }, [stopCapture]);
 
+  /* Panel resize drag */
+  const onDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!workspaceRef.current) return;
+    dragRef.current = { startY: e.clientY, startRatio: panelRatio };
+    const onMove = (ev: MouseEvent) => {
+      if (!dragRef.current || !workspaceRef.current) return;
+      const rect = workspaceRef.current.getBoundingClientRect();
+      const dy = dragRef.current.startY - ev.clientY;
+      const newRatio = dragRef.current.startRatio + dy / rect.height;
+      setPanelRatio(Math.min(0.8, Math.max(0.15, newRatio)));
+    };
+    const onUp = () => {
+      dragRef.current = null;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    document.body.style.cursor = "row-resize";
+    document.body.style.userSelect = "none";
+  }, [panelRatio]);
+
   /* Loading */
   if (!lab) {
     return (
@@ -923,10 +951,10 @@ export default function LabDetailPage() {
         )}
 
         {/* Main workspace */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div ref={workspaceRef} style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
           {/* ── Canvas section ── */}
-          <div style={{ flex: showBottomPanel ? undefined : 1, height: showBottomPanel ? "40%" : undefined, minHeight: showBottomPanel ? 180 : undefined, display: "flex", borderBottom: showBottomPanel ? BORDER : "none", overflow: "hidden", transition: "height 0.2s" }}>
+          <div style={{ flex: showBottomPanel ? undefined : 1, height: showBottomPanel ? `${(1 - panelRatio) * 100}%` : undefined, minHeight: showBottomPanel ? 120 : undefined, display: "flex", borderBottom: showBottomPanel ? BORDER : "none", overflow: "hidden" }}>
 
             {/* Template canvas */}
             <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
@@ -1150,6 +1178,19 @@ export default function LabDetailPage() {
               })()}
             </div>
           </div>
+
+          {/* ── Resize handle ── */}
+          {showBottomPanel && (
+            <div
+              onMouseDown={onDragStart}
+              style={{
+                height: 5, flexShrink: 0, cursor: "row-resize",
+                background: INK, display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              <div style={{ width: 40, height: 2, borderRadius: 1, background: "rgba(121,246,115,0.25)" }} />
+            </div>
+          )}
 
           {/* ── Bottom tabbed panel ── */}
           {showBottomPanel && (

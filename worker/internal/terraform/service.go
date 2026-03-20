@@ -110,7 +110,7 @@ func (s *Service) StopMoto(labID string) error {
 
 // providerHCL generates the provider.tf content pointing at Moto.
 func providerHCL(motoPort int) string {
-	endpoint := fmt.Sprintf("http://host.docker.internal:%d", motoPort)
+	endpoint := fmt.Sprintf("http://localhost:%d", motoPort)
 	services := []string{
 		"acm", "apigateway", "cloudformation", "cloudwatch", "dynamodb",
 		"ec2", "ecs", "elasticache", "elb", "iam", "kinesis", "lambda",

@@ -213,8 +213,17 @@ export default function TopologyBuilder({ nosImages, collections, onSave }: Topo
   const [copied, setCopied] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [linkNodeA, setLinkNodeA] = useState("");
+  const [linkIfaceA, setLinkIfaceA] = useState("");
+  const [linkNodeB, setLinkNodeB] = useState("");
+  const [linkIfaceB, setLinkIfaceB] = useState("");
 
   const imageGroups = useMemo(() => groupNosImages(nosImages), [nosImages]);
+
+  // Parse current YAML for node names (used by link builder)
+  const parsedNodes = useMemo(() => {
+    try { return parseContainerlabYAML(yaml).nodes; } catch { return []; }
+  }, [yaml]);
 
   // Live validation
   const validationMsg = useMemo(() => {
@@ -261,6 +270,58 @@ export default function TopologyBuilder({ nosImages, collections, onSave }: Topo
     setTimeout(() => setCopied(null), 1000);
     setError(null);
   }, [yaml]);
+
+  // Suggest next available interface for a node
+  const suggestIface = useCallback((nodeName: string) => {
+    const parsed = parseContainerlabYAML(yaml);
+    const used = new Set<string>();
+    for (const l of parsed.links) {
+      if (l.a.node === nodeName) used.add(l.a.iface);
+      if (l.b.node === nodeName) used.add(l.b.iface);
+    }
+    // Check if node is SRL (uses e1-X interfaces)
+    const node = parsed.nodes.find((n) => n.name === nodeName);
+    const isSrl = node?.kind === "srl" || node?.image?.includes("srlinux");
+    const isSonic = node?.kind === "sonic-vs" || node?.image?.includes("sonic");
+    for (let i = 1; i < 50; i++) {
+      const name = isSrl ? `e1-${i}` : isSonic ? `eth${i}` : `eth${i}`;
+      if (!used.has(name)) return name;
+    }
+    return "eth1";
+  }, [yaml]);
+
+  const handleInsertLink = useCallback(() => {
+    if (!linkNodeA || !linkNodeB) return;
+    const ifA = linkIfaceA || suggestIface(linkNodeA);
+    const ifB = linkIfaceB || suggestIface(linkNodeB);
+    const snippet = `    - endpoints: ["${linkNodeA}:${ifA}", "${linkNodeB}:${ifB}"]\n`;
+
+    // Check if links: section exists
+    if (!yaml.includes("links:")) {
+      // Append links section
+      setYaml((prev) => prev.trimEnd() + "\n  links:\n" + snippet);
+    } else {
+      // Find the end of links section and insert there
+      const lines = yaml.split("\n");
+      let lastLinkIdx = -1;
+      let inLinks = false;
+      for (let i = 0; i < lines.length; i++) {
+        if (/^\s*links:\s*$/.test(lines[i])) { inLinks = true; continue; }
+        if (inLinks) {
+          if (/^\s*-\s+endpoints:/.test(lines[i])) { lastLinkIdx = i; }
+          else if (/^\S/.test(lines[i]) && lines[i].trim()) { break; }
+        }
+      }
+      const insertAt = lastLinkIdx >= 0 ? lastLinkIdx + 1 : lines.findIndex((l) => /^\s*links:\s*$/.test(l)) + 1;
+      lines.splice(insertAt, 0, snippet.trimEnd());
+      setYaml(lines.join("\n"));
+    }
+
+    // Reset & auto-suggest next
+    setLinkIfaceA("");
+    setLinkIfaceB("");
+    setError(null);
+  }, [linkNodeA, linkNodeB, linkIfaceA, linkIfaceB, yaml, suggestIface]);
 
   const handleRandomTopology = useCallback(() => {
     const result = generateRandomTopology(nosImages);
@@ -344,6 +405,40 @@ export default function TopologyBuilder({ nosImages, collections, onSave }: Topo
             ))}
           </div>
         ))}
+
+        {/* Link builder */}
+        {parsedNodes.length >= 2 && (
+          <div style={{ borderTop: "1px solid rgba(0,0,0,0.15)", paddingTop: "1rem" }}>
+            <span style={{ ...labelStyle, opacity: 0.5, display: "block", marginBottom: "0.5rem" }}>ADD LINK</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+              <div style={{ display: "flex", gap: "0.3rem" }}>
+                <select value={linkNodeA} onChange={(e) => { setLinkNodeA(e.target.value); setLinkIfaceA(""); }}
+                  style={{ flex: 1, fontSize: "0.65rem", fontFamily: "'Space Mono', monospace", padding: "0.3rem", border: "1px solid rgba(0,0,0,0.2)", background: "transparent", outline: "none" }}>
+                  <option value="">node A</option>
+                  {parsedNodes.map((n) => <option key={n.name} value={n.name}>{n.name}</option>)}
+                </select>
+                <input value={linkIfaceA} onChange={(e) => setLinkIfaceA(e.target.value)}
+                  placeholder={linkNodeA ? suggestIface(linkNodeA) : "eth1"}
+                  style={{ width: 55, fontSize: "0.65rem", fontFamily: "'Space Mono', monospace", padding: "0.3rem", border: "1px solid rgba(0,0,0,0.2)", background: "transparent", outline: "none" }} />
+              </div>
+              <div style={{ textAlign: "center", fontSize: "0.5rem", opacity: 0.3, fontFamily: "'Space Mono', monospace" }}>&#x2194;</div>
+              <div style={{ display: "flex", gap: "0.3rem" }}>
+                <select value={linkNodeB} onChange={(e) => { setLinkNodeB(e.target.value); setLinkIfaceB(""); }}
+                  style={{ flex: 1, fontSize: "0.65rem", fontFamily: "'Space Mono', monospace", padding: "0.3rem", border: "1px solid rgba(0,0,0,0.2)", background: "transparent", outline: "none" }}>
+                  <option value="">node B</option>
+                  {parsedNodes.map((n) => <option key={n.name} value={n.name}>{n.name}</option>)}
+                </select>
+                <input value={linkIfaceB} onChange={(e) => setLinkIfaceB(e.target.value)}
+                  placeholder={linkNodeB ? suggestIface(linkNodeB) : "eth1"}
+                  style={{ width: 55, fontSize: "0.65rem", fontFamily: "'Space Mono', monospace", padding: "0.3rem", border: "1px solid rgba(0,0,0,0.2)", background: "transparent", outline: "none" }} />
+              </div>
+              <button onClick={handleInsertLink} disabled={!linkNodeA || !linkNodeB || linkNodeA === linkNodeB}
+                style={{ ...pillBtn(), fontSize: "0.6rem", padding: "0.35rem 0.5rem", opacity: (!linkNodeA || !linkNodeB || linkNodeA === linkNodeB) ? 0.3 : 1 }}>
+                + Insert Link
+              </button>
+            </div>
+          </div>
+        )}
 
         <div style={{ borderTop: "1px solid rgba(0,0,0,0.15)", paddingTop: "1rem" }}>
           <button onClick={handleRandomTopology} style={{ ...pillBtn(), backgroundColor: "#000", color: "#79f673", width: "100%" }}>

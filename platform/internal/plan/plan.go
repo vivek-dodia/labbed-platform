@@ -31,10 +31,11 @@ func NosImageTier(clabKind, dockerImage string) string {
 		return TierMidweight
 	case "freebsd":
 		return TierMidweight
-	case "srl", "ceos", "vr-sros", "vr-xrv9k", "vr-vmx", "cvx":
+	case "srl", "sonic-vs":
+		return TierHeavyweight
+	case "ceos", "vr-veos", "vr-sros", "vr-xrv9k", "vr-vmx", "cvx", "vr-aoscx", "fortinet_fortigate":
 		return TierHeavyweight
 	case "linux":
-		// FRR and host images are lightweight
 		return TierLightweight
 	}
 	return TierLightweight

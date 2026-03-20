@@ -58,8 +58,8 @@ const plans = [
     features: [
       "10 concurrent labs",
       "All Light NOS +",
-      "Nokia SRL",
-      "Cumulus, Juniper (future)",
+      "Nokia SR Linux",
+      "SONiC VS",
       "Unlimited cloud resources",
       "30 min inactivity timeout",
       "Dedicated support",

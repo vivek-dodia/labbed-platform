@@ -41,6 +41,7 @@ var collections = []CollectionDef{
 	firewallCollection,
 	servicesCollection,
 	cloudCollection,
+	datacenterCollection,
 }
 
 // SeedDefaults creates a default org, sample collections, and starter
@@ -151,6 +152,26 @@ func SeedNosImages(db *gorm.DB) {
 			DockerImage: "vrnetlab/mikrotik_routeros:7.20.8",
 			DefaultUser: "admin",
 			DefaultPass: "admin",
+			IsSystem:    true,
+			OrgID:       0,
+		},
+		{
+			UUID:        uuid.New().String(),
+			Name:        "Nokia SR Linux 24.10.1",
+			ClabKind:    "srl",
+			DockerImage: "ghcr.io/nokia/srlinux:24.10.1",
+			DefaultUser: "admin",
+			DefaultPass: "NokiaSrl1!",
+			IsSystem:    true,
+			OrgID:       0,
+		},
+		{
+			UUID:        uuid.New().String(),
+			Name:        "SONiC VS",
+			ClabKind:    "sonic-vs",
+			DockerImage: "netreplica/docker-sonic-vs:latest",
+			DefaultUser: "admin",
+			DefaultPass: "YourPaSsWoRd",
 			IsSystem:    true,
 			OrgID:       0,
 		},

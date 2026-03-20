@@ -461,7 +461,7 @@ export default function LandingPage() {
       {/* ── Supported platforms ── */}
       <section style={{ background: "#000", padding: "3rem 3rem 6rem", maxWidth: 1100, margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "center", gap: "2.5rem", flexWrap: "wrap", opacity: 0.25 }}>
-          {["FRRouting", "MikroTik", "OpenWrt", "FreeBSD", "GoBGP", "Kea DHCP", "CoreDNS", "Nginx", "AWS (Moto)", "Terraform"].map((name) => (
+          {["Nokia SR Linux", "SONiC", "FRRouting", "MikroTik", "OpenWrt", "FreeBSD", "GoBGP", "Kea DHCP", "CoreDNS", "Nginx", "AWS (Moto)", "Terraform"].map((name) => (
             <span key={name} style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: MONO }}>{name}</span>
           ))}
         </div>

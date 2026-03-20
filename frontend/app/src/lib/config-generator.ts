@@ -1,4 +1,4 @@
-// Generates working NOS configs based on topology + routing scenario
+// Generates working NOS configs based on template + routing scenario
 
 import type { BuilderState, BuilderNode, BuilderLink, DefaultBindFile } from "./yaml-generator";
 import { resolveNosKind } from "./yaml-generator";

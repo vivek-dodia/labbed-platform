@@ -12,7 +12,7 @@ interface AppShellProps {
 }
 
 const DRAWER_ITEMS = [
-  { label: "TOPOLOGIES", href: "/topologies" },
+  { label: "TOPOLOGIES", href: "/templates" },
   { label: "COLLECTIONS", href: "/collections" },
   { label: "LABS", href: "/labs" },
   { label: "SETTINGS", href: "/settings" },

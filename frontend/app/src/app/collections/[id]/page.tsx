@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
-import type { CollectionResponse, TopologyResponse } from "@/types/api";
+import type { CollectionResponse, TemplateResponse } from "@/types/api";
 
 export default function CollectionDetailPage() {
   const { user, loading: authLoading, logout } = useAuth();
@@ -14,7 +14,7 @@ export default function CollectionDetailPage() {
   const id = params.id as string;
 
   const [collection, setCollection] = useState<CollectionResponse | null>(null);
-  const [topologies, setTopologies] = useState<TopologyResponse[]>([]);
+  const [templates, setTemplates] = useState<TemplateResponse[]>([]);
   const [editName, setEditName] = useState("");
   const [saving, setSaving] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
@@ -27,11 +27,11 @@ export default function CollectionDetailPage() {
 
     Promise.all([
       api.get<CollectionResponse>(`/api/v1/collections/${id}`),
-      api.get<TopologyResponse[]>("/api/v1/topologies").catch(() => []),
+      api.get<TemplateResponse[]>("/api/v1/templates").catch(() => []),
     ]).then(([c, t]) => {
       setCollection(c);
       setEditName(c.name);
-      setTopologies(t.filter((tp) => tp.collectionId === c.uuid));
+      setTemplates(t.filter((tp) => tp.collectionId === c.uuid));
     });
   }, [id, user, authLoading, router]);
 
@@ -222,8 +222,8 @@ export default function CollectionDetailPage() {
             </div>
           </div>
 
-          {/* Topologies in collection */}
-          {topologies.length > 0 && (
+          {/* Templates in collection */}
+          {templates.length > 0 && (
             <div>
               <span style={{ ...labelStyle, opacity: 0.5, display: "block", marginBottom: "1rem" }}>TOPOLOGIES IN COLLECTION</span>
               <div style={{ border: "1px solid #000000" }}>
@@ -233,10 +233,10 @@ export default function CollectionDetailPage() {
                   <div style={{ padding: "0.75rem 1.2rem", ...labelStyle }}>UPDATED</div>
                   <div style={{ padding: "0.75rem 1.2rem", ...labelStyle, width: "60px" }}></div>
                 </div>
-                {topologies.map((t) => (
+                {templates.map((t) => (
                   <div
                     key={t.uuid}
-                    onClick={() => router.push(`/topologies/${t.uuid}`)}
+                    onClick={() => router.push(`/templates/${t.uuid}`)}
                     style={{
                       display: "grid",
                       gridTemplateColumns: "2fr 1fr auto",

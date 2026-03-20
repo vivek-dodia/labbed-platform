@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { parseContainerlabYAML } from "@/lib/yaml-parser";
 
 const SAMPLE_YAML = `name: test-lab
-topology:
+template:
   nodes:
     r1:
       kind: linux
@@ -18,7 +18,7 @@ topology:
     - endpoints: ["r1:eth2", "pc1:eth1"]`;
 
 describe("parseContainerlabYAML", () => {
-  it("extracts topology name", () => {
+  it("extracts template name", () => {
     const result = parseContainerlabYAML(SAMPLE_YAML);
     expect(result.name).toBe("test-lab");
   });
@@ -72,7 +72,7 @@ describe("parseContainerlabYAML", () => {
 
   it("handles nodes without images", () => {
     const yaml = `name: test
-topology:
+template:
   nodes:
     n1:
       kind: linux`;

@@ -121,7 +121,7 @@ export interface AddMemberRequest {
   role: "editor" | "deployer" | "viewer";
 }
 
-// ── Topologies ──
+// ── Templates ──
 export interface BindFileResponse {
   uuid: string;
   filePath: string;
@@ -130,9 +130,10 @@ export interface BindFileResponse {
   createdAt: string;
 }
 
-export interface TopologyResponse {
+export interface TemplateResponse {
   uuid: string;
   name: string;
+  type: string;
   definition: string;
   collectionId: string;
   creatorId: string;
@@ -141,13 +142,14 @@ export interface TopologyResponse {
   updatedAt: string;
 }
 
-export interface CreateTopologyRequest {
+export interface CreateTemplateRequest {
   name: string;
+  type?: string;
   definition: string;
   collectionId: string;
 }
 
-export interface UpdateTopologyRequest {
+export interface UpdateTemplateRequest {
   name?: string;
   definition?: string;
 }
@@ -186,7 +188,7 @@ export interface LabResponse {
   uuid: string;
   name: string;
   state: LabState;
-  topologyId: string;
+  templateId: string;
   creatorId: number;
   nodes: NodeResponse[];
   scheduledStart: string | null;
@@ -199,7 +201,7 @@ export interface LabResponse {
 
 export interface CreateLabRequest {
   name: string;
-  topologyId: string;
+  templateId: string;
   scheduledStart?: string;
   scheduledEnd?: string;
 }

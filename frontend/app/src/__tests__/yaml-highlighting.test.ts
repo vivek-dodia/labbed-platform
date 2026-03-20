@@ -36,7 +36,7 @@ describe("classifyYamlLine", () => {
   });
 
   it("detects key with no value", () => {
-    expect(classifyYamlLine("topology:")).toBe("key-value");
+    expect(classifyYamlLine("template:")).toBe("key-value");
   });
 
   it("detects list items", () => {

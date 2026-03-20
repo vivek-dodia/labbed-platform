@@ -132,7 +132,7 @@ export default function ProfilePage() {
           <div style={{ display: "flex", height: "100%" }}>
             <Link href="/" style={{ ...navItemStyle, fontWeight: 800, fontSize: "0.85rem" }}>LABBED</Link>
             <Link href="/" style={navItemStyle}>Dashboard</Link>
-            <Link href="/topologies" style={navItemStyle}>Topologies</Link>
+            <Link href="/templates" style={navItemStyle}>Templates</Link>
           </div>
           <div style={{ display: "flex", height: "100%" }}>
             <span style={{ ...navItemStyle, borderLeft: "1px solid #000000" }}>{user?.displayName || ""}</span>

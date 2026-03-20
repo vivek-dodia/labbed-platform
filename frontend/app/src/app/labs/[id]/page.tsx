@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import TopologyCanvas, { type LinkEndpoint } from "@/components/topology/TopologyCanvas";
+import TopologyCanvas, { type LinkEndpoint } from "@/components/template/TopologyCanvas";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { useAuth } from "@/hooks/useAuth";
 import { useWSChannel, useShellInput, useWSStatus } from "@/hooks/useWebSocket";
@@ -11,7 +11,7 @@ import { api } from "@/lib/api";
 import { parseContainerlabYAML } from "@/lib/yaml-parser";
 import DeployConfigModal from "@/components/DeployConfigModal";
 import { getCompletions } from "@/lib/completions";
-import type { LabResponse, NodeResponse, TopologyResponse, LabEventResponse, PaginatedResponse, BindFileResponse } from "@/types/api";
+import type { LabResponse, NodeResponse, TemplateResponse, LabEventResponse, PaginatedResponse, BindFileResponse } from "@/types/api";
 
 /* ── Quick-command definitions ── */
 interface QuickCmd { label: string; cmd: string; description: string }
@@ -256,7 +256,7 @@ export default function LabDetailPage() {
   const wsStatus = useWSStatus();
 
   const [lab, setLab] = useState<LabResponse | null>(null);
-  const [topology, setTopology] = useState<TopologyResponse | null>(null);
+  const [template, setTemplate] = useState<TemplateResponse | null>(null);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState("");
   const [showDeployModal, setShowDeployModal] = useState(false);
@@ -498,13 +498,13 @@ export default function LabDetailPage() {
     });
   }, []);
 
-  /* Load lab + topology */
+  /* Load lab + template */
   useEffect(() => {
     if (authLoading) return;
     if (!user) { router.push("/login"); return; }
     api.get<LabResponse>(`/api/v1/labs/${id}`).then((l) => {
       setLab(l);
-      api.get<TopologyResponse>(`/api/v1/topologies/${l.topologyId}`).then(setTopology).catch(() => {});
+      api.get<TemplateResponse>(`/api/v1/templates/${l.templateId}`).then(setTemplate).catch(() => {});
     });
   }, [id, user, authLoading, router]);
 
@@ -718,15 +718,15 @@ export default function LabDetailPage() {
     }, 4000);
 
     // Try to load startup config from bind files for diff
-    if (topology) {
+    if (template) {
       const sn = shortName(selectedNode);
-      const bindFile = topology.bindFiles?.find((bf: BindFileResponse) => bf.filePath.includes(sn));
+      const bindFile = template.bindFiles?.find((bf: BindFileResponse) => bf.filePath.includes(sn));
       if (bindFile) {
         if (bindFile.content) {
           setStartupConfigContent(bindFile.content);
         } else {
           // Try fetching bind file content
-          api.get<BindFileResponse>(`/api/v1/topologies/${topology.uuid}/bind-files/${bindFile.uuid}`)
+          api.get<BindFileResponse>(`/api/v1/templates/${template.uuid}/bind-files/${bindFile.uuid}`)
             .then((bf) => setStartupConfigContent(bf.content || null))
             .catch(() => setStartupConfigContent(null));
         }
@@ -734,7 +734,7 @@ export default function LabDetailPage() {
         setStartupConfigContent(null);
       }
     }
-  }, [lab, selectedNode, sendInput, topology]);
+  }, [lab, selectedNode, sendInput, template]);
 
   /* Collect config output from terminal lines */
   useEffect(() => {
@@ -832,7 +832,7 @@ export default function LabDetailPage() {
   const pingTargets = (lab.nodes || []).filter((n) => n.ipv4 && n.name !== selectedNode);
 
   /* Line numbers for YAML */
-  const yamlLines = topology?.definition?.split("\n") || [];
+  const yamlLines = template?.definition?.split("\n") || [];
 
   /* WS status indicator color */
   const wsColor = wsStatus === "connected" ? "#27c93f" : wsStatus === "connecting" ? "#ffbd2e" : "#ff5f56";
@@ -920,7 +920,7 @@ export default function LabDetailPage() {
           {/* ── Canvas section ── */}
           <div style={{ flex: showBottomPanel ? undefined : 1, height: showBottomPanel ? "40%" : undefined, minHeight: showBottomPanel ? 180 : undefined, display: "flex", borderBottom: showBottomPanel ? BORDER : "none", overflow: "hidden", transition: "height 0.2s" }}>
 
-            {/* Topology canvas */}
+            {/* Template canvas */}
             <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
               <div style={{ padding: "0.5rem 1rem", borderBottom: BORDER, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={LABEL}>TOPOLOGY</span>
@@ -931,13 +931,13 @@ export default function LabDetailPage() {
                   >
                     {bottomOpen ? "\u25BC HIDE PANEL" : "\u25B2 SHOW PANEL"}
                   </button>
-                  <span style={{ ...LABEL, opacity: 0.4 }}>{topology?.name || ""}</span>
+                  <span style={{ ...LABEL, opacity: 0.4 }}>{template?.name || ""}</span>
                 </div>
               </div>
               <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-                {topology ? (
+                {template ? (
                   <TopologyCanvas
-                    definition={topology.definition}
+                    definition={template.definition}
                     selectedNode={selectedNode}
                     onSelectNode={(name) => {
                       if (!name) { setSelectedNode(null); return; }
@@ -993,7 +993,7 @@ export default function LabDetailPage() {
               {/* Node detail */}
               {selectedNodeData && (() => {
                 const sn = shortName(selectedNodeData.name);
-                const links = topology ? parseContainerlabYAML(topology.definition).links.filter(
+                const links = template ? parseContainerlabYAML(template.definition).links.filter(
                   (l) => l.a.node === sn || l.b.node === sn
                 ).map((l) => l.a.node === sn
                   ? { local: l.a.iface, remote: l.b.iface, peer: l.b.node }
@@ -1406,7 +1406,7 @@ export default function LabDetailPage() {
                   <div style={{ padding: "0.4rem 1.25rem", borderBottom: "1px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
                     <span style={{ ...LABEL, fontSize: "0.6rem", opacity: 0.4 }}>TOPOLOGY DEFINITION</span>
                     <button
-                      onClick={() => topology?.definition && copyToClipboard(topology.definition, "yaml")}
+                      onClick={() => template?.definition && copyToClipboard(template.definition, "yaml")}
                       style={{
                         background: "rgba(255,255,255,0.05)",
                         border: "1px solid rgba(255,255,255,0.12)",
@@ -1981,12 +1981,12 @@ export default function LabDetailPage() {
       </div>
 
       {/* Deploy config modal */}
-      {topology && (
+      {template && (
         <DeployConfigModal
           isOpen={showDeployModal}
           onClose={() => setShowDeployModal(false)}
           onDeploy={handleDeployWithImages}
-          definition={topology.definition}
+          definition={template.definition}
           deploying={actionLoading === "deploy"}
         />
       )}

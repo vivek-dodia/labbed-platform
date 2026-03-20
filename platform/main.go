@@ -21,7 +21,7 @@ import (
 	"github.com/labbed/platform/internal/domain/lab"
 	"github.com/labbed/platform/internal/domain/nosimage"
 	"github.com/labbed/platform/internal/domain/organization"
-	"github.com/labbed/platform/internal/domain/topology"
+	tmpl "github.com/labbed/platform/internal/domain/template"
 	"github.com/labbed/platform/internal/domain/user"
 	"github.com/labbed/platform/internal/domain/worker"
 	"github.com/labbed/platform/internal/seed"
@@ -43,6 +43,18 @@ func main() {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 
+	// Migrate: rename topologies -> templates if needed
+	if db.Migrator().HasTable("topologies") && !db.Migrator().HasTable("templates") {
+		log.Println("migrating: renaming topologies table to templates")
+		db.Exec("ALTER TABLE topologies RENAME TO templates")
+		db.Exec("ALTER TABLE bind_files RENAME COLUMN topology_id TO template_id")
+		db.Exec("ALTER TABLE labs RENAME COLUMN topology_id TO template_id")
+	}
+	// Add type column to templates if missing
+	if db.Migrator().HasTable("templates") && !db.Migrator().HasColumn(&tmpl.Template{}, "Type") {
+		db.Exec("ALTER TABLE templates ADD COLUMN type VARCHAR(20) NOT NULL DEFAULT 'network'")
+	}
+
 	// Auto-migrate all models
 	if err := db.AutoMigrate(
 		&user.User{},
@@ -50,8 +62,8 @@ func main() {
 		&organization.OrganizationMember{},
 		&collection.Collection{},
 		&collection.CollectionMember{},
-		&topology.Topology{},
-		&topology.BindFile{},
+		&tmpl.Template{},
+		&tmpl.BindFile{},
 		&worker.Worker{},
 		&lab.Lab{},
 		&lab.LabNode{},
@@ -66,7 +78,7 @@ func main() {
 	userRepo := user.NewRepository(db)
 	orgRepo := organization.NewRepository(db)
 	collectionRepo := collection.NewRepository(db)
-	topologyRepo := topology.NewRepository(db)
+	templateRepo := tmpl.NewRepository(db)
 	workerRepo := worker.NewRepository(db)
 	labRepo := lab.NewRepository(db)
 	nosImageRepo := nosimage.NewRepository(db)
@@ -139,15 +151,15 @@ func main() {
 
 	orgService := organization.NewService(orgRepo, userService, resolveUser)
 	orgService.SetOnOrgCreated(func(orgDBID uint, creatorDBID uint) {
-		seed.SeedSampleTopologies(db, orgDBID, creatorDBID)
+		seed.SeedSampleTemplates(db, orgDBID, creatorDBID)
 	})
 	collectionService := collection.NewService(collectionRepo, resolveUserUUID)
-	topologyService := topology.NewService(topologyRepo, resolveCollectionUUID, resolveUserUUID)
+	templateService := tmpl.NewService(templateRepo, resolveCollectionUUID, resolveUserUUID)
 	workerService := worker.NewService(workerRepo)
 	workerHTTPClient := workerclient.NewClient()
-	topoLoader := topology.NewLoader(topologyRepo)
+	templateLoader := tmpl.NewLoader(templateRepo)
 	nosImageService := nosimage.NewService(nosImageRepo)
-	labService := lab.NewService(labRepo, workerService, workerHTTPClient, topoLoader, config.AppConfig.Server.PlatformURL)
+	labService := lab.NewService(labRepo, workerService, workerHTTPClient, templateLoader, config.AppConfig.Server.PlatformURL)
 	labService.SetNosImageResolver(nosImageService)
 
 	// Initialize WebSocket hub
@@ -175,7 +187,7 @@ func main() {
 	}
 	orgHandler := organization.NewHandler(orgService, resolveUserID, resolveUserInfo)
 	collectionHandler := collection.NewHandler(collectionService, resolveUserID)
-	topologyHandler := topology.NewHandler(topologyService, resolveCollectionID, resolveUserID, getUserCollectionIDs)
+	templateHandler := tmpl.NewHandler(templateService, resolveCollectionID, resolveUserID, getUserCollectionIDs)
 	labHandler := lab.NewHandler(labService, hub, resolveUserID, getUserCollectionIDs)
 	workerHandler := worker.NewHandler(workerService)
 	nosImageHandler := nosimage.NewHandler(nosImageService)
@@ -254,7 +266,7 @@ func main() {
 	// CORS middleware
 	router.Use(corsMiddleware(config.AppConfig.Server.CORSOrigins))
 
-	// Global body size limit (1MB default, topology routes override)
+	// Global body size limit (1MB default, template routes override)
 	router.Use(auth.MaxBodySize(1 << 20))
 
 	// Health check with DB connectivity
@@ -295,9 +307,9 @@ func main() {
 			collections := orgScoped.Group("/collections")
 			collection.RegisterRoutes(collections, collectionHandler)
 
-			// Topologies
-			topologies := orgScoped.Group("/topologies")
-			topology.RegisterRoutes(topologies, topologyHandler)
+			// Templates
+			templates := orgScoped.Group("/templates")
+			tmpl.RegisterRoutes(templates, templateHandler)
 
 			// Labs
 			lab.RegisterRoutes(orgScoped, labHandler)

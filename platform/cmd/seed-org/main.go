@@ -35,7 +35,7 @@ func main() {
 		log.Fatalf("failed to connect: %v", err)
 	}
 
-	seed.SeedSampleTopologies(db, uint(orgID), uint(userID))
+	seed.SeedSampleTemplates(db, uint(orgID), uint(userID))
 	log.Println("done")
 }
 

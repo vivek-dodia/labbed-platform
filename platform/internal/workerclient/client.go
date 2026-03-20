@@ -28,7 +28,7 @@ func NewClient() *Client {
 type DeployRequest struct {
 	LabID      string            `json:"labId"`
 	ClabName   string            `json:"clabName"`
-	Topology   string            `json:"topology"`   // YAML content
+	Definition string            `json:"definition"` // YAML/HCL content
 	BindFiles  map[string][]byte `json:"bindFiles"`  // filePath -> content
 	CallbackURL string           `json:"callbackUrl"` // Platform URL for status updates
 }

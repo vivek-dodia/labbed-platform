@@ -47,7 +47,7 @@ func NewHandler(
 func (h *LabHandler) HandleCreate(c *gin.Context) {
 	var req CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: name and topologyId are required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: name and templateId are required"})
 		return
 	}
 

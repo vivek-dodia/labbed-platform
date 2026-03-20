@@ -48,7 +48,7 @@ export function resolveNosKind(clabKind: string, dockerImage: string): string {
 export function generateContainerlabYAML(state: BuilderState): string {
   const lines: string[] = [];
   lines.push(`name: ${state.name || "untitled"}`);
-  lines.push("topology:");
+  lines.push("template:");
   lines.push("  nodes:");
 
   for (const node of state.nodes) {

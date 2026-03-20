@@ -21,8 +21,8 @@ type WorkerSelector interface {
 	GetWorkerByID(id uint) (*worker.Worker, error)
 }
 
-// TopologyLoader loads topology definitions and bind files for deploy dispatch.
-type TopologyLoader interface {
+// TemplateLoader loads topology definitions and bind files for deploy dispatch.
+type TemplateLoader interface {
 	GetDefinition(topoUUID string) (string, error)                                    // returns YAML definition
 	GetBindFiles(topoUUID string) (map[string][]byte, error)                          // filePath -> content
 	GetBindFilesForNos(topoUUID string, nosKinds []string) (map[string][]byte, error) // filtered by NOS kind
@@ -37,17 +37,17 @@ type LabService struct {
 	repo             *LabRepository
 	workerSelector   WorkerSelector
 	workerClient     *workerclient.Client
-	topoLoader       TopologyLoader
+	templateLoader       TemplateLoader
 	platformURL      string // base URL for worker callbacks
 	nosImageResolver NosImageResolver
 }
 
-func NewService(repo *LabRepository, workerSelector WorkerSelector, wc *workerclient.Client, tl TopologyLoader, platformURL string) *LabService {
+func NewService(repo *LabRepository, workerSelector WorkerSelector, wc *workerclient.Client, tl TemplateLoader, platformURL string) *LabService {
 	return &LabService{
 		repo:           repo,
 		workerSelector: workerSelector,
 		workerClient:   wc,
-		topoLoader:     tl,
+		templateLoader:     tl,
 		platformURL:    platformURL,
 	}
 }
@@ -69,7 +69,7 @@ func (s *LabService) CreateWithOrg(creatorID uint, orgID uint, req CreateRequest
 		Name:       req.Name,
 		OrgID:      orgID,
 		State:      StateScheduled,
-		TopologyID: req.TopologyID,
+		TemplateID: req.TemplateID,
 		CreatorID:  creatorID,
 	}
 
@@ -243,7 +243,7 @@ func (s *LabService) Deploy(labUUID string, nodeImages map[string]string) error 
 	}
 
 	// Load topology definition and bind files
-	definition, err := s.topoLoader.GetDefinition(l.TopologyID)
+	definition, err := s.templateLoader.GetDefinition(l.TemplateID)
 	if err != nil {
 		return fmt.Errorf("failed to load topology: %w", err)
 	}
@@ -260,9 +260,9 @@ func (s *LabService) Deploy(labUUID string, nodeImages map[string]string) error 
 	nosKinds := extractNosKinds(definition)
 	var bindFiles map[string][]byte
 	if len(nosKinds) > 0 {
-		bindFiles, err = s.topoLoader.GetBindFilesForNos(l.TopologyID, nosKinds)
+		bindFiles, err = s.templateLoader.GetBindFilesForNos(l.TemplateID, nosKinds)
 	} else {
-		bindFiles, err = s.topoLoader.GetBindFiles(l.TopologyID)
+		bindFiles, err = s.templateLoader.GetBindFiles(l.TemplateID)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to load bind files: %w", err)
@@ -293,7 +293,7 @@ func (s *LabService) Deploy(labUUID string, nodeImages map[string]string) error 
 		req := workerclient.DeployRequest{
 			LabID:       l.UUID,
 			ClabName:    clabName,
-			Topology:    definition,
+			Definition:  definition,
 			BindFiles:   bindFiles,
 			CallbackURL: callbackURL,
 		}
@@ -608,7 +608,7 @@ func (s *LabService) CloneWithOrg(labUUID string, creatorID uint, orgID uint) (R
 
 	return s.CreateWithOrg(creatorID, orgID, CreateRequest{
 		Name:       l.Name + " (copy)",
-		TopologyID: l.TopologyID,
+		TemplateID: l.TemplateID,
 	})
 }
 
@@ -800,7 +800,7 @@ func (s *LabService) buildResponse(l *Lab) (Response, error) {
 		UUID:           l.UUID,
 		Name:           l.Name,
 		State:          l.State,
-		TopologyID:     l.TopologyID,
+		TemplateID:     l.TemplateID,
 		CreatorID:      l.CreatorID,
 		Nodes:          nodeResponses,
 		ScheduledStart: l.ScheduledStart,

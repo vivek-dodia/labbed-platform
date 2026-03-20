@@ -1,4 +1,4 @@
-// Shared layout utilities for topology visualization
+// Shared layout utilities for template visualization
 
 export const NODE_W = 140;
 export const NODE_H = 48;

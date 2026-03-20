@@ -43,7 +43,7 @@ func (h *Handler) ActiveLabCount() int {
 type DeployRequest struct {
 	LabID       string            `json:"labId" binding:"required"`
 	ClabName    string            `json:"clabName" binding:"required"`
-	Topology    string            `json:"topology" binding:"required"`
+	Definition  string            `json:"definition" binding:"required"`
 	BindFiles   map[string][]byte `json:"bindFiles"`
 	CallbackURL string            `json:"callbackUrl"`
 }
@@ -77,7 +77,7 @@ func (h *Handler) HandleDeploy(c *gin.Context) {
 	}
 
 	// Prepare topology file on disk
-	topoPath, err := clab.PrepareTopologyFile(req.LabID, req.Topology, req.BindFiles)
+	topoPath, err := clab.PrepareTopologyFile(req.LabID, req.Definition, req.BindFiles)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -92,7 +92,7 @@ func (h *Handler) HandleDeploy(c *gin.Context) {
 	c.JSON(http.StatusAccepted, gin.H{"message": "deployment started"})
 
 	// Deploy in background
-	go h.deployAsync(req.LabID, req.ClabName, topoPath, req.Topology)
+	go h.deployAsync(req.LabID, req.ClabName, topoPath, req.Definition)
 }
 
 func (h *Handler) pushLog(ctx context.Context, labID, line, level string) {

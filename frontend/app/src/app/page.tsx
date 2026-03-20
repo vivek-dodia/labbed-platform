@@ -70,7 +70,7 @@ export default function DashboardPage() {
   return (
     <AppShell
       navItems={[
-        { label: "TOPOLOGIES", href: "/topologies" },
+        { label: "TOPOLOGIES", href: "/templates" },
         { label: "COLLECTIONS", href: "/collections" },
       ]}
     >
@@ -88,7 +88,7 @@ export default function DashboardPage() {
               {labs.length} lab{labs.length !== 1 ? "s"  : ""} &middot; {runningLabs} running &middot; {totalNodes} nodes
             </span>
             <Link
-              href="/topologies"
+              href="/templates"
               style={{
                 backgroundColor: T.ink,
                 color: T.bg,
@@ -140,10 +140,10 @@ export default function DashboardPage() {
             No labs yet
           </h2>
           <p style={{ fontSize: "0.9rem", opacity: 0.6, maxWidth: 400, textAlign: "center", lineHeight: 1.6 }}>
-            Deploy your first lab from a topology template to get started.
+            Deploy your first lab from a template template to get started.
           </p>
           <Link
-            href="/topologies"
+            href="/templates"
             style={{
               backgroundColor: T.ink,
               color: T.bg,
@@ -205,9 +205,9 @@ function LabRow({ lab }: { lab: LabResponse }) {
           {lab.state === "running" ? `${runningNodes}/${nodeCount}` : nodeCount > 0 ? `${nodeCount}` : "\u2014"}
         </span>
 
-        {/* Topology ID */}
+        {/* Template ID */}
         <span style={{ fontFamily: T.mono, fontSize: "0.75rem", opacity: 0.5 }}>
-          {lab.topologyId?.slice(0, 8) || "\u2014"}
+          {lab.templateId?.slice(0, 8) || "\u2014"}
         </span>
 
         {/* Last activity */}

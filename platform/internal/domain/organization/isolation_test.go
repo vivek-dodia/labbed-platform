@@ -16,7 +16,7 @@ import (
 	"github.com/labbed/platform/internal/domain/collection"
 	"github.com/labbed/platform/internal/domain/lab"
 	"github.com/labbed/platform/internal/domain/organization"
-	"github.com/labbed/platform/internal/domain/topology"
+	tmpl "github.com/labbed/platform/internal/domain/template"
 	"github.com/labbed/platform/internal/domain/user"
 	"github.com/labbed/platform/internal/domain/worker"
 )
@@ -30,7 +30,7 @@ type testEnv struct {
 	router         *gin.Engine
 	orgService     *organization.OrgService
 	colService     *collection.CollectionService
-	topoService    *topology.TopologyService
+	topoService    *tmpl.TemplateService
 	labService     *lab.LabService
 	workerService  *worker.WorkerService
 	user1          *user.User // member of org1
@@ -54,8 +54,8 @@ func setupFullEnv(t *testing.T) *testEnv {
 		&organization.OrganizationMember{},
 		&collection.Collection{},
 		&collection.CollectionMember{},
-		&topology.Topology{},
-		&topology.BindFile{},
+		&tmpl.Template{},
+		&tmpl.BindFile{},
 		&worker.Worker{},
 		&lab.Lab{},
 		&lab.LabNode{},
@@ -105,8 +105,8 @@ func setupFullEnv(t *testing.T) *testEnv {
 	colRepo := collection.NewRepository(db)
 	colService := collection.NewService(colRepo, resolveUserUUID)
 
-	topoRepo := topology.NewRepository(db)
-	topoService := topology.NewService(topoRepo, resolveCollectionUUID, resolveUserUUID)
+	topoRepo := tmpl.NewRepository(db)
+	topoService := tmpl.NewService(topoRepo, resolveCollectionUUID, resolveUserUUID)
 
 	workerRepo := worker.NewRepository(db)
 	workerService := worker.NewService(workerRepo)
@@ -151,7 +151,7 @@ func setupFullEnv(t *testing.T) *testEnv {
 
 	// Handlers
 	colHandler := collection.NewHandler(colService, resolveUserID)
-	topoHandler := topology.NewHandler(topoService, resolveCollectionID, resolveUserID, getUserCollectionIDs)
+	topoHandler := tmpl.NewHandler(topoService, resolveCollectionID, resolveUserID, getUserCollectionIDs)
 	labHandler := lab.NewHandler(labService, nil, resolveUserID, getUserCollectionIDs)
 	workerHandler := worker.NewHandler(workerService)
 	orgHandler := organization.NewHandler(orgService, resolveUserID, resolveUserInfo)
@@ -171,8 +171,8 @@ func setupFullEnv(t *testing.T) *testEnv {
 		cols := orgScoped.Group("/collections")
 		collection.RegisterRoutes(cols, colHandler)
 
-		topos := orgScoped.Group("/topologies")
-		topology.RegisterRoutes(topos, topoHandler)
+		topos := orgScoped.Group("/templates")
+		tmpl.RegisterRoutes(topos, topoHandler)
 
 		lab.RegisterRoutes(orgScoped, labHandler)
 		worker.RegisterRoutes(orgScoped, workerHandler)
@@ -304,7 +304,7 @@ func TestLabIsolation_CrossOrgAccessDenied(t *testing.T) {
 	// Create a lab directly in org1
 	labResp, err := env.labService.CreateWithOrg(env.user1.ID, env.org1DBID, lab.CreateRequest{
 		Name:       "Org1 Lab",
-		TopologyID: "topo-1",
+		TemplateID: "topo-1",
 	})
 	if err != nil {
 		t.Fatalf("create lab failed: %v", err)
@@ -333,9 +333,9 @@ func TestLabIsolation_ListScoped(t *testing.T) {
 	env := setupFullEnv(t)
 
 	// Create labs in both orgs
-	_, _ = env.labService.CreateWithOrg(env.user1.ID, env.org1DBID, lab.CreateRequest{Name: "Lab A", TopologyID: "t1"})
-	_, _ = env.labService.CreateWithOrg(env.user1.ID, env.org1DBID, lab.CreateRequest{Name: "Lab B", TopologyID: "t2"})
-	_, _ = env.labService.CreateWithOrg(env.user2.ID, env.org2DBID, lab.CreateRequest{Name: "Lab C", TopologyID: "t3"})
+	_, _ = env.labService.CreateWithOrg(env.user1.ID, env.org1DBID, lab.CreateRequest{Name: "Lab A", TemplateID: "t1"})
+	_, _ = env.labService.CreateWithOrg(env.user1.ID, env.org1DBID, lab.CreateRequest{Name: "Lab B", TemplateID: "t2"})
+	_, _ = env.labService.CreateWithOrg(env.user2.ID, env.org2DBID, lab.CreateRequest{Name: "Lab C", TemplateID: "t3"})
 
 	// Org1 should see 2 labs
 	w := doRequest(env.router, "GET", "/api/v1/labs", nil, env.user1.UUID, env.org1UUID)
@@ -360,7 +360,7 @@ func TestLabIsolation_ListScoped(t *testing.T) {
 
 // --- Topology isolation tests ---
 
-func TestTopologyIsolation_CrossOrgAccessDenied(t *testing.T) {
+func TestTemplateIsolation_CrossOrgAccessDenied(t *testing.T) {
 	env := setupFullEnv(t)
 
 	// Create a collection in org1
@@ -371,7 +371,7 @@ func TestTopologyIsolation_CrossOrgAccessDenied(t *testing.T) {
 
 	// Create a topology in org1
 	topoResp, err := env.topoService.CreateWithOrg(env.user1.ID, colDBID, env.org1DBID,
-		topology.CreateRequest{
+		tmpl.CreateRequest{
 			Name:         "Org1 Topo",
 			Definition:   "name: test\ntopology:\n  nodes:\n    n1:\n      kind: linux\n      image: ghcr.io/vivek-dodia/labbed-host:latest",
 			CollectionID: col.UUID,
@@ -381,13 +381,13 @@ func TestTopologyIsolation_CrossOrgAccessDenied(t *testing.T) {
 	}
 
 	// User1 in org1 can access it
-	w := doRequest(env.router, "GET", "/api/v1/topologies/"+topoResp.UUID, nil, env.user1.UUID, env.org1UUID)
+	w := doRequest(env.router, "GET", "/api/v1/templates/"+topoResp.UUID, nil, env.user1.UUID, env.org1UUID)
 	if w.Code != http.StatusOK {
 		t.Errorf("same-org GET: expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 
 	// User2 in org2 cannot access it
-	w = doRequest(env.router, "GET", "/api/v1/topologies/"+topoResp.UUID, nil, env.user2.UUID, env.org2UUID)
+	w = doRequest(env.router, "GET", "/api/v1/templates/"+topoResp.UUID, nil, env.user2.UUID, env.org2UUID)
 	if w.Code != http.StatusNotFound {
 		t.Errorf("cross-org GET: expected 404, got %d", w.Code)
 	}

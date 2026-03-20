@@ -9,7 +9,7 @@ import (
 	"github.com/labbed/platform/internal/domain/collection"
 	"github.com/labbed/platform/internal/domain/nosimage"
 	"github.com/labbed/platform/internal/domain/organization"
-	"github.com/labbed/platform/internal/domain/topology"
+	tmpl "github.com/labbed/platform/internal/domain/template"
 )
 
 // Template holds a sample topology definition with optional bind files.
@@ -45,7 +45,7 @@ var collections = []CollectionDef{
 // topologies if they don't already exist. Expects the admin user's internal ID.
 func SeedDefaults(db *gorm.DB, adminUserID uint) {
 	defaultOrgID := ensureDefaultOrg(db, adminUserID)
-	SeedSampleTopologies(db, defaultOrgID, adminUserID)
+	SeedSampleTemplates(db, defaultOrgID, adminUserID)
 	SeedNosImages(db)
 }
 
@@ -168,9 +168,9 @@ func SeedNosImages(db *gorm.DB) {
 	}
 }
 
-// SeedSampleTopologies creates themed sample collections with topologies
+// SeedSampleTemplates creates themed sample collections with topologies
 // for the given org, skipping any collection that already exists.
-func SeedSampleTopologies(db *gorm.DB, orgID uint, creatorID uint) {
+func SeedSampleTemplates(db *gorm.DB, orgID uint, creatorID uint) {
 	for _, colDef := range collections {
 		var count int64
 		db.Model(&collection.Collection{}).Where("name = ? AND org_id = ?", colDef.Name, orgID).Count(&count)
@@ -197,24 +197,25 @@ func SeedSampleTopologies(db *gorm.DB, orgID uint, creatorID uint) {
 		}
 		db.Create(member)
 
-		for _, tmpl := range colDef.Templates {
-			topo := &topology.Topology{
+		for _, t := range colDef.Templates {
+			topo := &tmpl.Template{
 				UUID:         uuid.New().String(),
-				Name:         tmpl.Name,
-				Definition:   tmpl.Definition,
+				Name:         t.Name,
+				Type:         "network",
+				Definition:   t.Definition,
 				OrgID:        orgID,
 				CollectionID: col.ID,
 				CreatorID:    creatorID,
 			}
 			if err := db.Create(topo).Error; err != nil {
-				log.Printf("seed: failed to create topology %q: %v", tmpl.Name, err)
+				log.Printf("seed: failed to create template %q: %v", t.Name, err)
 				continue
 			}
 
-			for _, bf := range tmpl.BindFiles {
-				file := &topology.BindFile{
+			for _, bf := range t.BindFiles {
+				file := &tmpl.BindFile{
 					UUID:       uuid.New().String(),
-					TopologyID: topo.ID,
+					TemplateID: topo.ID,
 					FilePath:   bf.FilePath,
 					Content:    []byte(bf.Content),
 					NosKind:    bf.NosKind,
@@ -223,7 +224,7 @@ func SeedSampleTopologies(db *gorm.DB, orgID uint, creatorID uint) {
 			}
 		}
 
-		log.Printf("seed: created %q collection with %d topologies for org %d", colDef.Name, len(colDef.Templates), orgID)
+		log.Printf("seed: created %q collection with %d templates for org %d", colDef.Name, len(colDef.Templates), orgID)
 	}
 }
 
@@ -258,7 +259,7 @@ func ensureDefaultOrg(db *gorm.DB, adminUserID uint) uint {
 	log.Printf("seed: created default organization (id=%d)", org.ID)
 
 	db.Model(&collection.Collection{}).Where("org_id = 0").Update("org_id", org.ID)
-	db.Table("topologies").Where("org_id = 0").Update("org_id", org.ID)
+	db.Table("templates").Where("org_id = 0").Update("org_id", org.ID)
 	db.Table("labs").Where("org_id = 0").Update("org_id", org.ID)
 
 	return org.ID

@@ -23,7 +23,7 @@ type Lab struct {
 	Name           string     `gorm:"index;not null"`
 	OrgID          uint       `gorm:"index;not null;default:0"`
 	State          LabState   `gorm:"not null;default:'scheduled'"`
-	TopologyID     string     `gorm:"index;not null"` // topology UUID
+	TemplateID     string     `gorm:"index;not null"` // template UUID
 	CreatorID      uint       `gorm:"not null"`
 	WorkerID       *uint      `gorm:"index"`
 	ScheduledStart *time.Time `gorm:"index"`
@@ -58,7 +58,7 @@ type LabEvent struct {
 
 type CreateRequest struct {
 	Name           string  `json:"name" binding:"required"`
-	TopologyID     string  `json:"topologyId" binding:"required"`
+	TemplateID     string  `json:"templateId" binding:"required"`
 	ScheduledStart *string `json:"scheduledStart"` // RFC3339
 	ScheduledEnd   *string `json:"scheduledEnd"`   // RFC3339
 }
@@ -83,7 +83,7 @@ type Response struct {
 	UUID           string         `json:"uuid"`
 	Name           string         `json:"name"`
 	State          LabState       `json:"state"`
-	TopologyID     string         `json:"topologyId"`
+	TemplateID     string         `json:"templateId"`
 	CreatorID      uint           `json:"creatorId"`
 	Nodes          []NodeResponse `json:"nodes"`
 	ScheduledStart *time.Time     `json:"scheduledStart"`

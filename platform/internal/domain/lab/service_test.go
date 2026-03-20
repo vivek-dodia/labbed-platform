@@ -42,20 +42,20 @@ func (m *mockWorkerSelector) GetWorkerByID(id uint) (*worker.Worker, error) {
 	return m.w, m.err
 }
 
-// mockTopoLoader implements TopologyLoader for testing.
-type mockTopoLoader struct {
+// mockTemplateLoader implements TemplateLoader for testing.
+type mockTemplateLoader struct {
 	definition string
 	bindFiles  map[string][]byte
 	err        error
 }
 
-func (m *mockTopoLoader) GetDefinition(topoUUID string) (string, error) {
+func (m *mockTemplateLoader) GetDefinition(topoUUID string) (string, error) {
 	return m.definition, m.err
 }
-func (m *mockTopoLoader) GetBindFiles(topoUUID string) (map[string][]byte, error) {
+func (m *mockTemplateLoader) GetBindFiles(topoUUID string) (map[string][]byte, error) {
 	return m.bindFiles, m.err
 }
-func (m *mockTopoLoader) GetBindFilesForNos(topoUUID string, nosKinds []string) (map[string][]byte, error) {
+func (m *mockTemplateLoader) GetBindFilesForNos(topoUUID string, nosKinds []string) (map[string][]byte, error) {
 	return m.bindFiles, m.err
 }
 
@@ -71,7 +71,7 @@ func setupLabService(t *testing.T) (*LabService, *gorm.DB) {
 		},
 	}
 	wc := workerclient.NewClient()
-	tl := &mockTopoLoader{
+	tl := &mockTemplateLoader{
 		definition: "name: test-topo\ntopology:\n  nodes:\n    r1:\n      kind: linux\n      image: ghcr.io/vivek-dodia/labbed-host:latest",
 		bindFiles:  map[string][]byte{},
 	}
@@ -88,7 +88,7 @@ func TestCreateLab(t *testing.T) {
 
 	resp, err := svc.CreateWithOrg(1, 1, CreateRequest{
 		Name:       "test-lab",
-		TopologyID: "topo-uuid-1",
+		TemplateID: "topo-uuid-1",
 	})
 	if err != nil {
 		t.Fatalf("create lab failed: %v", err)
@@ -102,8 +102,8 @@ func TestCreateLab(t *testing.T) {
 	if resp.UUID == "" {
 		t.Error("expected non-empty UUID")
 	}
-	if resp.TopologyID != "topo-uuid-1" {
-		t.Errorf("expected topologyId 'topo-uuid-1', got %q", resp.TopologyID)
+	if resp.TemplateID != "topo-uuid-1" {
+		t.Errorf("expected templateId 'topo-uuid-1', got %q", resp.TemplateID)
 	}
 }
 
@@ -115,7 +115,7 @@ func TestCreateLab_WithSchedule(t *testing.T) {
 
 	resp, err := svc.CreateWithOrg(1, 1, CreateRequest{
 		Name:           "scheduled-lab",
-		TopologyID:     "topo-uuid-2",
+		TemplateID:     "topo-uuid-2",
 		ScheduledStart: &start,
 		ScheduledEnd:   &end,
 	})
@@ -135,7 +135,7 @@ func TestGetByUUID(t *testing.T) {
 
 	created, _ := svc.CreateWithOrg(1, 1, CreateRequest{
 		Name:       "find-me",
-		TopologyID: "topo-uuid-3",
+		TemplateID: "topo-uuid-3",
 	})
 
 	found, err := svc.GetByUUID(created.UUID)
@@ -161,7 +161,7 @@ func TestUpdateState(t *testing.T) {
 
 	created, _ := svc.CreateWithOrg(1, 1, CreateRequest{
 		Name:       "state-lab",
-		TopologyID: "topo-1",
+		TemplateID: "topo-1",
 	})
 
 	// scheduled -> deploying (via Deploy would normally do this, but test directly)
@@ -181,7 +181,7 @@ func TestUpdateState_ToRunning(t *testing.T) {
 
 	created, _ := svc.CreateWithOrg(1, 1, CreateRequest{
 		Name:       "running-lab",
-		TopologyID: "topo-1",
+		TemplateID: "topo-1",
 	})
 
 	_ = svc.UpdateState(created.UUID, StateDeploying, nil)
@@ -198,7 +198,7 @@ func TestUpdateState_ToFailed(t *testing.T) {
 
 	created, _ := svc.CreateWithOrg(1, 1, CreateRequest{
 		Name:       "fail-lab",
-		TopologyID: "topo-1",
+		TemplateID: "topo-1",
 	})
 
 	_ = svc.UpdateState(created.UUID, StateDeploying, nil)
@@ -223,7 +223,7 @@ func TestUpdateState_ToStopped_SetsStoppedAt(t *testing.T) {
 
 	created, _ := svc.CreateWithOrg(1, 1, CreateRequest{
 		Name:       "stop-lab",
-		TopologyID: "topo-1",
+		TemplateID: "topo-1",
 	})
 
 	_ = svc.UpdateState(created.UUID, StateDeploying, nil)
@@ -244,7 +244,7 @@ func TestUpdateNodes(t *testing.T) {
 
 	created, _ := svc.CreateWithOrg(1, 1, CreateRequest{
 		Name:       "nodes-lab",
-		TopologyID: "topo-1",
+		TemplateID: "topo-1",
 	})
 
 	nodes := []NodeResponse{
@@ -274,7 +274,7 @@ func TestUpdateNodes_Replaces(t *testing.T) {
 
 	created, _ := svc.CreateWithOrg(1, 1, CreateRequest{
 		Name:       "replace-lab",
-		TopologyID: "topo-1",
+		TemplateID: "topo-1",
 	})
 
 	_ = svc.UpdateNodes(created.UUID, []NodeResponse{
@@ -299,7 +299,7 @@ func TestCheckOrgOwnership(t *testing.T) {
 
 	created, _ := svc.CreateWithOrg(1, 42, CreateRequest{
 		Name:       "org-lab",
-		TopologyID: "topo-1",
+		TemplateID: "topo-1",
 	})
 
 	// Correct org
@@ -318,7 +318,7 @@ func TestLabEvents(t *testing.T) {
 
 	created, _ := svc.CreateWithOrg(1, 1, CreateRequest{
 		Name:       "events-lab",
-		TopologyID: "topo-1",
+		TemplateID: "topo-1",
 	})
 
 	_ = svc.UpdateState(created.UUID, StateDeploying, nil)
@@ -342,7 +342,7 @@ func TestDeploy_InvalidState(t *testing.T) {
 
 	created, _ := svc.CreateWithOrg(1, 1, CreateRequest{
 		Name:       "deploy-lab",
-		TopologyID: "topo-1",
+		TemplateID: "topo-1",
 	})
 
 	// Set to running first
@@ -360,7 +360,7 @@ func TestDeploy_FromScheduled(t *testing.T) {
 
 	created, _ := svc.CreateWithOrg(1, 1, CreateRequest{
 		Name:       "deploy-lab-2",
-		TopologyID: "topo-1",
+		TemplateID: "topo-1",
 	})
 
 	// Deploy from scheduled — should succeed (worker dispatch will fail but state should update)
@@ -383,7 +383,7 @@ func TestDeploy_FromStopped(t *testing.T) {
 
 	created, _ := svc.CreateWithOrg(1, 1, CreateRequest{
 		Name:       "redeploy-lab",
-		TopologyID: "topo-1",
+		TemplateID: "topo-1",
 	})
 
 	_ = svc.UpdateState(created.UUID, StateStopped, nil)
@@ -404,7 +404,7 @@ func TestDeploy_FromFailed(t *testing.T) {
 
 	created, _ := svc.CreateWithOrg(1, 1, CreateRequest{
 		Name:       "retry-lab",
-		TopologyID: "topo-1",
+		TemplateID: "topo-1",
 	})
 
 	errMsg := "previous error"
@@ -430,12 +430,12 @@ func TestDeploy_NoWorkers(t *testing.T) {
 	repo := NewRepository(db)
 	ws := &mockWorkerSelector{w: nil, err: nil}
 	wc := workerclient.NewClient()
-	tl := &mockTopoLoader{definition: "name: test", bindFiles: map[string][]byte{}}
+	tl := &mockTemplateLoader{definition: "name: test", bindFiles: map[string][]byte{}}
 	svc := NewService(repo, ws, wc, tl, "http://localhost:8080")
 
 	created, _ := svc.CreateWithOrg(1, 1, CreateRequest{
 		Name:       "no-worker-lab",
-		TopologyID: "topo-1",
+		TemplateID: "topo-1",
 	})
 
 	err := svc.Deploy(created.UUID, nil)
@@ -449,7 +449,7 @@ func TestDelete(t *testing.T) {
 
 	created, _ := svc.CreateWithOrg(1, 1, CreateRequest{
 		Name:       "delete-lab",
-		TopologyID: "topo-1",
+		TemplateID: "topo-1",
 	})
 
 	// Add nodes
@@ -652,7 +652,7 @@ func TestGetStuckLabs(t *testing.T) {
 
 	created, _ := svc.CreateWithOrg(1, 1, CreateRequest{
 		Name:       "stuck-lab",
-		TopologyID: "topo-1",
+		TemplateID: "topo-1",
 	})
 	_ = svc.UpdateState(created.UUID, StateDeploying, nil)
 

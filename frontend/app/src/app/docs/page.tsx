@@ -45,20 +45,20 @@ const sections: Record<string, Endpoint[]> = {
     { method: "POST", path: "/api/v1/collections/:id/members", description: "Add a member with a role (editor/deployer/viewer). Org admin only.", auth: true },
     { method: "DELETE", path: "/api/v1/collections/:id/members/:uid", description: "Remove a member from the collection. Org admin only.", auth: true },
   ],
-  Topologies: [
-    { method: "GET", path: "/api/v1/topologies", description: "List all topologies in the current organization. Supports pagination with limit/offset query params.", auth: true },
-    { method: "POST", path: "/api/v1/topologies", description: "Create a topology with name, containerlab YAML definition, and collection. Body limit: 5MB.", auth: true },
-    { method: "GET", path: "/api/v1/topologies/:id", description: "Get topology details including YAML definition and bind files.", auth: true },
-    { method: "PUT", path: "/api/v1/topologies/:id", description: "Update topology name or YAML definition. Body limit: 5MB.", auth: true },
-    { method: "DELETE", path: "/api/v1/topologies/:id", description: "Delete a topology. Org admin or higher required.", auth: true },
-    { method: "POST", path: "/api/v1/topologies/validate", description: "Validate a containerlab YAML definition without saving it.", auth: true },
-    { method: "POST", path: "/api/v1/topologies/:id/files", description: "Add a bind file (startup config, custom script, etc.).", auth: true },
-    { method: "PATCH", path: "/api/v1/topologies/:id/files/:fid", description: "Update a bind file path or content.", auth: true },
-    { method: "DELETE", path: "/api/v1/topologies/:id/files/:fid", description: "Delete a bind file. Org admin or higher required.", auth: true },
+  Templates: [
+    { method: "GET", path: "/api/v1/templates", description: "List all templates in the current organization. Supports pagination with limit/offset query params.", auth: true },
+    { method: "POST", path: "/api/v1/templates", description: "Create a template with name, containerlab YAML definition, and collection. Body limit: 5MB.", auth: true },
+    { method: "GET", path: "/api/v1/templates/:id", description: "Get template details including YAML definition and bind files.", auth: true },
+    { method: "PUT", path: "/api/v1/templates/:id", description: "Update template name or YAML definition. Body limit: 5MB.", auth: true },
+    { method: "DELETE", path: "/api/v1/templates/:id", description: "Delete a template. Org admin or higher required.", auth: true },
+    { method: "POST", path: "/api/v1/templates/validate", description: "Validate a containerlab YAML definition without saving it.", auth: true },
+    { method: "POST", path: "/api/v1/templates/:id/files", description: "Add a bind file (startup config, custom script, etc.).", auth: true },
+    { method: "PATCH", path: "/api/v1/templates/:id/files/:fid", description: "Update a bind file path or content.", auth: true },
+    { method: "DELETE", path: "/api/v1/templates/:id/files/:fid", description: "Delete a bind file. Org admin or higher required.", auth: true },
   ],
   Labs: [
     { method: "GET", path: "/api/v1/labs", description: "List all labs in the current organization. Supports pagination with limit/offset query params.", auth: true },
-    { method: "POST", path: "/api/v1/labs", description: "Create a new lab from a topology. Checks org lab quota.", auth: true },
+    { method: "POST", path: "/api/v1/labs", description: "Create a new lab from a template. Checks org lab quota.", auth: true },
     { method: "GET", path: "/api/v1/labs/:id", description: "Get lab details including node list with container state, IPs, and images.", auth: true },
     { method: "PUT", path: "/api/v1/labs/:id", description: "Update lab name or schedule.", auth: true },
     { method: "DELETE", path: "/api/v1/labs/:id", description: "Delete a lab record. Org admin or higher required.", auth: true },
@@ -102,7 +102,7 @@ const methodColors: Record<string, string> = {
 
 const sidebarNavGroups: Record<string, string[]> = {
   "Getting Started": ["Authentication", "Users", "Organizations"],
-  Resources: ["Collections", "Topologies", "Labs", "Workers"],
+  Resources: ["Collections", "Templates", "Labs", "Workers"],
   "Real-time": ["WebSocket"],
   Platform: ["Internal API"],
 };
@@ -110,10 +110,10 @@ const sidebarNavGroups: Record<string, string[]> = {
 const sectionDescriptions: Record<string, string> = {
   Authentication: "JWT-based auth with native email/password and Google OAuth2. Access tokens expire in 30 minutes, refresh tokens in 30 days. Rate limited to 20 requests per minute per IP.",
   Users: "Manage user accounts and profiles. Regular users can update their own profile and password. Platform admins can create, list, and delete users.",
-  Organizations: "Multi-tenant organization management. Each org has its own collections, topologies, labs, and workers. Members have roles: owner, admin, or member. All org-scoped API calls require the X-Org-ID header.",
-  Collections: "Group topologies into collections for organization. Collections are org-scoped and support member-level access control with editor, deployer, and viewer roles.",
-  Topologies: "Containerlab YAML topology definitions. Create, validate, and manage network topologies with bind files for node startup configs. Body size limit of 5MB for write operations.",
-  Labs: "Deploy and manage containerlab network labs. Labs are created from topologies and run on registered workers. Supports real-time state tracking, node inspection, cloning, audit trail, packet capture, config diff, bulk commands, and interactive terminal with per-node persistence.",
+  Organizations: "Multi-tenant organization management. Each org has its own collections, templates, labs, and workers. Members have roles: owner, admin, or member. All org-scoped API calls require the X-Org-ID header.",
+  Collections: "Group templates into collections for organization. Collections are org-scoped and support member-level access control with editor, deployer, and viewer roles.",
+  Templates: "Containerlab YAML template definitions. Create, validate, and manage network templates with bind files for node startup configs. Body size limit of 5MB for write operations.",
+  Labs: "Deploy and manage containerlab network labs. Labs are created from templates and run on registered workers. Supports real-time state tracking, node inspection, cloning, audit trail, packet capture, config diff, bulk commands, and interactive terminal with per-node persistence.",
   Workers: "Platform-managed worker agents that run on Docker hosts. Workers register with the platform, send heartbeats, and execute containerlab operations. Platform admin access required.",
   WebSocket: "Real-time communication via WebSocket. Subscribe to channels for live lab state changes, node updates, deployment log streaming, and interactive shell sessions. Shell relay also powers ping, traceroute, bulk commands, config diff, and packet capture.",
   "Internal API": "Worker-to-platform communication endpoints. Authenticated via shared secret. Used for worker registration, heartbeats, and reporting lab status, nodes, and deployment logs.",
@@ -450,7 +450,7 @@ function getMethodTagStyle(method: string): React.CSSProperties {
   };
 }
 
-const ORG_SCOPED_PATHS = ["/api/v1/collections", "/api/v1/topologies", "/api/v1/labs", "/api/v1/workers"];
+const ORG_SCOPED_PATHS = ["/api/v1/collections", "/api/v1/templates", "/api/v1/labs", "/api/v1/workers"];
 
 function getCurlExample(ep: Endpoint): React.ReactNode {
   const needsOrgHeader = ORG_SCOPED_PATHS.some((p) => ep.path.startsWith(p));
@@ -625,7 +625,7 @@ function getResponseExample(section: string): React.ReactNode {
       </>
     );
   }
-  // Default response for Topologies, Collections, Workers
+  // Default response for Templates, Collections, Workers
   return (
     <>
       {"{"}<br />
@@ -830,7 +830,7 @@ export default function DocsPage() {
               LABBED
             </NavHoverItem>
             <NavHoverItem
-              href="/topologies"
+              href="/templates"
               style={{
                 padding: "0 1.5rem",
                 display: "flex",
@@ -1133,7 +1133,7 @@ export default function DocsPage() {
                   /api/v1/labs/:id/deploy
                 </code>{" "}
                 endpoint to deploy pre-configured environments from your
-                topologies in a single API call.
+                templates in a single API call.
               </p>
             </div>
           </section>

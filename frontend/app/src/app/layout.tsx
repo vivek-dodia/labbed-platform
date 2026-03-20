@@ -6,7 +6,10 @@ export const metadata: Metadata = {
   title: "LABBED — Network & Cloud Lab Platform",
   description: "Deploy containerlab network topologies and emulated AWS cloud environments. Interactive terminals, live visualization, zero config.",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-32.png", type: "image/png", sizes: "32x32" },
+    ],
     apple: "/apple-touch-icon.png",
   },
 };

@@ -21,41 +21,25 @@ const FONT = "'Manrope', sans-serif";
 const MONO = "'Space Mono', monospace";
 const GREEN = "#79f673";
 
-/* ── VPC group node (background container) ── */
+/* ── VPC group node ── */
 function VpcNode({ data }: { data: Record<string, unknown> }) {
-  const w = (data.width as number) || 500;
-  const h = (data.height as number) || 300;
   const label = data.label as string;
   const cidr = data.cidr as string;
 
   return (
-    <div style={{
-      width: w, height: h,
-      border: `2px solid ${GREEN}`,
-      borderRadius: 8,
-      background: "rgba(121,246,115,0.04)",
-      position: "relative",
-    }}>
+    <div style={{ width: "100%", height: "100%", position: "relative" }}>
       <div style={{
-        position: "absolute", top: 0, left: 0, right: 0,
-        padding: "6px 12px",
-        borderBottom: `1px solid rgba(121,246,115,0.15)`,
-        display: "flex", alignItems: "center", gap: 8,
-        background: "rgba(121,246,115,0.06)",
-        borderRadius: "6px 6px 0 0",
+        position: "absolute", top: 8, left: 12,
+        display: "flex", alignItems: "center", gap: 6,
+        pointerEvents: "none",
       }}>
-        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth={2}>
+        <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth={2.5}>
           <rect x="2" y="2" width="20" height="20" rx="3" />
           <path d="M2 8h20M8 2v20" />
         </svg>
-        <span style={{
-          fontSize: "0.6rem", fontWeight: 700, textTransform: "uppercase",
-          letterSpacing: "0.06em", color: GREEN, fontFamily: FONT,
-        }}>VPC</span>
+        <span style={{ fontSize: "0.6rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: GREEN, fontFamily: FONT }}>VPC</span>
         <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#fff", fontFamily: FONT }}>{label}</span>
-        {cidr && (
-          <span style={{ fontSize: "0.65rem", fontFamily: MONO, color: GREEN, opacity: 0.6 }}>{cidr}</span>
-        )}
+        {cidr && <span style={{ fontSize: "0.6rem", fontFamily: MONO, color: GREEN, opacity: 0.5 }}>{cidr}</span>}
       </div>
       <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
       <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
@@ -63,7 +47,7 @@ function VpcNode({ data }: { data: Record<string, unknown> }) {
   );
 }
 
-/* ── Resource node (subnet, igw, rt, sg, etc.) ── */
+/* ── Resource node ── */
 const ICON_MAP: Record<string, { icon: string; color: string }> = {
   aws_subnet:                  { icon: "SN",  color: "#22c55e" },
   aws_internet_gateway:        { icon: "IGW", color: "#eab308" },
@@ -81,57 +65,40 @@ function ResourceNode({ data }: { data: Record<string, unknown> }) {
   const detail = data.detail as string;
   const rid = data.resourceId as string;
   const selected = data.selected as boolean;
-  const iconInfo = ICON_MAP[kind] || { icon: "?", color: "#94a3b8" };
+  const info = ICON_MAP[kind] || { icon: "?", color: "#94a3b8" };
 
   return (
     <div style={{
-      minWidth: 170,
-      background: selected ? "rgba(121,246,115,0.12)" : "rgba(0,0,0,0.6)",
-      border: `1.5px solid ${selected ? GREEN : `${iconInfo.color}88`}`,
-      borderRadius: 6,
-      padding: "8px 12px",
-      fontFamily: FONT,
-      backdropFilter: "blur(8px)",
-      transition: "border-color 0.15s",
+      minWidth: 170, background: selected ? "rgba(121,246,115,0.15)" : "rgba(0,0,0,0.75)",
+      border: `1.5px solid ${selected ? GREEN : info.color + "88"}`,
+      borderRadius: 6, padding: "8px 12px", fontFamily: FONT,
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-        <span style={{
-          fontSize: "0.5rem", fontWeight: 800, color: "#000",
-          background: iconInfo.color, borderRadius: 3,
-          padding: "1px 5px", letterSpacing: "0.04em",
-          fontFamily: MONO, lineHeight: 1.4,
-        }}>{iconInfo.icon}</span>
-        <span style={{
-          fontSize: "0.55rem", fontWeight: 700, textTransform: "uppercase",
-          letterSpacing: "0.05em", color: iconInfo.color, opacity: 0.8,
-          fontFamily: FONT,
-        }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+        <span style={{ fontSize: "0.5rem", fontWeight: 800, color: "#000", background: info.color, borderRadius: 3, padding: "1px 5px", fontFamily: MONO, lineHeight: 1.4 }}>{info.icon}</span>
+        <span style={{ fontSize: "0.5rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: info.color, opacity: 0.8 }}>
           {kind.replace("aws_", "").replace(/_/g, " ")}
         </span>
       </div>
       <div style={{ fontSize: "0.8rem", fontWeight: 600, color: "#fff" }}>{label}</div>
-      {detail && (
-        <div style={{ fontSize: "0.65rem", fontFamily: MONO, color: GREEN, opacity: 0.5, marginTop: 2 }}>
-          {detail}
-        </div>
-      )}
-      {rid && (
-        <div style={{ fontSize: "0.55rem", fontFamily: MONO, color: "#fff", opacity: 0.2, marginTop: 2 }}>
-          {rid.length > 28 ? rid.slice(0, 28) + "..." : rid}
-        </div>
-      )}
-      <Handle type="target" position={Position.Top} style={{ background: iconInfo.color, width: 5, height: 5, border: "none" }} />
-      <Handle type="source" position={Position.Bottom} style={{ background: iconInfo.color, width: 5, height: 5, border: "none" }} />
+      {detail && <div style={{ fontSize: "0.6rem", fontFamily: MONO, color: GREEN, opacity: 0.5, marginTop: 2 }}>{detail}</div>}
+      {rid && <div style={{ fontSize: "0.5rem", fontFamily: MONO, color: "#fff", opacity: 0.2, marginTop: 1 }}>{rid.length > 26 ? rid.slice(0, 26) + "..." : rid}</div>}
+      <Handle type="target" position={Position.Top} style={{ background: info.color, width: 5, height: 5, border: "none" }} />
+      <Handle type="source" position={Position.Bottom} style={{ background: info.color, width: 5, height: 5, border: "none" }} />
     </div>
   );
 }
 
-const nodeTypes: NodeTypes = {
-  vpc: VpcNode,
-  resource: ResourceNode,
-};
+const nodeTypes: NodeTypes = { vpc: VpcNode, resource: ResourceNode };
 
-/* ── Build the graph ── */
+/* ── Layout constants ── */
+const NODE_W = 190;
+const NODE_H = 85;
+const GAP_X = 35;
+const GAP_Y = 40;
+const VPC_PAD = 40;
+const VPC_TOP = 45;
+
+/* ── Build graph ── */
 function buildGraph(resources: NodeResponse[], selectedNode: string | null) {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
@@ -152,305 +119,222 @@ function buildGraph(resources: NodeResponse[], selectedNode: string | null) {
   );
 
   const getVpcId = (r: NodeResponse): string => r.properties?.vpc_id || "";
-  const isSelected = (name: string) => selectedNode === name;
+  const isSel = (n: string) => selectedNode === n;
 
-  // Layout: no parent-child nesting — all nodes absolute positioned
-  const NODE_W = 190;
-  const NODE_H = 90;
-  const COL_GAP = 40;
-  const ROW_GAP = 50;
-  const VPC_PAD_TOP = 55;
-  const VPC_PAD_LEFT = 30;
-  const VPC_PAD_BOTTOM = 30;
-
-  let vpcOffsetX = 0;
+  // Track VPC layouts for peering/IGW placement
+  const vpcMeta: { id: string; nodeId: string; x: number; y: number; w: number; h: number }[] = [];
+  let vpcX = 0;
+  const vpcY = 120; // leave room for IGWs above
 
   vpcs.forEach((vpc) => {
     const vpcId = vpc.containerId;
-    const vpcSubnets = subnets.filter((s) => getVpcId(s) === vpcId);
-    const vpcIgws = igws.filter((g) => getVpcId(g) === vpcId);
-    const vpcRts = rts.filter((rt) => getVpcId(rt) === vpcId);
-    const vpcSgs = sgs.filter((sg) => getVpcId(sg) === vpcId);
-    const vpcNats = natGws.filter((n) => getVpcId(n) === vpcId);
+    const vpcNodeId = `vpc-${vpcId}`;
 
-    // Row 1: subnets + NAT GWs (IGWs are outside VPC)
-    const row1Items = [...vpcSubnets, ...vpcNats];
-    const row1Cols = Math.max(row1Items.length, 1);
+    // Collect children
+    const mySubnets = subnets.filter((s) => getVpcId(s) === vpcId);
+    const myRts = rts.filter((r) => getVpcId(r) === vpcId);
+    const mySgs = sgs.filter((s) => getVpcId(s) === vpcId);
+    const myNats = natGws.filter((n) => getVpcId(n) === vpcId);
 
-    // Row 2: route tables + SGs
-    const row2Items = [...vpcRts, ...vpcSgs];
-    const row2Cols = Math.max(row2Items.length, 1);
+    // Layout children in rows inside VPC
+    // Row 1: subnets + NATs
+    const row1 = [...mySubnets, ...myNats];
+    // Row 2: route tables + security groups
+    const row2 = [...myRts, ...mySgs];
 
-    const maxCols = Math.max(row1Cols, row2Cols, 2);
-    const vpcW = maxCols * (NODE_W + COL_GAP) + VPC_PAD_LEFT * 2 - COL_GAP;
-    const hasRow2 = row2Items.length > 0;
-    const vpcH = VPC_PAD_TOP + NODE_H + (hasRow2 ? ROW_GAP + NODE_H : 0) + VPC_PAD_BOTTOM;
+    const cols = Math.max(row1.length, row2.length, 1);
+    const vpcW = cols * (NODE_W + GAP_X) - GAP_X + VPC_PAD * 2;
+    const numRows = (row1.length > 0 ? 1 : 0) + (row2.length > 0 ? 1 : 0);
+    const vpcH = VPC_TOP + numRows * (NODE_H + GAP_Y) - (numRows > 0 ? GAP_Y : 0) + VPC_PAD;
 
-    const vpcX = vpcOffsetX;
-    const hasIgw = vpcIgws.length > 0;
-    const vpcY = hasIgw ? 150 : 60;
-
-    // VPC background node (z-index -1 via style)
+    // VPC node — dimensions via style so React Flow handles parent sizing
     nodes.push({
-      id: `vpc-${vpc.name}`,
+      id: vpcNodeId,
       type: "vpc",
       position: { x: vpcX, y: vpcY },
-      data: {
-        label: vpc.name,
-        cidr: vpc.properties?.cidr_block || "",
-        width: vpcW,
-        height: vpcH,
+      data: { label: vpc.name, cidr: vpc.properties?.cidr_block || "" },
+      style: {
+        width: vpcW, height: vpcH,
+        border: `2px solid ${GREEN}`,
+        borderRadius: 10,
+        background: "rgba(0,0,0,0.85)",
       },
-      style: { zIndex: -1 },
       selectable: false,
-      draggable: false,
     });
 
-    // Row 1: Subnets
-    vpcSubnets.forEach((subnet, i) => {
-      const x = vpcX + VPC_PAD_LEFT + i * (NODE_W + COL_GAP);
-      const y = vpcY + VPC_PAD_TOP;
-      const isPublic = subnet.name.toLowerCase().includes("public");
-      const nodeId = `subnet-${subnet.containerId}`;
+    // Row 1 children (positions relative to parent)
+    let childY = VPC_TOP;
+    row1.forEach((r, i) => {
+      const childX = VPC_PAD + i * (NODE_W + GAP_X);
+      const isSubnet = r.kind === "aws_subnet";
+      const isPub = r.name.toLowerCase().includes("public");
+      const nodeId = `${r.kind}-${r.containerId}`;
       nodes.push({
         id: nodeId,
         type: "resource",
-        position: { x, y },
+        position: { x: childX, y: childY },
+        parentId: vpcNodeId,
+        extent: "parent" as const,
         data: {
-          kind: "aws_subnet",
-          label: subnet.name + (isPublic ? " (pub)" : " (priv)"),
-          detail: [subnet.properties?.cidr_block, subnet.properties?.availability_zone].filter(Boolean).join(" / "),
-          resourceId: subnet.containerId,
-          selected: isSelected(subnet.name),
+          kind: r.kind,
+          label: isSubnet ? `${r.name}${isPub ? " (pub)" : " (priv)"}` : r.name,
+          detail: isSubnet
+            ? [r.properties?.cidr_block, r.properties?.availability_zone].filter(Boolean).join(" / ")
+            : "",
+          resourceId: r.containerId,
+          selected: isSel(r.name),
         },
       });
     });
 
-    // IGWs placed OUTSIDE and above the VPC
-    vpcIgws.forEach((igw, i) => {
-      const x = vpcX + vpcW / 2 - NODE_W / 2 + i * (NODE_W + COL_GAP);
-      const y = vpcY - NODE_H - 30;
-      const nodeId = `igw-${igw.containerId}`;
+    if (row1.length > 0 && row2.length > 0) childY += NODE_H + GAP_Y;
+
+    // Row 2 children
+    row2.forEach((r, i) => {
+      const childX = VPC_PAD + i * (NODE_W + GAP_X);
+      const nodeId = `${r.kind}-${r.containerId}`;
       nodes.push({
         id: nodeId,
         type: "resource",
-        position: { x, y },
+        position: { x: childX, y: childY },
+        parentId: vpcNodeId,
+        extent: "parent" as const,
         data: {
-          kind: "aws_internet_gateway",
-          label: igw.name,
-          detail: "internet",
-          resourceId: igw.containerId,
-          selected: isSelected(igw.name),
-        },
-      });
-
-      // Edge: IGW → VPC
-      edges.push({
-        id: `e-igw-vpc-${igw.containerId}`,
-        source: nodeId,
-        target: `vpc-${vpc.name}`,
-        style: { stroke: "#eab308", strokeWidth: 2, strokeDasharray: "6 3" },
-        animated: true,
-      });
-    });
-
-    // Row 1 continued: NAT GWs
-    vpcNats.forEach((nat, i) => {
-      const x = vpcX + VPC_PAD_LEFT + (vpcSubnets.length + vpcIgws.length + i) * (NODE_W + COL_GAP);
-      const y = vpcY + VPC_PAD_TOP;
-      const nodeId = `nat-${nat.containerId}`;
-      nodes.push({
-        id: nodeId,
-        type: "resource",
-        position: { x, y },
-        data: {
-          kind: "aws_nat_gateway",
-          label: nat.name,
+          kind: r.kind,
+          label: r.name,
           detail: "",
-          resourceId: nat.containerId,
-          selected: isSelected(nat.name),
-        },
-      });
-    });
-
-    // Row 2: Route tables
-    vpcRts.forEach((rt, i) => {
-      const x = vpcX + VPC_PAD_LEFT + i * (NODE_W + COL_GAP);
-      const y = vpcY + VPC_PAD_TOP + NODE_H + ROW_GAP;
-      const nodeId = `rt-${rt.containerId}`;
-      nodes.push({
-        id: nodeId,
-        type: "resource",
-        position: { x, y },
-        data: {
-          kind: "aws_route_table",
-          label: rt.name,
-          detail: "",
-          resourceId: rt.containerId,
-          selected: isSelected(rt.name),
+          resourceId: r.containerId,
+          selected: isSel(r.name),
         },
       });
 
-      // Find RT association → subnet edge
-      const assoc = rtAssocs.find((a) => a.properties?.route_table_id === rt.containerId);
-      if (assoc?.properties?.subnet_id) {
-        const subnetNode = nodes.find((n) => n.id === `subnet-${assoc.properties?.subnet_id}`);
-        if (subnetNode) {
-          edges.push({
-            id: `e-rt-sub-${rt.containerId}`,
-            source: nodeId,
-            target: subnetNode.id,
-            style: { stroke: "#a855f7", strokeWidth: 1.5 },
-          });
+      // RT → subnet edge via association
+      if (r.kind === "aws_route_table") {
+        const assoc = rtAssocs.find((a) => a.properties?.route_table_id === r.containerId);
+        if (assoc?.properties?.subnet_id) {
+          const tgt = `aws_subnet-${assoc.properties.subnet_id}`;
+          if (nodes.some((n) => n.id === tgt)) {
+            edges.push({
+              id: `e-rt-${r.containerId}`,
+              source: nodeId, target: tgt,
+              style: { stroke: "#a855f7", strokeWidth: 1.5 },
+            });
+          }
         }
       }
     });
 
-    // Row 2 continued: Security groups
-    vpcSgs.forEach((sg, i) => {
-      const x = vpcX + VPC_PAD_LEFT + (vpcRts.length + i) * (NODE_W + COL_GAP);
-      const y = vpcY + VPC_PAD_TOP + NODE_H + ROW_GAP;
-      const nodeId = `sg-${sg.containerId}`;
-      nodes.push({
-        id: nodeId,
-        type: "resource",
-        position: { x, y },
-        data: {
-          kind: "aws_security_group",
-          label: sg.name,
-          detail: "",
-          resourceId: sg.containerId,
-          selected: isSelected(sg.name),
-        },
-      });
-    });
-
-    vpcOffsetX += vpcW + 100;
+    vpcMeta.push({ id: vpcId, nodeId: vpcNodeId, x: vpcX, y: vpcY, w: vpcW, h: vpcH });
+    vpcX += vpcW + 120;
   });
 
-  // VPC Peering
+  // IGWs — outside VPC, centered above it
+  igws.forEach((igw) => {
+    const vpcId = getVpcId(igw);
+    const vpc = vpcMeta.find((v) => v.id === vpcId);
+    const x = vpc ? vpc.x + vpc.w / 2 - NODE_W / 2 : 0;
+    const y = vpc ? vpc.y - NODE_H - 30 : 0;
+    const nodeId = `aws_internet_gateway-${igw.containerId}`;
+    nodes.push({
+      id: nodeId, type: "resource",
+      position: { x, y },
+      data: { kind: "aws_internet_gateway", label: igw.name, detail: "internet", resourceId: igw.containerId, selected: isSel(igw.name) },
+    });
+    if (vpc) {
+      edges.push({
+        id: `e-igw-${igw.containerId}`,
+        source: nodeId, target: vpc.nodeId,
+        style: { stroke: "#eab308", strokeWidth: 2, strokeDasharray: "6 3" },
+        animated: true,
+      });
+    }
+  });
+
+  // VPC Peering — between VPCs
   peerings.forEach((peer) => {
-    const nodeId = `peer-${peer.containerId}`;
-    const vpcNodes = nodes.filter((n) => n.type === "vpc");
-    const midX = vpcNodes.length >= 2
-      ? (vpcNodes[0].position.x + (vpcNodes[0].data.width as number) + vpcNodes[1].position.x) / 2 - NODE_W / 2
-      : vpcOffsetX;
+    const nodeId = `aws_vpc_peering_connection-${peer.containerId}`;
+    const midX = vpcMeta.length >= 2
+      ? (vpcMeta[0].x + vpcMeta[0].w + vpcMeta[1].x) / 2 - NODE_W / 2
+      : vpcX;
+    const midY = vpcMeta.length > 0
+      ? vpcMeta[0].y + vpcMeta[0].h / 2 - NODE_H / 2
+      : 200;
 
     nodes.push({
-      id: nodeId,
-      type: "resource",
-      position: { x: midX, y: 200 },
-      data: {
-        kind: "aws_vpc_peering_connection",
-        label: peer.name,
-        detail: "peering",
-        resourceId: peer.containerId,
-        selected: isSelected(peer.name),
-      },
+      id: nodeId, type: "resource",
+      position: { x: midX, y: midY },
+      data: { kind: "aws_vpc_peering_connection", label: peer.name, detail: "peering", resourceId: peer.containerId, selected: isSel(peer.name) },
     });
-
-    vpcNodes.forEach((vn) => {
+    vpcMeta.forEach((v) => {
       edges.push({
-        id: `e-peer-${peer.containerId}-${vn.id}`,
-        source: nodeId,
-        target: vn.id,
+        id: `e-pcx-${peer.containerId}-${v.nodeId}`,
+        source: nodeId, target: v.nodeId,
         style: { stroke: "#38bdf8", strokeWidth: 2, strokeDasharray: "8 4" },
         animated: true,
       });
     });
   });
 
-  // EIPs above VPCs
+  // EIPs
   eips.forEach((eip, i) => {
     nodes.push({
-      id: `eip-${eip.containerId}`,
-      type: "resource",
-      position: { x: i * (NODE_W + COL_GAP), y: 0 },
-      data: {
-        kind: "aws_eip",
-        label: eip.name,
-        detail: eip.properties?.public_ip || "",
-        resourceId: eip.containerId,
-        selected: isSelected(eip.name),
-      },
+      id: `aws_eip-${eip.containerId}`, type: "resource",
+      position: { x: i * (NODE_W + GAP_X), y: 0 },
+      data: { kind: "aws_eip", label: eip.name, detail: eip.properties?.public_ip || "", resourceId: eip.containerId, selected: isSel(eip.name) },
     });
   });
 
-  // Others below
+  // Others
+  const bottomY = vpcMeta.length > 0 ? Math.max(...vpcMeta.map((v) => v.y + v.h)) + 60 : 300;
   others.forEach((r, i) => {
     nodes.push({
-      id: `other-${r.containerId}-${i}`,
-      type: "resource",
-      position: { x: i * (NODE_W + COL_GAP), y: 500 },
-      data: {
-        kind: r.kind,
-        label: r.name,
-        detail: r.properties?.cidr_block || "",
-        resourceId: r.containerId,
-        selected: isSelected(r.name),
-      },
+      id: `other-${r.containerId}`, type: "resource",
+      position: { x: i * (NODE_W + GAP_X), y: bottomY },
+      data: { kind: r.kind, label: r.name, detail: r.properties?.cidr_block || "", resourceId: r.containerId, selected: isSel(r.name) },
     });
   });
 
-  // Cross-resource reference edges (from _refs property)
-  // _refs format: "aws_security_group.web:sg-xxx,aws_vpc.main:vpc-yyy"
-  const nodeByContainerId = new Map<string, string>(); // containerId -> nodeId
+  // Cross-reference edges from _refs
+  const nodeById = new Map<string, string>();
   nodes.forEach((n) => {
     const rid = (n.data as Record<string, unknown>).resourceId as string;
-    if (rid) nodeByContainerId.set(rid, n.id);
+    if (rid) nodeById.set(rid, n.id);
   });
-
   resources.forEach((r) => {
     const refs = r.properties?._refs;
     if (!refs) return;
-    const sourceNodeId = nodeByContainerId.get(r.containerId);
-    if (!sourceNodeId) return;
-
+    const src = nodeById.get(r.containerId);
+    if (!src) return;
     refs.split(",").forEach((ref) => {
-      const colonIdx = ref.lastIndexOf(":");
-      if (colonIdx < 0) return;
-      const refId = ref.slice(colonIdx + 1);
-      const refAddr = ref.slice(0, colonIdx);
-      const targetNodeId = nodeByContainerId.get(refId);
-      if (!targetNodeId) return;
-      // Skip VPC membership edges (vpc_id) — those are implicit from layout
-      if (refAddr.startsWith("aws_vpc.")) return;
-
-      const edgeId = `e-ref-${r.containerId}-${refId}`;
-      // Avoid duplicate edges
-      if (edges.some((e) => e.id === edgeId)) return;
-
-      const iconInfo = ICON_MAP[r.kind];
+      const ci = ref.lastIndexOf(":");
+      if (ci < 0) return;
+      const refId = ref.slice(ci + 1);
+      const refAddr = ref.slice(0, ci);
+      const tgt = nodeById.get(refId);
+      if (!tgt) return;
+      if (refAddr.startsWith("aws_vpc.")) return; // skip vpc membership
+      const eid = `e-ref-${r.containerId}-${refId}`;
+      if (edges.some((e) => e.id === eid)) return;
+      const info = ICON_MAP[r.kind];
       edges.push({
-        id: edgeId,
-        source: sourceNodeId,
-        target: targetNodeId,
-        style: { stroke: iconInfo?.color || "#94a3b8", strokeWidth: 1.5 },
+        id: eid, source: src, target: tgt,
+        style: { stroke: info?.color || "#94a3b8", strokeWidth: 1.5 },
         animated: true,
         label: r.kind === "aws_security_group" ? "ingress" : undefined,
         labelStyle: { fontSize: 9, fill: "#94a3b8", fontFamily: FONT },
-        labelBgStyle: { fill: "rgba(0,0,0,0.7)", rx: 3 },
+        labelBgStyle: { fill: "rgba(0,0,0,0.8)", rx: 3 },
         labelBgPadding: [4, 2] as [number, number],
       });
     });
   });
 
-  // No VPCs fallback: grid
+  // Fallback: no VPCs
   if (vpcs.length === 0 && resources.length > 0) {
     resources.forEach((r, i) => {
-      const col = i % 3;
-      const row = Math.floor(i / 3);
       nodes.push({
-        id: `res-${i}`,
-        type: "resource",
-        position: { x: col * (NODE_W + COL_GAP), y: row * (NODE_H + ROW_GAP) },
-        data: {
-          kind: r.kind,
-          label: r.name,
-          detail: r.properties?.cidr_block || "",
-          resourceId: r.containerId,
-          selected: isSelected(r.name),
-        },
+        id: `res-${i}`, type: "resource",
+        position: { x: (i % 3) * (NODE_W + GAP_X), y: Math.floor(i / 3) * (NODE_H + GAP_Y) },
+        data: { kind: r.kind, label: r.name, detail: r.properties?.cidr_block || "", resourceId: r.containerId, selected: isSel(r.name) },
       });
     });
   }
@@ -466,36 +350,26 @@ interface Props {
 }
 
 function CloudCanvas({ resources, selectedNode, onSelectNode }: Props) {
-  const { nodes: initialNodes, edges: initialEdges } = useMemo(
+  const { nodes: init, edges: initE } = useMemo(
     () => buildGraph(resources, selectedNode || null),
     [resources, selectedNode]
   );
+  const [nodes, , onNodesChange] = useNodesState(init);
+  const [edges, , onEdgesChange] = useEdgesState(initE);
 
-  const [nodes, , onNodesChange] = useNodesState(initialNodes);
-  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
-
-  const onNodeClick = useCallback(
-    (_: React.MouseEvent, node: Node) => {
-      if (node.type === "vpc") return;
-      const name = ((node.data as Record<string, unknown>).label as string || "").replace(/ \(.*\)$/, "");
-      onSelectNode?.(name || null);
-    },
-    [onSelectNode]
-  );
+  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    if (node.type === "vpc") return;
+    const name = ((node.data as Record<string, unknown>).label as string || "").replace(/ \(.*\)$/, "");
+    onSelectNode?.(name || null);
+  }, [onSelectNode]);
 
   return (
     <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      nodeTypes={nodeTypes}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      onNodeClick={onNodeClick}
-      onPaneClick={() => onSelectNode?.(null)}
-      fitView
-      fitViewOptions={{ padding: 0.2 }}
-      minZoom={0.3}
-      maxZoom={2}
+      nodes={nodes} edges={edges} nodeTypes={nodeTypes}
+      onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
+      onNodeClick={onNodeClick} onPaneClick={() => onSelectNode?.(null)}
+      fitView fitViewOptions={{ padding: 0.15 }}
+      minZoom={0.2} maxZoom={2}
       proOptions={{ hideAttribution: true }}
       style={{ background: "#79f673" }}
     >

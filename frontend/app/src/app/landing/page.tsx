@@ -437,7 +437,7 @@ export default function LandingPage() {
                   { feature: "Packet capture", vals: ["Click any link", "Port mirror", "Wireshark setup", "Built-in", "tcpdump (manual)"] },
                   { feature: "Auto-cleanup", vals: ["On logout", "Manual", "Manual", "Manual", "Manual"] },
                   { feature: "Multi-tenant / RBAC", vals: ["Built-in", "No", "No", "Basic", "No"] },
-                  { feature: "Cost", vals: ["Free tier", "$$$$ hardware", "Free / paid", "$$ license", "Free (your infra)"] },
+                  { feature: "Cost", vals: ["Free tier", "$$$$ hardware", "Server costs", "$$ license", "Server costs"] },
                   { feature: "Real NOS images", vals: ["FRR, MikroTik+", "Real gear", "Emulated", "Cisco IOS", "Any container"] },
                 ].map((row, ri) => (
                   <tr key={ri} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>

@@ -9,6 +9,18 @@ func NewLoader(repo *TemplateRepository) *Loader {
 	return &Loader{repo: repo}
 }
 
+// GetType returns the type ("network" or "cloud") for a template by UUID.
+func (l *Loader) GetType(topoUUID string) (string, error) {
+	t, err := l.repo.GetByUUID(topoUUID)
+	if err != nil {
+		return "", err
+	}
+	if t.Type == "" {
+		return "network", nil
+	}
+	return t.Type, nil
+}
+
 // GetDefinition returns the YAML definition for a tmpl by UUID.
 func (l *Loader) GetDefinition(topoUUID string) (string, error) {
 	t, err := l.repo.GetByUUID(topoUUID)

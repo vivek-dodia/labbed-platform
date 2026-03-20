@@ -21,6 +21,7 @@ type Lab struct {
 	gorm.Model
 	UUID           string     `gorm:"uniqueIndex;not null"`
 	Name           string     `gorm:"index;not null"`
+	Type           string     `gorm:"index;not null;default:'network'"` // "network" | "cloud"
 	OrgID          uint       `gorm:"index;not null;default:0"`
 	State          LabState   `gorm:"not null;default:'scheduled'"`
 	TemplateID     string     `gorm:"index;not null"` // template UUID
@@ -82,6 +83,7 @@ type NodeResponse struct {
 type Response struct {
 	UUID           string         `json:"uuid"`
 	Name           string         `json:"name"`
+	Type           string         `json:"type"`
 	State          LabState       `json:"state"`
 	TemplateID     string         `json:"templateId"`
 	CreatorID      uint           `json:"creatorId"`

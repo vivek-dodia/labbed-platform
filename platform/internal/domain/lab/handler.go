@@ -268,6 +268,30 @@ func (h *LabHandler) HandleGetEvents(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+// HandleAwsExec proxies AWS CLI commands to the worker for cloud labs.
+func (h *LabHandler) HandleAwsExec(c *gin.Context) {
+	labUUID := c.Param("id")
+	if h.requireLabOrg(c, labUUID) {
+		return
+	}
+
+	var req struct {
+		Command string `json:"command" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	output, err := h.service.AwsExec(labUUID, req.Command)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"output": output})
+}
+
 // --- Internal handlers (called by workers) ---
 
 func (h *LabHandler) HandleStatusUpdate(c *gin.Context) {

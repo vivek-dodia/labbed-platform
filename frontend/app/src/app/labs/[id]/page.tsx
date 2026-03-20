@@ -11,6 +11,7 @@ import { api } from "@/lib/api";
 import { parseContainerlabYAML } from "@/lib/yaml-parser";
 import DeployConfigModal from "@/components/DeployConfigModal";
 import { getCompletions } from "@/lib/completions";
+import AwsCliTerminal from "@/components/AwsCliTerminal";
 import type { LabResponse, NodeResponse, TemplateResponse, LabEventResponse, PaginatedResponse, BindFileResponse } from "@/types/api";
 
 /* ── Quick-command definitions ── */
@@ -243,7 +244,7 @@ const FONT = "'Manrope', -apple-system, sans-serif";
 const MONO = "'Space Mono', monospace";
 const LABEL: React.CSSProperties = { fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 };
 
-type BottomTab = "terminal" | "logs" | "events" | "yaml" | "bulk";
+type BottomTab = "terminal" | "logs" | "events" | "yaml" | "bulk" | "aws";
 
 /* ── Terminal line type ── */
 interface TermLine { type: "input" | "output"; text: string }
@@ -363,14 +364,17 @@ export default function LabDetailPage() {
   }, []);
   useWSChannel(logsChannel, handleLogMessage);
 
-  /* Auto-switch to logs tab when deploying */
+  /* Auto-switch to logs tab when deploying, aws tab when cloud running */
   useEffect(() => {
     if (lab?.state === "deploying") {
       setBottomOpen(true);
       setBottomTab("logs");
       setDeployLogs([]);
+    } else if (lab?.state === "running" && lab?.type === "cloud") {
+      setBottomOpen(true);
+      setBottomTab("aws");
     }
-  }, [lab?.state]);
+  }, [lab?.state, lab?.type]);
 
   /* Auto-scroll logs */
   useEffect(() => { logsScrollRef.current?.scrollTo(0, logsScrollRef.current.scrollHeight); }, [deployLogs]);
@@ -416,10 +420,13 @@ export default function LabDetailPage() {
     if (selectedNode && (lab?.state === "running" || lab?.state === "deploying")) {
       setBottomOpen(true);
       if (bottomTab !== "logs" || lab?.state !== "deploying") {
-        setBottomTab("terminal");
+        setBottomTab(lab?.type === "cloud" ? "aws" : "terminal");
       }
     } else if (!selectedNode) {
-      setBottomOpen(false);
+      // For cloud labs, keep bottom panel open when running
+      if (lab?.type !== "cloud" || lab?.state !== "running") {
+        setBottomOpen(false);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNode]);
@@ -873,7 +880,7 @@ export default function LabDetailPage() {
             <StatusBadge state={lab.state} />
           </div>
           <div style={{ display: "flex", alignItems: "center", padding: "0 1.25rem", gap: "1.5rem" }}>
-            <span style={{ ...LABEL, opacity: 0.5 }}>{nodeCount} NODES</span>
+            <span style={{ ...LABEL, opacity: 0.5 }}>{nodeCount} {lab.type === "cloud" ? "RESOURCES" : "NODES"}</span>
             <span style={{ ...LABEL, opacity: 0.5, fontFamily: MONO, fontSize: "0.65rem" }}>{lab.uuid.slice(0, 8)}</span>
             {lab.state === "running" && lab.deployedAt && (
               <span style={{ ...LABEL, opacity: 0.5, fontFamily: MONO, fontSize: "0.65rem" }}>
@@ -923,7 +930,7 @@ export default function LabDetailPage() {
             {/* Template canvas */}
             <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
               <div style={{ padding: "0.5rem 1rem", borderBottom: BORDER, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={LABEL}>TOPOLOGY</span>
+                <span style={LABEL}>{lab.type === "cloud" ? "CLOUD RESOURCES" : "TOPOLOGY"}</span>
                 <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                   <button
                     onClick={() => setBottomOpen(!bottomOpen)}
@@ -935,7 +942,44 @@ export default function LabDetailPage() {
                 </div>
               </div>
               <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-                {template ? (
+                {lab.type === "cloud" ? (
+                  <div style={{ padding: "1rem", overflowY: "auto", height: "100%" }}>
+                    {(lab.nodes || []).length === 0 ? (
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", opacity: 0.2 }}>
+                        <span style={LABEL}>{lab.state === "deploying" ? "DEPLOYING RESOURCES..." : "NO RESOURCES"}</span>
+                      </div>
+                    ) : (
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.75rem", fontFamily: MONO }}>
+                        <thead>
+                          <tr style={{ borderBottom: BORDER }}>
+                            <th style={{ ...LABEL, textAlign: "left", padding: "0.4rem 0.5rem", fontSize: "0.6rem" }}>TYPE</th>
+                            <th style={{ ...LABEL, textAlign: "left", padding: "0.4rem 0.5rem", fontSize: "0.6rem" }}>NAME</th>
+                            <th style={{ ...LABEL, textAlign: "left", padding: "0.4rem 0.5rem", fontSize: "0.6rem" }}>ID</th>
+                            <th style={{ ...LABEL, textAlign: "left", padding: "0.4rem 0.5rem", fontSize: "0.6rem" }}>STATE</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(lab.nodes || []).map((n, i) => (
+                            <tr key={i} style={{ borderBottom: "1px solid rgba(0,0,0,0.08)" }}>
+                              <td style={{ padding: "0.4rem 0.5rem" }}>
+                                <span style={{
+                                  fontSize: "0.6rem", fontWeight: 700, textTransform: "uppercase",
+                                  padding: "1px 6px", borderRadius: 3,
+                                  background: "rgba(0,120,255,0.1)", color: "#0070f3",
+                                }}>{n.kind}</span>
+                              </td>
+                              <td style={{ padding: "0.4rem 0.5rem" }}>{n.name}</td>
+                              <td style={{ padding: "0.4rem 0.5rem", opacity: 0.5 }}>{(n.containerId || "\u2014").slice(0, 20)}</td>
+                              <td style={{ padding: "0.4rem 0.5rem" }}>
+                                <span style={{ color: n.state === "created" ? "#27c93f" : INK }}>{n.state}</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                ) : template ? (
                   <TopologyCanvas
                     definition={template.definition}
                     selectedNode={selectedNode}
@@ -959,7 +1003,7 @@ export default function LabDetailPage() {
             {/* Node list sidebar */}
             <div style={{ width: 220, minWidth: 220, borderLeft: BORDER, display: "flex", flexDirection: "column", overflow: "hidden" }}>
               <div style={{ padding: "0.5rem 0.75rem", borderBottom: BORDER }}>
-                <span style={LABEL}>NODES</span>
+                <span style={LABEL}>{lab.type === "cloud" ? "RESOURCES" : "NODES"}</span>
               </div>
               <div style={{ flex: 1, overflowY: "auto" }}>
                 {(lab.nodes || []).map((node) => {
@@ -1108,7 +1152,10 @@ export default function LabDetailPage() {
             <div style={{ flex: 1, display: "flex", flexDirection: "column", backgroundColor: INK, color: BG, overflow: "hidden" }}>
               {/* Tab bar */}
               <div style={{ borderBottom: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", flexShrink: 0 }}>
-                {(["terminal", "logs", "events", "yaml", "bulk"] as BottomTab[]).map((tab) => (
+                {(lab.type === "cloud"
+                  ? ["aws", "logs", "events", "yaml"] as BottomTab[]
+                  : ["terminal", "logs", "events", "yaml", "bulk"] as BottomTab[]
+                ).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setBottomTab(tab)}
@@ -1127,7 +1174,7 @@ export default function LabDetailPage() {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {tab === "bulk" ? "BULK CMD" : tab}
+                    {tab === "bulk" ? "BULK CMD" : tab === "aws" ? "AWS CLI" : tab}
                     {tab === "logs" && deployLogs.length > 0 && (
                       <span style={{ marginLeft: 4, fontSize: "0.55rem", opacity: 0.5 }}>({deployLogs.length})</span>
                     )}
@@ -1195,6 +1242,13 @@ export default function LabDetailPage() {
               </div>
 
               {/* ── Tab content ── */}
+
+              {/* AWS CLI TAB (cloud labs) */}
+              {bottomTab === "aws" && (
+                <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+                  <AwsCliTerminal labId={lab.uuid} disabled={lab.state !== "running"} />
+                </div>
+              )}
 
               {/* TERMINAL TAB */}
               {bottomTab === "terminal" && (

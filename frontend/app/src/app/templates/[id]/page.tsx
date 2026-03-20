@@ -204,7 +204,7 @@ export default function TopologyEditorPage() {
               {template.name}
             </h1>
             <p style={{ ...labelStyle, marginTop: "0.5rem", opacity: 0.5 }}>
-              TOPOLOGY EDITOR
+              {template.type === "cloud" ? "CLOUD TEMPLATE EDITOR" : "TOPOLOGY EDITOR"}
             </p>
             <div style={{ display: "flex", gap: "0.5rem", marginTop: "1.5rem", flexWrap: "wrap" }}>
               <button onClick={handleSave} disabled={saving} style={pillBtn()}>
@@ -219,13 +219,13 @@ export default function TopologyEditorPage() {
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement("a");
                   a.href = url;
-                  a.download = `${template.name}.yaml`;
+                  a.download = `${template.name}.${template.type === "cloud" ? "tf" : "yaml"}`;
                   a.click();
                   URL.revokeObjectURL(url);
                 }}
                 style={pillBtn()}
               >
-                Export YAML
+                {template.type === "cloud" ? "Export HCL" : "Export YAML"}
               </button>
               <button
                 onClick={async () => {
@@ -240,21 +240,25 @@ export default function TopologyEditorPage() {
           </div>
 
           {/* 2-column: canvas+editor | properties */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", flexGrow: 1 }}>
+          <div style={{ display: "grid", gridTemplateColumns: template.type === "cloud" ? "1fr" : "1fr 320px", flexGrow: 1 }}>
             {/* Left: Canvas + YAML + Bind files */}
-            <div style={{ borderRight: "1px solid #000000", display: "flex", flexDirection: "column" }}>
-              {/* Canvas */}
-              <div style={{ minHeight: 320, borderBottom: "1px solid #000000", position: "relative", overflow: "hidden" }}>
-                <TopologyCanvas
-                  definition={definition}
-                  selectedNode={selectedNode}
-                  onSelectNode={setSelectedNode}
-                />
-              </div>
+            <div style={{ borderRight: template.type === "cloud" ? "none" : "1px solid #000000", display: "flex", flexDirection: "column" }}>
+              {/* Canvas (network only) */}
+              {template.type !== "cloud" && (
+                <div style={{ minHeight: 320, borderBottom: "1px solid #000000", position: "relative", overflow: "hidden" }}>
+                  <TopologyCanvas
+                    definition={definition}
+                    selectedNode={selectedNode}
+                    onSelectNode={setSelectedNode}
+                  />
+                </div>
+              )}
 
-              {/* YAML editor */}
+              {/* Definition editor */}
               <div style={{ padding: "1.5rem", borderBottom: "1px solid #000000" }}>
-                <label style={{ ...labelStyle, display: "block", marginBottom: "0.5rem", opacity: 0.5 }}>DEFINITION (YAML)</label>
+                <label style={{ ...labelStyle, display: "block", marginBottom: "0.5rem", opacity: 0.5 }}>
+                  {template.type === "cloud" ? "DEFINITION (HCL / TERRAFORM)" : "DEFINITION (YAML)"}
+                </label>
                 <textarea
                   value={definition}
                   onChange={(e) => setDefinition(e.target.value)}
@@ -275,7 +279,8 @@ export default function TopologyEditorPage() {
                 />
               </div>
 
-              {/* Bind files */}
+              {/* Bind files (network only) */}
+              {template.type !== "cloud" && (
               <div style={{ padding: "1.5rem" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
                   <span style={{ ...labelStyle, opacity: 0.5 }}>BIND FILES ({template.bindFiles.length})</span>
@@ -323,9 +328,11 @@ export default function TopologyEditorPage() {
                   <p style={{ fontSize: "0.8rem", opacity: 0.3 }}>No bind files. Add configuration files for nodes.</p>
                 )}
               </div>
+              )}
             </div>
 
-            {/* Right: Properties panel */}
+            {/* Right: Properties panel (network only) */}
+            {template.type !== "cloud" && (
             <div style={{ padding: "1.5rem" }}>
               <span style={{ ...labelStyle, opacity: 0.5 }}>PROPERTIES</span>
               {selectedParsed ? (
@@ -355,6 +362,7 @@ export default function TopologyEditorPage() {
                 <p style={{ fontSize: "0.8rem", opacity: 0.3, marginTop: "1rem" }}>Select a node on the canvas to view properties.</p>
               )}
             </div>
+            )}
           </div>
         </div>
       </div>

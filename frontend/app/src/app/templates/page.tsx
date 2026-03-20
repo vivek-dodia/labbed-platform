@@ -184,15 +184,30 @@ export default function TopologiesPage() {
                   onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.05)"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                 >
-                  <span style={{ ...labelStyle, fontSize: "0.6rem", opacity: 0.5 }}>
-                    {collectionName(t.collectionId)}
-                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span style={{ ...labelStyle, fontSize: "0.6rem", opacity: 0.5 }}>
+                      {collectionName(t.collectionId)}
+                    </span>
+                    <span style={{
+                      fontSize: "0.55rem",
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      padding: "1px 6px",
+                      borderRadius: 3,
+                      background: t.type === "cloud" ? "rgba(0,120,255,0.12)" : "rgba(0,0,0,0.06)",
+                      color: t.type === "cloud" ? "#0070f3" : "rgba(0,0,0,0.5)",
+                      fontFamily: "'Manrope', sans-serif",
+                    }}>
+                      {t.type === "cloud" ? "CLOUD" : "NETWORK"}
+                    </span>
+                  </div>
                   <h3 style={{ fontWeight: 500, fontSize: "1.15rem", lineHeight: 1.2, margin: "0.75rem 0 0.5rem" }}>
                     {t.name}
                   </h3>
                   <div style={{ display: "flex", gap: "1rem", marginTop: "1rem" }}>
                     <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "0.75rem", opacity: 0.5 }}>
-                      {nodeCount(t.definition)} nodes
+                      {t.type === "cloud" ? "HCL" : `${nodeCount(t.definition)} nodes`}
                     </span>
                     <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "0.7rem", opacity: 0.35 }}>
                       {new Date(t.updatedAt).toLocaleDateString()}

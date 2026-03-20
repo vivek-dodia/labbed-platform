@@ -12,7 +12,10 @@ RUN CGO_ENABLED=0 go build -o /labbed-worker .
 
 FROM ghcr.io/srl-labs/clab:0.74.0
 
-RUN apk add --no-cache tcpdump
+RUN apk add --no-cache tcpdump python3 py3-pip
+RUN wget -qO /tmp/tf.zip https://releases.hashicorp.com/terraform/1.9.8/terraform_1.9.8_linux_amd64.zip && \
+    unzip /tmp/tf.zip -d /usr/local/bin/ && rm /tmp/tf.zip
+RUN pip3 install --break-system-packages awscli
 
 WORKDIR /app
 COPY --from=builder /labbed-worker .

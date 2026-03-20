@@ -26,11 +26,12 @@ func NewClient() *Client {
 
 // DeployRequest is sent to a worker to deploy a lab.
 type DeployRequest struct {
-	LabID      string            `json:"labId"`
-	ClabName   string            `json:"clabName"`
-	Definition string            `json:"definition"` // YAML/HCL content
-	BindFiles  map[string][]byte `json:"bindFiles"`  // filePath -> content
-	CallbackURL string           `json:"callbackUrl"` // Platform URL for status updates
+	LabID       string            `json:"labId"`
+	ClabName    string            `json:"clabName"`
+	Definition  string            `json:"definition"` // YAML/HCL content
+	BindFiles   map[string][]byte `json:"bindFiles"`  // filePath -> content
+	CallbackURL string            `json:"callbackUrl"` // Platform URL for status updates
+	Type        string            `json:"type,omitempty"` // "network" (default) | "cloud"
 }
 
 // DestroyRequest is sent to a worker to destroy a lab.
@@ -39,6 +40,7 @@ type DestroyRequest struct {
 	ClabName    string `json:"clabName"`
 	CallbackURL string `json:"callbackUrl"`
 	CleanupOnly bool   `json:"cleanupOnly,omitempty"` // skip status callbacks, just remove containers
+	Type        string `json:"type,omitempty"`         // "network" (default) | "cloud"
 }
 
 // InspectRequest is sent to a worker to inspect a lab.
@@ -120,6 +122,27 @@ type CaptureResponse struct {
 func (c *Client) Capture(ctx context.Context, workerAddr, workerSecret string, req CaptureRequest) (*CaptureResponse, error) {
 	var resp CaptureResponse
 	if err := c.post(ctx, workerAddr+"/api/v1/labs/capture", workerSecret, req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// AwsExecRequest is sent to a worker to run AWS CLI commands against Moto.
+type AwsExecRequest struct {
+	LabID   string `json:"labId"`
+	Command string `json:"command"`
+}
+
+// AwsExecResponse is the worker's response to an aws-exec call.
+type AwsExecResponse struct {
+	Output string `json:"output"`
+	Error  string `json:"error,omitempty"`
+}
+
+// AwsExec sends an AWS CLI command execution request to a worker.
+func (c *Client) AwsExec(ctx context.Context, workerAddr, workerSecret string, req AwsExecRequest) (*AwsExecResponse, error) {
+	var resp AwsExecResponse
+	if err := c.post(ctx, workerAddr+"/api/v1/labs/aws-exec", workerSecret, req, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil

@@ -15,6 +15,7 @@ import (
 // Template holds a sample topology definition with optional bind files.
 type Template struct {
 	Name       string
+	Type       string // "network" (default) | "cloud"
 	Definition string
 	BindFiles  []BindFile
 }
@@ -39,6 +40,7 @@ var collections = []CollectionDef{
 	switchingCollection,
 	firewallCollection,
 	servicesCollection,
+	cloudCollection,
 }
 
 // SeedDefaults creates a default org, sample collections, and starter
@@ -198,10 +200,14 @@ func SeedSampleTemplates(db *gorm.DB, orgID uint, creatorID uint) {
 		db.Create(member)
 
 		for _, t := range colDef.Templates {
+			templateType := t.Type
+			if templateType == "" {
+				templateType = "network"
+			}
 			topo := &tmpl.Template{
 				UUID:         uuid.New().String(),
 				Name:         t.Name,
-				Type:         "network",
+				Type:         templateType,
 				Definition:   t.Definition,
 				OrgID:        orgID,
 				CollectionID: col.ID,

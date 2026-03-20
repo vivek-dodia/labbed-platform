@@ -23,7 +23,8 @@ type WorkerSelector interface {
 
 // TemplateLoader loads topology definitions and bind files for deploy dispatch.
 type TemplateLoader interface {
-	GetDefinition(topoUUID string) (string, error)                                    // returns YAML definition
+	GetType(topoUUID string) (string, error)                                          // returns "network" or "cloud"
+	GetDefinition(topoUUID string) (string, error)                                    // returns YAML/HCL definition
 	GetBindFiles(topoUUID string) (map[string][]byte, error)                          // filePath -> content
 	GetBindFilesForNos(topoUUID string, nosKinds []string) (map[string][]byte, error) // filtered by NOS kind
 }
@@ -64,9 +65,16 @@ func (s *LabService) Create(creatorID uint, req CreateRequest) (Response, error)
 
 // CreateWithOrg creates a new lab scoped to an organization.
 func (s *LabService) CreateWithOrg(creatorID uint, orgID uint, req CreateRequest) (Response, error) {
+	// Look up template type
+	labType := "network"
+	if t, err := s.templateLoader.GetType(req.TemplateID); err == nil && t != "" {
+		labType = t
+	}
+
 	l := &Lab{
 		UUID:       uuid.New().String(),
 		Name:       req.Name,
+		Type:       labType,
 		OrgID:      orgID,
 		State:      StateScheduled,
 		TemplateID: req.TemplateID,
@@ -242,30 +250,32 @@ func (s *LabService) Deploy(labUUID string, nodeImages map[string]string) error 
 		return errors.New("no available workers with capacity")
 	}
 
-	// Load topology definition and bind files
+	// Load topology/HCL definition
 	definition, err := s.templateLoader.GetDefinition(l.TemplateID)
 	if err != nil {
 		return fmt.Errorf("failed to load topology: %w", err)
 	}
 
-	// Apply image overrides if provided (also rewrites config delivery per NOS)
-	if len(nodeImages) > 0 {
-		definition, err = s.applyImageOverrides(definition, nodeImages)
-		if err != nil {
-			return fmt.Errorf("failed to apply image overrides: %w", err)
-		}
-	}
-
-	// Load bind files filtered by which NOS kinds are in the final YAML
-	nosKinds := extractNosKinds(definition)
 	var bindFiles map[string][]byte
-	if len(nosKinds) > 0 {
-		bindFiles, err = s.templateLoader.GetBindFilesForNos(l.TemplateID, nosKinds)
-	} else {
-		bindFiles, err = s.templateLoader.GetBindFiles(l.TemplateID)
-	}
-	if err != nil {
-		return fmt.Errorf("failed to load bind files: %w", err)
+
+	// For network labs: apply image overrides and load bind files
+	if l.Type != "cloud" {
+		if len(nodeImages) > 0 {
+			definition, err = s.applyImageOverrides(definition, nodeImages)
+			if err != nil {
+				return fmt.Errorf("failed to apply image overrides: %w", err)
+			}
+		}
+
+		nosKinds := extractNosKinds(definition)
+		if len(nosKinds) > 0 {
+			bindFiles, err = s.templateLoader.GetBindFilesForNos(l.TemplateID, nosKinds)
+		} else {
+			bindFiles, err = s.templateLoader.GetBindFiles(l.TemplateID)
+		}
+		if err != nil {
+			return fmt.Errorf("failed to load bind files: %w", err)
+		}
 	}
 
 	// Generate a unique clab name for this lab instance
@@ -296,6 +306,7 @@ func (s *LabService) Deploy(labUUID string, nodeImages map[string]string) error 
 			Definition:  definition,
 			BindFiles:   bindFiles,
 			CallbackURL: callbackURL,
+			Type:        l.Type,
 		}
 
 		log.Printf("dispatching deploy to worker %s (%s) for lab %s", w.Name, w.Address, l.UUID)
@@ -507,6 +518,7 @@ func (s *LabService) Destroy(labUUID string) error {
 				LabID:       l.UUID,
 				ClabName:    *l.ClabName,
 				CallbackURL: callbackURL,
+				Type:        l.Type,
 			}
 
 			log.Printf("dispatching destroy to worker %s (%s) for lab %s", w.Name, w.Address, l.UUID)
@@ -742,6 +754,44 @@ func (s *LabService) Capture(labUUID, nodeName, iface string, count int, filter 
 	return resp.Output, nil
 }
 
+// AwsExec proxies an AWS CLI command to the worker running this cloud lab.
+func (s *LabService) AwsExec(labUUID, command string) (string, error) {
+	l, err := s.repo.GetByUUID(labUUID)
+	if err != nil {
+		return "", fmt.Errorf("lab not found: %w", err)
+	}
+
+	if l.Type != "cloud" {
+		return "", fmt.Errorf("aws-exec is only available for cloud labs")
+	}
+
+	if l.State != StateRunning {
+		return "", fmt.Errorf("lab must be running for aws-exec (current: %s)", l.State)
+	}
+
+	if l.WorkerID == nil {
+		return "", fmt.Errorf("lab has no worker assigned")
+	}
+
+	w, err := s.workerSelector.GetWorkerByID(*l.WorkerID)
+	if err != nil {
+		return "", fmt.Errorf("worker not found: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := s.workerClient.AwsExec(ctx, w.Address, w.Secret, workerclient.AwsExecRequest{
+		LabID:   l.UUID,
+		Command: command,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return resp.Output, nil
+}
+
 // CleanupStuckLabs marks labs stuck in transitional states as failed/stopped
 // and tells workers to clean up any leftover containers.
 func (s *LabService) CleanupStuckLabs(threshold time.Duration) {
@@ -799,6 +849,7 @@ func (s *LabService) buildResponse(l *Lab) (Response, error) {
 	return Response{
 		UUID:           l.UUID,
 		Name:           l.Name,
+		Type:           l.Type,
 		State:          l.State,
 		TemplateID:     l.TemplateID,
 		CreatorID:      l.CreatorID,

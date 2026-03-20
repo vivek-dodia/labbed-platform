@@ -16,6 +16,7 @@ import (
 	"github.com/labbed/worker/internal/clab"
 	"github.com/labbed/worker/internal/config"
 	"github.com/labbed/worker/internal/platformclient"
+	"github.com/labbed/worker/internal/terraform"
 )
 
 func main() {
@@ -33,8 +34,9 @@ func main() {
 
 	// Initialize services
 	clabService := clab.NewService()
+	tfService := terraform.NewService()
 	platClient := platformclient.NewClient()
-	handler := api.NewHandler(clabService, platClient)
+	handler := api.NewHandler(clabService, tfService, platClient)
 
 	// Register with platform
 	workerAddr := fmt.Sprintf("http://%s:%s", getOutboundIP(), config.AppConfig.Port)

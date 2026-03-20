@@ -13,20 +13,23 @@ import (
 	"github.com/labbed/worker/internal/clab"
 	"github.com/labbed/worker/internal/config"
 	"github.com/labbed/worker/internal/platformclient"
+	"github.com/labbed/worker/internal/terraform"
 )
 
 // Handler handles incoming requests from the platform.
 type Handler struct {
 	clabService    *clab.Service
+	tfService      *terraform.Service
 	platformClient *platformclient.Client
 	activeLabs     map[string]string // labID -> clabName
 	mu             sync.RWMutex
 }
 
 // NewHandler creates a new API handler.
-func NewHandler(clabService *clab.Service, platformClient *platformclient.Client) *Handler {
+func NewHandler(clabService *clab.Service, tfService *terraform.Service, platformClient *platformclient.Client) *Handler {
 	return &Handler{
 		clabService:    clabService,
+		tfService:      tfService,
 		platformClient: platformClient,
 		activeLabs:     make(map[string]string),
 	}
@@ -46,6 +49,7 @@ type DeployRequest struct {
 	Definition  string            `json:"definition" binding:"required"`
 	BindFiles   map[string][]byte `json:"bindFiles"`
 	CallbackURL string            `json:"callbackUrl"`
+	Type        string            `json:"type"` // "network" (default) | "cloud"
 }
 
 // DestroyRequest is received from the platform.
@@ -54,6 +58,7 @@ type DestroyRequest struct {
 	ClabName    string `json:"clabName" binding:"required"`
 	CallbackURL string `json:"callbackUrl"`
 	CleanupOnly bool   `json:"cleanupOnly"` // if true, skip status callbacks
+	Type        string `json:"type"`        // "network" (default) | "cloud"
 }
 
 // InspectRequest is received from the platform.
@@ -73,6 +78,17 @@ func (h *Handler) HandleDeploy(c *gin.Context) {
 	maxLabs := config.AppConfig.MaxConcurrentLabs
 	if maxLabs > 0 && h.ActiveLabCount() >= maxLabs {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "worker at capacity"})
+		return
+	}
+
+	// Dispatch based on lab type
+	if req.Type == "cloud" {
+		h.mu.Lock()
+		h.activeLabs[req.LabID] = req.ClabName
+		h.mu.Unlock()
+
+		c.JSON(http.StatusAccepted, gin.H{"message": "cloud deployment started"})
+		go h.deployCloudAsync(req.LabID, req.ClabName, req.Definition)
 		return
 	}
 
@@ -191,6 +207,12 @@ func (h *Handler) HandleDestroy(c *gin.Context) {
 	var req DestroyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if req.Type == "cloud" {
+		c.JSON(http.StatusAccepted, gin.H{"message": "cloud destroy started"})
+		go h.destroyCloudAsync(req.LabID, req.CleanupOnly)
 		return
 	}
 
@@ -344,6 +366,158 @@ func (h *Handler) HandleCapture(c *gin.Context) {
 	output, err := h.clabService.Capture(ctx, req.NodeName, req.Interface, count, req.Filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"output": output})
+}
+
+// deployCloudAsync deploys a cloud lab using Moto + Terraform.
+func (h *Handler) deployCloudAsync(labID, clabName, hcl string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	defer cancel()
+
+	h.platformClient.PushStatus(ctx, platformclient.StatusUpdate{
+		LabID: labID,
+		State: "deploying",
+	})
+
+	h.pushLog(ctx, labID, "Starting Moto (AWS emulator)...", "info")
+	motoPort, err := h.tfService.StartMoto(labID)
+	if err != nil {
+		log.Printf("moto start failed for lab %s: %v", labID, err)
+		h.pushLog(ctx, labID, "Failed to start Moto: "+err.Error(), "error")
+		errMsg := err.Error()
+		h.platformClient.PushStatus(ctx, platformclient.StatusUpdate{LabID: labID, State: "failed", ErrorMessage: &errMsg})
+		h.mu.Lock()
+		delete(h.activeLabs, labID)
+		h.mu.Unlock()
+		return
+	}
+
+	h.pushLog(ctx, labID, fmt.Sprintf("Moto running on port %d, preparing Terraform files...", motoPort), "info")
+	_, err = h.tfService.PrepareTerraformFiles(labID, hcl, motoPort)
+	if err != nil {
+		log.Printf("terraform prepare failed for lab %s: %v", labID, err)
+		h.pushLog(ctx, labID, "Failed to prepare Terraform files: "+err.Error(), "error")
+		h.tfService.StopMoto(labID)
+		h.tfService.CleanupFiles(labID)
+		errMsg := err.Error()
+		h.platformClient.PushStatus(ctx, platformclient.StatusUpdate{LabID: labID, State: "failed", ErrorMessage: &errMsg})
+		h.mu.Lock()
+		delete(h.activeLabs, labID)
+		h.mu.Unlock()
+		return
+	}
+
+	h.pushLog(ctx, labID, "Running terraform init + apply...", "info")
+	resources, err := h.tfService.Deploy(ctx, labID)
+	if err != nil {
+		log.Printf("terraform deploy failed for lab %s: %v", labID, err)
+		h.pushLog(ctx, labID, "Terraform apply failed: "+err.Error(), "error")
+		h.tfService.Destroy(ctx, labID)
+		h.tfService.StopMoto(labID)
+		h.tfService.CleanupFiles(labID)
+		errMsg := err.Error()
+		h.platformClient.PushStatus(ctx, platformclient.StatusUpdate{LabID: labID, State: "failed", ErrorMessage: &errMsg})
+		h.mu.Lock()
+		delete(h.activeLabs, labID)
+		h.mu.Unlock()
+		return
+	}
+
+	h.pushLog(ctx, labID, fmt.Sprintf("Terraform applied, %d resources created", len(resources)), "info")
+
+	// Push resources as nodes (reusing NodeInfo)
+	var nodes []platformclient.NodeInfo
+	for _, r := range resources {
+		nodes = append(nodes, platformclient.NodeInfo{
+			Name:        r.Name,
+			Kind:        r.ResourceType,
+			ContainerID: r.ResourceID,
+			State:       r.State,
+		})
+	}
+	h.platformClient.PushNodes(ctx, platformclient.NodeUpdate{
+		LabID: labID,
+		Nodes: nodes,
+	})
+
+	h.platformClient.PushStatus(ctx, platformclient.StatusUpdate{
+		LabID: labID,
+		State: "running",
+	})
+	h.pushLog(ctx, labID, "Cloud lab deployed successfully", "info")
+	log.Printf("cloud lab %s deployed with %d resources", labID, len(resources))
+}
+
+// destroyCloudAsync destroys a cloud lab's Terraform resources and Moto container.
+func (h *Handler) destroyCloudAsync(labID string, cleanupOnly bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	defer cancel()
+
+	if !cleanupOnly {
+		h.pushLog(ctx, labID, "Destroying cloud lab...", "info")
+		h.platformClient.PushStatus(ctx, platformclient.StatusUpdate{
+			LabID: labID,
+			State: "stopping",
+		})
+	}
+
+	log.Printf("destroying cloud lab %s (cleanupOnly: %v)", labID, cleanupOnly)
+
+	err := h.tfService.Destroy(ctx, labID)
+	h.tfService.StopMoto(labID)
+	h.tfService.CleanupFiles(labID)
+
+	h.mu.Lock()
+	delete(h.activeLabs, labID)
+	h.mu.Unlock()
+
+	if err != nil {
+		log.Printf("cloud destroy failed for lab %s: %v", labID, err)
+		if !cleanupOnly {
+			h.pushLog(ctx, labID, "Destroy failed: "+err.Error(), "error")
+			errMsg := err.Error()
+			h.platformClient.PushStatus(ctx, platformclient.StatusUpdate{LabID: labID, State: "failed", ErrorMessage: &errMsg})
+		}
+		return
+	}
+
+	if !cleanupOnly {
+		h.platformClient.PushStatus(ctx, platformclient.StatusUpdate{LabID: labID, State: "stopped"})
+		h.pushLog(ctx, labID, "Cloud lab destroyed successfully", "info")
+	}
+	log.Printf("cloud lab %s destroyed (cleanupOnly: %v)", labID, cleanupOnly)
+}
+
+// AwsExecRequest is received from the platform to run AWS CLI commands.
+type AwsExecRequest struct {
+	LabID   string `json:"labId" binding:"required"`
+	Command string `json:"command" binding:"required"`
+}
+
+// HandleAwsExec runs an AWS CLI command against a lab's Moto endpoint.
+func (h *Handler) HandleAwsExec(c *gin.Context) {
+	var req AwsExecRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	motoPort := h.tfService.GetMotoPort(req.LabID)
+	if motoPort == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "no moto instance for this lab"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
+	defer cancel()
+
+	output, err := h.tfService.AwsExec(ctx, req.LabID, req.Command, motoPort)
+	if err != nil {
+		// Return output even on error
+		c.JSON(http.StatusOK, gin.H{"output": output, "error": err.Error()})
 		return
 	}
 

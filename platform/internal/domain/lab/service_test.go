@@ -49,6 +49,9 @@ type mockTemplateLoader struct {
 	err        error
 }
 
+func (m *mockTemplateLoader) GetType(topoUUID string) (string, error) {
+	return "network", m.err
+}
 func (m *mockTemplateLoader) GetDefinition(topoUUID string) (string, error) {
 	return m.definition, m.err
 }

@@ -27,6 +27,7 @@ describe("LabResponse type", () => {
     const lab: LabResponse = {
       uuid: "abc-123",
       name: "test-lab",
+      type: "network",
       state: "running",
       templateId: "topo-1",
       creatorId: 1,
@@ -46,7 +47,7 @@ describe("LabResponse type", () => {
     const states: LabState[] = ["scheduled", "deploying", "running", "stopping", "failed", "stopped"];
     states.forEach((s) => {
       const lab: LabResponse = {
-        uuid: "x", name: "x", state: s, templateId: "x", creatorId: 1,
+        uuid: "x", name: "x", type: "network", state: s, templateId: "x", creatorId: 1,
         nodes: [], scheduledStart: null, scheduledEnd: null,
         deployedAt: null, stoppedAt: null, errorMessage: null, createdAt: "x",
       };

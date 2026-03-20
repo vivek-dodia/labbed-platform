@@ -54,6 +54,10 @@ func main() {
 	if db.Migrator().HasTable("templates") && !db.Migrator().HasColumn(&tmpl.Template{}, "Type") {
 		db.Exec("ALTER TABLE templates ADD COLUMN type VARCHAR(20) NOT NULL DEFAULT 'network'")
 	}
+	// Add type column to labs if missing
+	if db.Migrator().HasTable("labs") && !db.Migrator().HasColumn(&lab.Lab{}, "Type") {
+		db.Exec("ALTER TABLE labs ADD COLUMN type VARCHAR(20) NOT NULL DEFAULT 'network'")
+	}
 
 	// Auto-migrate all models
 	if err := db.AutoMigrate(

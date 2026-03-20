@@ -187,6 +187,7 @@ export interface NodeResponse {
 export interface LabResponse {
   uuid: string;
   name: string;
+  type: string;
   state: LabState;
   templateId: string;
   creatorId: number;

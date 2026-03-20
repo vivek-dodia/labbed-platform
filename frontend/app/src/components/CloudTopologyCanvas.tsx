@@ -193,16 +193,23 @@ function buildGraph(resources: NodeResponse[], selectedNode: string | null) {
     const mySgs = sgs.filter((s) => getVpcId(s) === vpcId);
     const myNats = natGws.filter((n) => getVpcId(n) === vpcId);
 
-    // Layout children in rows inside VPC
-    // Row 1: subnets + NATs
-    const row1 = [...mySubnets, ...myNats];
-    // Row 2: route tables + security groups
-    const row2 = [...myRts, ...mySgs];
+    // Split subnets into public (top) and private (bottom)
+    const isPub = (s: NodeResponse) => s.name.toLowerCase().includes("public") || s.properties?.map_public_ip_on_launch === "true";
+    const publicSubnets = mySubnets.filter(isPub);
+    const privateSubnets = mySubnets.filter((s) => !isPub(s));
 
-    const cols = Math.max(row1.length, row2.length, 1);
+    // Layout rows inside VPC:
+    // Row 1: public subnets + NAT GWs (internet-facing)
+    // Row 2: private subnets
+    // Row 3: route tables + security groups
+    const row1 = [...publicSubnets, ...myNats];
+    const row2 = privateSubnets;
+    const row3 = [...myRts, ...mySgs];
+
+    const cols = Math.max(row1.length, row2.length, row3.length, 1);
     const vpcW = cols * (NODE_W + GAP_X) - GAP_X + VPC_PAD * 2;
-    const numRows = (row1.length > 0 ? 1 : 0) + (row2.length > 0 ? 1 : 0);
-    const vpcH = VPC_TOP + numRows * (NODE_H + GAP_Y) - (numRows > 0 ? GAP_Y : 0) + VPC_PAD;
+    const activeRows = [row1, row2, row3].filter((r) => r.length > 0);
+    const vpcH = VPC_TOP + activeRows.length * (NODE_H + GAP_Y) - (activeRows.length > 0 ? GAP_Y : 0) + VPC_PAD;
 
     // VPC node — dimensions via style so React Flow handles parent sizing
     nodes.push({
@@ -220,56 +227,44 @@ function buildGraph(resources: NodeResponse[], selectedNode: string | null) {
     });
     absPos.set(vpcNodeId, { x: vpcX, y: vpcY, w: vpcW, h: vpcH });
 
-    // Row 1 children (positions relative to parent)
+    // Place rows inside VPC
     let childY = VPC_TOP;
-    row1.forEach((r, i) => {
-      const childX = VPC_PAD + i * (NODE_W + GAP_X);
-      const isSubnet = r.kind === "aws_subnet";
-      const isPub = r.name.toLowerCase().includes("public");
-      const nodeId = `${r.kind}-${r.containerId}`;
-      nodes.push({
-        id: nodeId,
-        type: "resource",
-        position: { x: childX, y: childY },
-        parentId: vpcNodeId,
-        extent: "parent" as const,
-        data: {
-          kind: r.kind,
-          label: isSubnet ? `${r.name}${isPub ? " (pub)" : " (priv)"}` : r.name,
-          detail: isSubnet
-            ? [r.properties?.cidr_block, r.properties?.availability_zone].filter(Boolean).join(" / ")
-            : "",
-          resourceId: r.containerId,
-          selected: isSel(r.name),
-        },
+
+    // Helper to place a row of resources
+    const placeRow = (items: NodeResponse[], label: string) => {
+      if (items.length === 0) return;
+      items.forEach((r, i) => {
+        const childX = VPC_PAD + i * (NODE_W + GAP_X);
+        const nodeId = `${r.kind}-${r.containerId}`;
+        const isSubnet = r.kind === "aws_subnet";
+        const isPublic = isPub(r);
+        nodes.push({
+          id: nodeId,
+          type: "resource",
+          position: { x: childX, y: childY },
+          parentId: vpcNodeId,
+          extent: "parent" as const,
+          data: {
+            kind: r.kind,
+            label: isSubnet ? `${r.name}${isPublic ? " (pub)" : " (priv)"}` : r.name,
+            detail: isSubnet
+              ? [r.properties?.cidr_block, r.properties?.availability_zone].filter(Boolean).join(" / ")
+              : "",
+            resourceId: r.containerId,
+            selected: isSel(r.name),
+          },
+        });
+        absPos.set(nodeId, { x: vpcX + childX, y: vpcY + childY, w: NODE_W, h: NODE_H });
       });
-      absPos.set(nodeId, { x: vpcX + childX, y: vpcY + childY, w: NODE_W, h: NODE_H });
-    });
+      childY += NODE_H + GAP_Y;
+    };
 
-    if (row1.length > 0 && row2.length > 0) childY += NODE_H + GAP_Y;
-
-    // Row 2 children
-    row2.forEach((r, i) => {
-      const childX = VPC_PAD + i * (NODE_W + GAP_X);
-      const nodeId = `${r.kind}-${r.containerId}`;
-      nodes.push({
-        id: nodeId,
-        type: "resource",
-        position: { x: childX, y: childY },
-        parentId: vpcNodeId,
-        extent: "parent" as const,
-        data: {
-          kind: r.kind,
-          label: r.name,
-          detail: "",
-          resourceId: r.containerId,
-          selected: isSel(r.name),
-        },
-      });
-      absPos.set(nodeId, { x: vpcX + childX, y: vpcY + childY, w: NODE_W, h: NODE_H });
-
-      // RT → subnet edge via association (deferred — added after all nodes placed)
-    });
+    // Row 1: public subnets + NAT GWs (internet-facing, top)
+    placeRow(row1, "public");
+    // Row 2: private subnets (bottom)
+    placeRow(row2, "private");
+    // Row 3: route tables + security groups
+    placeRow(row3, "infra");
 
     vpcMeta.push({ id: vpcId, nodeId: vpcNodeId, x: vpcX, y: vpcY, w: vpcW, h: vpcH });
     vpcX += vpcW + 120;

@@ -2,6 +2,7 @@ package lab
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -587,6 +588,12 @@ func (s *LabService) UpdateNodes(uuid string, nodes []NodeResponse) error {
 
 	labNodes := make([]LabNode, len(nodes))
 	for i, n := range nodes {
+		var propsJSON string
+		if len(n.Properties) > 0 {
+			if b, err := json.Marshal(n.Properties); err == nil {
+				propsJSON = string(b)
+			}
+		}
 		labNodes[i] = LabNode{
 			LabID:       l.ID,
 			Name:        n.Name,
@@ -596,6 +603,7 @@ func (s *LabService) UpdateNodes(uuid string, nodes []NodeResponse) error {
 			IPv4:        n.IPv4,
 			IPv6:        n.IPv6,
 			State:       n.State,
+			Properties:  propsJSON,
 		}
 	}
 
@@ -843,6 +851,12 @@ func (s *LabService) buildResponse(l *Lab) (Response, error) {
 			IPv4:        n.IPv4,
 			IPv6:        n.IPv6,
 			State:       n.State,
+		}
+		if n.Properties != "" {
+			var props map[string]string
+			if err := json.Unmarshal([]byte(n.Properties), &props); err == nil {
+				nodeResponses[i].Properties = props
+			}
 		}
 	}
 

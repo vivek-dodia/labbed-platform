@@ -73,13 +73,14 @@ type StatusUpdate struct {
 
 // NodeInfo describes a running container node.
 type NodeInfo struct {
-	Name        string `json:"name"`
-	Kind        string `json:"kind"`
-	Image       string `json:"image"`
-	ContainerID string `json:"containerId"`
-	IPv4        string `json:"ipv4"`
-	IPv6        string `json:"ipv6"`
-	State       string `json:"state"`
+	Name        string            `json:"name"`
+	Kind        string            `json:"kind"`
+	Image       string            `json:"image"`
+	ContainerID string            `json:"containerId"`
+	IPv4        string            `json:"ipv4"`
+	IPv6        string            `json:"ipv6"`
+	State       string            `json:"state"`
+	Properties  map[string]string `json:"properties,omitempty"`
 }
 
 // NodeUpdate pushes node information to the platform.

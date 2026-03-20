@@ -58,6 +58,10 @@ func main() {
 	if db.Migrator().HasTable("labs") && !db.Migrator().HasColumn(&lab.Lab{}, "Type") {
 		db.Exec("ALTER TABLE labs ADD COLUMN type VARCHAR(20) NOT NULL DEFAULT 'network'")
 	}
+	// Add properties column to lab_nodes if missing
+	if db.Migrator().HasTable("lab_nodes") && !db.Migrator().HasColumn(&lab.LabNode{}, "Properties") {
+		db.Exec("ALTER TABLE lab_nodes ADD COLUMN properties TEXT DEFAULT ''")
+	}
 
 	// Auto-migrate all models
 	if err := db.AutoMigrate(

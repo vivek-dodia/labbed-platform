@@ -45,6 +45,7 @@ type LabNode struct {
 	IPv4        string
 	IPv6        string
 	State       string // running, exited, starting
+	Properties  string `gorm:"type:text"` // JSON map for cloud resource properties
 }
 
 // LabEvent tracks state transitions and deployment milestones.
@@ -71,13 +72,14 @@ type UpdateRequest struct {
 }
 
 type NodeResponse struct {
-	Name        string `json:"name"`
-	Kind        string `json:"kind"`
-	Image       string `json:"image"`
-	ContainerID string `json:"containerId"`
-	IPv4        string `json:"ipv4"`
-	IPv6        string `json:"ipv6"`
-	State       string `json:"state"`
+	Name        string            `json:"name"`
+	Kind        string            `json:"kind"`
+	Image       string            `json:"image"`
+	ContainerID string            `json:"containerId"`
+	IPv4        string            `json:"ipv4"`
+	IPv6        string            `json:"ipv6"`
+	State       string            `json:"state"`
+	Properties  map[string]string `json:"properties,omitempty"`
 }
 
 type Response struct {

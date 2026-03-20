@@ -182,6 +182,7 @@ export interface NodeResponse {
   ipv4: string;
   ipv6: string;
   state: string;
+  properties?: Record<string, string>;
 }
 
 export interface LabResponse {

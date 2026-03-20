@@ -12,6 +12,7 @@ import { parseContainerlabYAML } from "@/lib/yaml-parser";
 import DeployConfigModal from "@/components/DeployConfigModal";
 import { getCompletions } from "@/lib/completions";
 import AwsCliTerminal from "@/components/AwsCliTerminal";
+import CloudTopologyCanvas from "@/components/CloudTopologyCanvas";
 import type { LabResponse, NodeResponse, TemplateResponse, LabEventResponse, PaginatedResponse, BindFileResponse } from "@/types/api";
 
 /* ── Quick-command definitions ── */
@@ -943,42 +944,17 @@ export default function LabDetailPage() {
               </div>
               <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
                 {lab.type === "cloud" ? (
-                  <div style={{ padding: "1rem", overflowY: "auto", height: "100%" }}>
-                    {(lab.nodes || []).length === 0 ? (
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", opacity: 0.2 }}>
-                        <span style={LABEL}>{lab.state === "deploying" ? "DEPLOYING RESOURCES..." : "NO RESOURCES"}</span>
-                      </div>
-                    ) : (
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.75rem", fontFamily: MONO }}>
-                        <thead>
-                          <tr style={{ borderBottom: BORDER }}>
-                            <th style={{ ...LABEL, textAlign: "left", padding: "0.4rem 0.5rem", fontSize: "0.6rem" }}>TYPE</th>
-                            <th style={{ ...LABEL, textAlign: "left", padding: "0.4rem 0.5rem", fontSize: "0.6rem" }}>NAME</th>
-                            <th style={{ ...LABEL, textAlign: "left", padding: "0.4rem 0.5rem", fontSize: "0.6rem" }}>ID</th>
-                            <th style={{ ...LABEL, textAlign: "left", padding: "0.4rem 0.5rem", fontSize: "0.6rem" }}>STATE</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(lab.nodes || []).map((n, i) => (
-                            <tr key={i} style={{ borderBottom: "1px solid rgba(0,0,0,0.08)" }}>
-                              <td style={{ padding: "0.4rem 0.5rem" }}>
-                                <span style={{
-                                  fontSize: "0.6rem", fontWeight: 700, textTransform: "uppercase",
-                                  padding: "1px 6px", borderRadius: 3,
-                                  background: "rgba(0,120,255,0.1)", color: "#0070f3",
-                                }}>{n.kind}</span>
-                              </td>
-                              <td style={{ padding: "0.4rem 0.5rem" }}>{n.name}</td>
-                              <td style={{ padding: "0.4rem 0.5rem", opacity: 0.5 }}>{(n.containerId || "\u2014").slice(0, 20)}</td>
-                              <td style={{ padding: "0.4rem 0.5rem" }}>
-                                <span style={{ color: n.state === "created" ? "#27c93f" : INK }}>{n.state}</span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
+                  (lab.nodes || []).length === 0 ? (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", opacity: 0.2 }}>
+                      <span style={LABEL}>{lab.state === "deploying" ? "DEPLOYING RESOURCES..." : "NO RESOURCES"}</span>
+                    </div>
+                  ) : (
+                    <CloudTopologyCanvas
+                      resources={lab.nodes || []}
+                      selectedNode={selectedNode}
+                      onSelectNode={setSelectedNode}
+                    />
+                  )
                 ) : template ? (
                   <TopologyCanvas
                     definition={template.definition}
@@ -1023,8 +999,13 @@ export default function LabDetailPage() {
                     >
                       <div style={{ fontSize: "0.8rem", fontWeight: 700, textTransform: "uppercase" }}>{shortName(node.name)}</div>
                       <div style={{ fontSize: "0.65rem", opacity: 0.5, fontFamily: MONO, marginTop: "0.1rem" }}>
-                        {node.kind} · {node.state}
+                        {lab.type === "cloud" ? node.kind.replace("aws_", "").replace(/_/g, " ") : node.kind} · {node.state}
                       </div>
+                      {lab.type === "cloud" && node.properties?.cidr_block && (
+                        <div style={{ fontSize: "0.6rem", opacity: 0.4, fontFamily: MONO, marginTop: "0.1rem" }}>
+                          {node.properties.cidr_block}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1034,8 +1015,31 @@ export default function LabDetailPage() {
                   </div>
                 )}
               </div>
-              {/* Node detail */}
-              {selectedNodeData && (() => {
+              {/* Cloud resource detail */}
+              {lab.type === "cloud" && selectedNodeData && (
+                <div style={{ borderTop: BORDER, padding: "0.6rem 0.75rem", overflowY: "auto" }}>
+                  <div style={{ ...LABEL, opacity: 0.5, marginBottom: "0.3rem", fontSize: "0.6rem" }}>SELECTED</div>
+                  <div style={{ fontSize: "0.65rem", fontFamily: MONO, lineHeight: 1.7 }}>
+                    <div>TYPE: {selectedNodeData.kind}</div>
+                    <div
+                      style={{ cursor: "pointer" }}
+                      onClick={() => selectedNodeData.containerId && copyToClipboard(selectedNodeData.containerId, "rid")}
+                      title="Click to copy"
+                    >
+                      ID: {selectedNodeData.containerId || "\u2014"}
+                      {copiedField === "rid" && <span style={{ color: BG, marginLeft: 6, fontSize: "0.55rem", fontWeight: 700 }}>COPIED</span>}
+                    </div>
+                    {selectedNodeData.properties && Object.entries(selectedNodeData.properties).filter(([k]) => k !== "id").map(([k, v]) => (
+                      <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 4 }}>
+                        <span style={{ opacity: 0.5 }}>{k}:</span>
+                        <span style={{ textAlign: "right", wordBreak: "break-all" }}>{String(v)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {/* Network node detail */}
+              {lab.type !== "cloud" && selectedNodeData && (() => {
                 const sn = shortName(selectedNodeData.name);
                 const links = template ? parseContainerlabYAML(template.definition).links.filter(
                   (l) => l.a.node === sn || l.b.node === sn

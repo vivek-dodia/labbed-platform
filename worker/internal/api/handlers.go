@@ -428,7 +428,7 @@ func (h *Handler) deployCloudAsync(labID, clabName, hcl string) {
 
 	h.pushLog(ctx, labID, fmt.Sprintf("Terraform applied, %d resources created", len(resources)), "info")
 
-	// Push resources as nodes (reusing NodeInfo)
+	// Push resources as nodes (reusing NodeInfo, with properties)
 	var nodes []platformclient.NodeInfo
 	for _, r := range resources {
 		nodes = append(nodes, platformclient.NodeInfo{
@@ -436,6 +436,7 @@ func (h *Handler) deployCloudAsync(labID, clabName, hcl string) {
 			Kind:        r.ResourceType,
 			ContainerID: r.ResourceID,
 			State:       r.State,
+			Properties:  r.Properties,
 		})
 	}
 	h.platformClient.PushNodes(ctx, platformclient.NodeUpdate{

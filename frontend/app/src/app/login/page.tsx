@@ -479,6 +479,7 @@ export default function LoginPage() {
                 padding: "0 1.5rem",
                 display: "flex",
                 alignItems: "center",
+                gap: "0.5rem",
                 height: "100%",
                 borderRight: `1px solid ${T.border}`,
                 fontSize: "0.75rem",
@@ -489,6 +490,7 @@ export default function LoginPage() {
                 color: T.ink,
               }}
             >
+              <img src="/logo.png" alt="" style={{ width: 20, height: 20, borderRadius: 3 }} />
               LABBED
             </a>
           </nav>

@@ -124,7 +124,10 @@ export default function LandingPage() {
             transition: "opacity 0.6s ease, transform 0.6s ease",
           }}>
             <div style={{ display: "flex", alignItems: "center", height: "100%" }}>
-              <span style={{ fontSize: "0.85rem", fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", paddingRight: "1.5rem", borderRight: "1px solid rgba(255,255,255,0.08)" }}>LABBED</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", paddingRight: "1.5rem", borderRight: "1px solid rgba(255,255,255,0.08)" }}>
+                <img src="/logo.png" alt="LABBED" style={{ width: 22, height: 22, borderRadius: 4 }} />
+                <span style={{ fontSize: "0.85rem", fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>LABBED</span>
+              </div>
               <span style={{ padding: "0 1.5rem", fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", opacity: 0.4 }}>Platform</span>
             </div>
             <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>

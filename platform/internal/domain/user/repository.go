@@ -1,6 +1,8 @@
 package user
 
 import (
+	"time"
+
 	"gorm.io/gorm"
 )
 
@@ -62,4 +64,24 @@ func (r *UserRepository) Update(user *User) error {
 
 func (r *UserRepository) Delete(user *User) error {
 	return r.db.Delete(user).Error
+}
+
+// TouchLastActive updates the user's last_active timestamp.
+func (r *UserRepository) TouchLastActive(uuid string) {
+	now := time.Now()
+	r.db.Model(&User{}).Where("uuid = ?", uuid).Update("last_active", &now)
+}
+
+// GetInactiveUsersWithRunningLabs returns user IDs that have running/deploying labs
+// but haven't been active since the given threshold.
+func (r *UserRepository) GetInactiveUsersWithRunningLabs(threshold time.Time) ([]uint, error) {
+	var userIDs []uint
+	err := r.db.Raw(`
+		SELECT DISTINCT u.id FROM users u
+		INNER JOIN labs l ON l.creator_id = u.id
+		WHERE l.state IN ('running', 'deploying')
+		AND (u.last_active IS NULL OR u.last_active < ?)
+		AND u.deleted_at IS NULL AND l.deleted_at IS NULL
+	`, threshold).Scan(&userIDs).Error
+	return userIDs, err
 }

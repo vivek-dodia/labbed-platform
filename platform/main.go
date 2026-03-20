@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -300,9 +301,32 @@ func main() {
 	// Register public org routes (signup)
 	organization.RegisterPublicRoutes(router, orgHandler, authRateLimit)
 
+	// Throttled last-active tracker (updates at most once per 30s per user)
+	lastActiveCache := make(map[string]time.Time)
+	var lastActiveMu sync.Mutex
+	touchLastActive := func(c *gin.Context) {
+		userUUID := auth.GetUserID(c)
+		if userUUID == "" {
+			c.Next()
+			return
+		}
+		lastActiveMu.Lock()
+		last, ok := lastActiveCache[userUUID]
+		now := time.Now()
+		if !ok || now.Sub(last) > 30*time.Second {
+			lastActiveCache[userUUID] = now
+			lastActiveMu.Unlock()
+			userRepo.TouchLastActive(userUUID)
+		} else {
+			lastActiveMu.Unlock()
+		}
+		c.Next()
+	}
+
 	// Authenticated API group
 	apiV1 := router.Group("/api/v1")
 	apiV1.Use(auth.AuthRequired())
+	apiV1.Use(touchLastActive)
 	{
 		// Organization management (no org context needed)
 		organization.RegisterRoutes(apiV1, orgHandler)
@@ -346,6 +370,9 @@ func main() {
 
 	// Start orphaned lab cleanup
 	go runOrphanedLabCleanup(labService)
+
+	// Start inactive user lab cleanup (auto-pause after 5 min inactivity)
+	go runInactiveUserCleanup(userRepo, labService)
 
 	// Start server
 	listenAddr := fmt.Sprintf("%s:%s", config.AppConfig.Server.Host, config.AppConfig.Server.Port)
@@ -421,5 +448,27 @@ func runOrphanedLabCleanup(labService *lab.LabService) {
 
 	for range ticker.C {
 		labService.CleanupStuckLabs(5 * time.Minute)
+	}
+}
+
+func runInactiveUserCleanup(userRepo *user.UserRepository, labService *lab.LabService) {
+	ticker := time.NewTicker(60 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		threshold := time.Now().Add(-5 * time.Minute)
+		userIDs, err := userRepo.GetInactiveUsersWithRunningLabs(threshold)
+		if err != nil {
+			log.Printf("inactive cleanup: query error: %v", err)
+			continue
+		}
+		for _, uid := range userIDs {
+			count, err := labService.PauseAllLabs(uid)
+			if err != nil {
+				log.Printf("inactive cleanup: failed to pause labs for user %d: %v", uid, err)
+			} else if count > 0 {
+				log.Printf("inactive cleanup: paused %d labs for inactive user %d", count, uid)
+			}
+		}
 	}
 }

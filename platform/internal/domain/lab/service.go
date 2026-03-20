@@ -800,6 +800,24 @@ func (s *LabService) AwsExec(labUUID, command string) (string, error) {
 	return resp.Output, nil
 }
 
+// PauseAllLabs destroys all running/deploying labs for a given user.
+func (s *LabService) PauseAllLabs(creatorID uint) (int, error) {
+	labs, err := s.repo.GetRunningLabsByCreator(creatorID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to query running labs: %w", err)
+	}
+
+	count := 0
+	for _, l := range labs {
+		if err := s.Destroy(l.UUID); err != nil {
+			log.Printf("pause-all: failed to destroy lab %s: %v", l.UUID, err)
+			continue
+		}
+		count++
+	}
+	return count, nil
+}
+
 // CleanupStuckLabs marks labs stuck in transitional states as failed/stopped
 // and tells workers to clean up any leftover containers.
 func (s *LabService) CleanupStuckLabs(threshold time.Duration) {

@@ -268,6 +268,24 @@ func (h *LabHandler) HandleGetEvents(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+// HandlePauseAll destroys all running labs for the current user.
+func (h *LabHandler) HandlePauseAll(c *gin.Context) {
+	userUUID := auth.GetUserID(c)
+	creatorID, err := h.resolveUserID(userUUID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to resolve user"})
+		return
+	}
+
+	count, err := h.service.PauseAllLabs(creatorID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"paused": count})
+}
+
 // HandleAwsExec proxies AWS CLI commands to the worker for cloud labs.
 func (h *LabHandler) HandleAwsExec(c *gin.Context) {
 	labUUID := c.Param("id")

@@ -110,6 +110,13 @@ func (r *LabRepository) DeleteNodesByLabID(labID uint) error {
 	return r.db.Where("lab_id = ?", labID).Delete(&LabNode{}).Error
 }
 
+// GetRunningLabsByCreator returns running/deploying labs for a specific user.
+func (r *LabRepository) GetRunningLabsByCreator(creatorID uint) ([]Lab, error) {
+	var labs []Lab
+	err := r.db.Where("creator_id = ? AND state IN ?", creatorID, []LabState{StateRunning, StateDeploying}).Find(&labs).Error
+	return labs, err
+}
+
 // --- Lab Events ---
 
 func (r *LabRepository) CreateEvent(event *LabEvent) error {

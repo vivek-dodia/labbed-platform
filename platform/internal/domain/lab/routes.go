@@ -21,6 +21,7 @@ func RegisterRoutes(apiGroup *gin.RouterGroup, handler *LabHandler) {
 		labs.GET("/:id/events", handler.HandleGetEvents)
 		labs.POST("/:id/capture", handler.HandleCapture)
 		labs.POST("/:id/aws-exec", handler.HandleAwsExec)
+		labs.POST("/pause-all", handler.HandlePauseAll)
 
 		// Admin/owner only
 		admin := labs.Group("")

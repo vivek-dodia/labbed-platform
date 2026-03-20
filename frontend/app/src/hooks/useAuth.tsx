@@ -88,13 +88,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await loadOrgs();
   }, [loadOrgs]);
 
+  const pauseAllLabs = useCallback(() => {
+    const token = getAccessToken();
+    if (!token) return;
+    // Use keepalive so it works during beforeunload
+    fetch(`${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/v1/labs/pause-all`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+        ...(getActiveOrg() ? { "X-Org-ID": getActiveOrg()! } : {}),
+      },
+      body: "{}",
+      keepalive: true,
+    }).catch(() => {});
+  }, []);
+
   const logout = useCallback(() => {
+    pauseAllLabs();
     clearTokens();
     setUser(null);
     setOrgs([]);
     setActiveOrgState(null);
     window.location.href = "/login";
-  }, []);
+  }, [pauseAllLabs]);
+
+  // Pause labs on tab close
+  useEffect(() => {
+    const handleUnload = () => pauseAllLabs();
+    window.addEventListener("beforeunload", handleUnload);
+    return () => window.removeEventListener("beforeunload", handleUnload);
+  }, [pauseAllLabs]);
 
   const switchOrg = useCallback((orgUUID: string) => {
     const org = orgs.find((o) => o.uuid === orgUUID);

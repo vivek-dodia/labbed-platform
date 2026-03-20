@@ -8,12 +8,13 @@ import (
 
 type User struct {
 	gorm.Model
-	UUID         string `gorm:"uniqueIndex;not null"`
-	Email        string `gorm:"uniqueIndex;not null"`
+	UUID         string     `gorm:"uniqueIndex;not null"`
+	Email        string     `gorm:"uniqueIndex;not null"`
 	PasswordHash string
-	DisplayName  string `gorm:"not null"`
-	IsAdmin      bool   `gorm:"default:false"`
-	Sub          string `gorm:"index"` // OIDC subject (nullable)
+	DisplayName  string     `gorm:"not null"`
+	IsAdmin      bool       `gorm:"default:false"`
+	Sub          string     `gorm:"index"`           // OIDC subject (nullable)
+	LastActive   *time.Time `gorm:"index;default:null"` // last API activity
 }
 
 // --- DTOs ---

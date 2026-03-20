@@ -173,8 +173,8 @@ function buildGraph(resources: NodeResponse[], selectedNode: string | null) {
     const vpcSgs = sgs.filter((sg) => getVpcId(sg) === vpcId);
     const vpcNats = natGws.filter((n) => getVpcId(n) === vpcId);
 
-    // Row 1: subnets + IGW
-    const row1Items = [...vpcSubnets, ...vpcIgws, ...vpcNats];
+    // Row 1: subnets + NAT GWs (IGWs are outside VPC)
+    const row1Items = [...vpcSubnets, ...vpcNats];
     const row1Cols = Math.max(row1Items.length, 1);
 
     // Row 2: route tables + SGs
@@ -187,7 +187,8 @@ function buildGraph(resources: NodeResponse[], selectedNode: string | null) {
     const vpcH = VPC_PAD_TOP + NODE_H + (hasRow2 ? ROW_GAP + NODE_H : 0) + VPC_PAD_BOTTOM;
 
     const vpcX = vpcOffsetX;
-    const vpcY = 60;
+    const hasIgw = vpcIgws.length > 0;
+    const vpcY = hasIgw ? 150 : 60;
 
     // VPC background node (z-index -1 via style)
     nodes.push({
@@ -225,10 +226,10 @@ function buildGraph(resources: NodeResponse[], selectedNode: string | null) {
       });
     });
 
-    // Row 1 continued: IGWs
+    // IGWs placed OUTSIDE and above the VPC
     vpcIgws.forEach((igw, i) => {
-      const x = vpcX + VPC_PAD_LEFT + (vpcSubnets.length + i) * (NODE_W + COL_GAP);
-      const y = vpcY + VPC_PAD_TOP;
+      const x = vpcX + vpcW / 2 - NODE_W / 2 + i * (NODE_W + COL_GAP);
+      const y = vpcY - NODE_H - 30;
       const nodeId = `igw-${igw.containerId}`;
       nodes.push({
         id: nodeId,
@@ -237,7 +238,7 @@ function buildGraph(resources: NodeResponse[], selectedNode: string | null) {
         data: {
           kind: "aws_internet_gateway",
           label: igw.name,
-          detail: "",
+          detail: "internet",
           resourceId: igw.containerId,
           selected: isSelected(igw.name),
         },
@@ -248,7 +249,7 @@ function buildGraph(resources: NodeResponse[], selectedNode: string | null) {
         id: `e-igw-vpc-${igw.containerId}`,
         source: nodeId,
         target: `vpc-${vpc.name}`,
-        style: { stroke: "#eab308", strokeWidth: 1.5, strokeDasharray: "6 3" },
+        style: { stroke: "#eab308", strokeWidth: 2, strokeDasharray: "6 3" },
         animated: true,
       });
     });

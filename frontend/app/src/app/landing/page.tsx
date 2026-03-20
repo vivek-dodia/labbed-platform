@@ -232,7 +232,7 @@ export default function LandingPage() {
         <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: GREEN, marginBottom: "1rem" }}>
           Capabilities
         </div>
-        <h2 style={{ fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 200, lineHeight: 1.15, letterSpacing: "-0.01em", marginBottom: "4rem", maxWidth: 450 }}>
+        <h2 style={{ fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 200, lineHeight: 1.15, letterSpacing: "-0.01em", marginBottom: "4rem", whiteSpace: "nowrap" }}>
           Everything you need to lab.
         </h2>
 
@@ -260,7 +260,7 @@ export default function LandingPage() {
       {/* ── Supported platforms ── */}
       <section style={{ background: "#000", padding: "3rem 3rem 6rem", maxWidth: 1100, margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "center", gap: "2.5rem", flexWrap: "wrap", opacity: 0.25 }}>
-          {["FRRouting", "MikroTik", "OpenWrt", "FreeBSD", "AWS (Moto)", "Terraform"].map((name) => (
+          {["FRRouting", "MikroTik", "OpenWrt", "FreeBSD", "GoBGP", "Kea DHCP", "CoreDNS", "Nginx", "AWS (Moto)", "Terraform"].map((name) => (
             <span key={name} style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: MONO }}>{name}</span>
           ))}
         </div>

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import type { NosImageResponse, CollectionResponse } from "@/types/api";
 import type { DefaultBindFile, BuilderNode, BuilderLink, BuilderState, Scenario } from "@/lib/yaml-generator";
 import { generateContainerlabYAML, resolveNosKind, parseToBuilderState } from "@/lib/yaml-generator";
 import { generateScenarioConfigs, SCENARIOS } from "@/lib/config-generator";
 import { parseContainerlabYAML } from "@/lib/yaml-parser";
+import TopologyCanvas from "@/components/template/TopologyCanvas";
 
 // ── Styles ──
 
@@ -210,22 +211,56 @@ export default function TopologyBuilder({ nosImages, collections, onSave }: Topo
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(true);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const imageGroups = useMemo(() => groupNosImages(nosImages), [nosImages]);
+
+  // Live validation
+  const validationMsg = useMemo(() => {
+    if (!yaml.trim()) return null;
+    return validateYAML(yaml);
+  }, [yaml]);
 
   // Line-numbered display
   const lineCount = yaml.split("\n").length;
 
-  const handleCopySnippet = useCallback((img: NosImageResponse) => {
-    const nosKind = resolveNosKind(img.clabKind, img.dockerImage);
-    let snippet = `    node-name:\n      kind: ${img.clabKind}\n      image: ${img.dockerImage}`;
-    if (nosKind === "mikrotik_ros") snippet += `\n      startup-config: node-name.rsc`;
-    else if (nosKind === "openwrt" || nosKind === "freebsd") snippet += `\n      startup-config: node-name-config.sh`;
-    else if (nosKind === "frr") snippet += `\n      binds:\n        - node-name-daemons:/etc/frr/daemons\n        - node-name.conf:/etc/frr/frr.conf`;
-    navigator.clipboard.writeText(snippet);
+  // Track node name counters for auto-naming
+  const nodeCounters = useRef<Record<string, number>>({});
+
+  const handleInsertNode = useCallback((img: NosImageResponse) => {
+    const ta = textareaRef.current;
+    // Auto-name: r1, r2, r3 for routers; h1, h2 for hosts; svc1, svc2 for services
+    const prefix = img.clabKind === "linux" && img.dockerImage.includes("labbed-host") ? "h"
+      : img.clabKind === "linux" && (img.dockerImage.includes("kea") || img.dockerImage.includes("coredns") || img.dockerImage.includes("nginx")) ? "svc"
+      : "r";
+    const count = (nodeCounters.current[prefix] || 0) + 1;
+    nodeCounters.current[prefix] = count;
+    const nodeName = `${prefix}${count}`;
+
+    let snippet = `    ${nodeName}:\n      kind: ${img.clabKind}\n      image: ${img.dockerImage}\n`;
+
+    if (ta) {
+      // Insert at cursor position
+      const pos = ta.selectionStart;
+      const before = yaml.slice(0, pos);
+      const after = yaml.slice(pos);
+      const newYaml = before + snippet + after;
+      setYaml(newYaml);
+      // Restore cursor after the inserted text
+      requestAnimationFrame(() => {
+        ta.selectionStart = ta.selectionEnd = pos + snippet.length;
+        ta.focus();
+      });
+    } else {
+      // Fallback: append
+      setYaml((prev) => prev + snippet);
+    }
+
     setCopied(img.uuid);
-    setTimeout(() => setCopied(null), 1500);
-  }, []);
+    setTimeout(() => setCopied(null), 1000);
+    setError(null);
+  }, [yaml]);
 
   const handleRandomTopology = useCallback(() => {
     const result = generateRandomTopology(nosImages);
@@ -275,7 +310,7 @@ export default function TopologyBuilder({ nosImages, collections, onSave }: Topo
       }}>
         <span style={{ ...labelStyle, opacity: 0.5, display: "block", marginBottom: "0.5rem" }}>NOS IMAGES</span>
         <span style={{ fontSize: "0.6rem", opacity: 0.35, fontFamily: "'Space Mono', monospace", display: "block", marginBottom: "1rem" }}>
-          click to copy snippet
+          click to insert node
         </span>
 
         {imageGroups.map((group) => (
@@ -286,7 +321,7 @@ export default function TopologyBuilder({ nosImages, collections, onSave }: Topo
             {group.images.map((img) => (
               <div
                 key={img.uuid}
-                onClick={() => handleCopySnippet(img)}
+                onClick={() => handleInsertNode(img)}
                 style={{
                   padding: "0.5rem 0.75rem",
                   border: "1px solid #000",
@@ -300,7 +335,7 @@ export default function TopologyBuilder({ nosImages, collections, onSave }: Topo
                 onMouseLeave={(e) => { if (copied !== img.uuid) e.currentTarget.style.background = "transparent"; }}
               >
                 <div style={{ fontWeight: 700, fontFamily: "'Manrope', sans-serif", fontSize: "0.7rem", textTransform: "uppercase" }}>
-                  {copied === img.uuid ? "COPIED!" : img.name}
+                  {copied === img.uuid ? "INSERTED!" : img.name}
                 </div>
                 <div style={{ fontSize: "0.55rem", opacity: 0.5, fontFamily: "'Space Mono', monospace", marginTop: 2 }}>
                   {img.clabKind} &middot; {img.dockerImage.split("/").pop()}
@@ -317,7 +352,7 @@ export default function TopologyBuilder({ nosImages, collections, onSave }: Topo
         </div>
       </div>
 
-      {/* Center — YAML Editor */}
+      {/* Center — YAML Editor + Preview */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <div style={{
           padding: "0.5rem 1rem",
@@ -326,10 +361,25 @@ export default function TopologyBuilder({ nosImages, collections, onSave }: Topo
           alignItems: "center",
           justifyContent: "space-between",
         }}>
-          <span style={{ ...labelStyle, opacity: 0.5 }}>TOPOLOGY.YAML</span>
-          <span style={{ fontSize: "0.6rem", fontFamily: "'Space Mono', monospace", opacity: 0.4 }}>
-            {lineCount} lines
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <span style={{ ...labelStyle, opacity: 0.5 }}>TOPOLOGY.YAML</span>
+            {validationMsg ? (
+              <span style={{ fontSize: "0.55rem", fontFamily: "'Space Mono', monospace", color: "#ff5f56" }}>{validationMsg}</span>
+            ) : yaml.trim() ? (
+              <span style={{ fontSize: "0.55rem", fontFamily: "'Space Mono', monospace", color: "#27c93f" }}>VALID</span>
+            ) : null}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <span style={{ fontSize: "0.6rem", fontFamily: "'Space Mono', monospace", opacity: 0.4 }}>
+              {lineCount} lines
+            </span>
+            <button
+              onClick={() => setShowPreview(!showPreview)}
+              style={{ ...labelStyle, fontSize: "0.55rem", opacity: 0.4, background: "none", border: "none", cursor: "pointer", color: "#000" }}
+            >
+              {showPreview ? "HIDE PREVIEW" : "SHOW PREVIEW"}
+            </button>
+          </div>
         </div>
         <div style={{ flex: 1, display: "flex", overflow: "auto", minHeight: 0 }}>
           {/* Line numbers */}
@@ -351,8 +401,20 @@ export default function TopologyBuilder({ nosImages, collections, onSave }: Topo
           </div>
           {/* Textarea */}
           <textarea
+            ref={textareaRef}
             value={yaml}
             onChange={(e) => { setYaml(e.target.value); setError(null); }}
+            onKeyDown={(e) => {
+              if (e.key === "Tab") {
+                e.preventDefault();
+                const ta = e.currentTarget;
+                const start = ta.selectionStart;
+                const end = ta.selectionEnd;
+                const newVal = yaml.slice(0, start) + "  " + yaml.slice(end);
+                setYaml(newVal);
+                requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = start + 2; });
+              }
+            }}
             spellCheck={false}
             style={{
               flex: 1,
@@ -369,6 +431,16 @@ export default function TopologyBuilder({ nosImages, collections, onSave }: Topo
             }}
           />
         </div>
+
+        {/* Live preview */}
+        {showPreview && !validationMsg && yaml.trim() && (
+          <div style={{ height: 220, borderTop: "1px solid rgba(0,0,0,0.15)", position: "relative", flexShrink: 0 }}>
+            <div style={{ position: "absolute", top: 6, left: 10, zIndex: 2 }}>
+              <span style={{ ...labelStyle, fontSize: "0.5rem", opacity: 0.3 }}>LIVE PREVIEW</span>
+            </div>
+            <TopologyCanvas definition={yaml} />
+          </div>
+        )}
       </div>
 
       {/* Right — Controls */}

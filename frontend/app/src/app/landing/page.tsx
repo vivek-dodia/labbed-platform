@@ -62,7 +62,7 @@ export default function LandingPage() {
   if (loading || user) return null;
 
   return (
-    <div style={{ fontFamily: FONT, color: "#fff", background: "#111" }}>
+    <div style={{ fontFamily: FONT, color: "#fff", background: "#000" }}>
       {/* ── Hero section ── */}
       <section style={{ position: "relative", height: "100vh", overflow: "hidden", display: "flex" }}>
 
@@ -201,7 +201,7 @@ export default function LandingPage() {
                       {line.prompt ? (
                         <>
                           <span style={{ color: GREEN, opacity: 0.6 }}>{line.prompt}</span>
-                          <span style={{ color: "rgba(255,255,255,0.45)" }}> $ </span>
+                          <span style={{ color: "rgba(255,255,255,0.3)" }}> $ </span>
                           <span style={{ color: "#fff" }}>{line.cmd}</span>
                         </>
                       ) : (
@@ -231,7 +231,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Features section ── */}
-      <section id="features" style={{ background: "#111", padding: "8rem 3rem", maxWidth: 1100, margin: "0 auto" }}>
+      <section id="features" style={{ background: "#000", padding: "8rem 3rem", maxWidth: 1100, margin: "0 auto" }}>
         <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: GREEN, marginBottom: "1rem" }}>
           Capabilities
         </div>
@@ -254,14 +254,14 @@ export default function LandingPage() {
                 }}>{f.badge}</span>
               </div>
               <h3 style={{ fontSize: "1.1rem", fontWeight: 600, margin: "0 0 0.5rem", letterSpacing: "-0.01em" }}>{f.title}</h3>
-              <p style={{ fontSize: "0.8rem", lineHeight: 1.6, color: "rgba(255,255,255,0.55)", margin: 0 }}>{f.desc}</p>
+              <p style={{ fontSize: "0.8rem", lineHeight: 1.6, color: "rgba(255,255,255,0.4)", margin: 0 }}>{f.desc}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* ── How it works ── */}
-      <section style={{ background: "#111", padding: "6rem 3rem", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+      <section style={{ background: "#000", padding: "6rem 3rem", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: GREEN, marginBottom: "1rem" }}>
             How It Works
@@ -279,7 +279,7 @@ export default function LandingPage() {
               <div key={step.num} style={{ position: "relative" }}>
                 <div style={{ fontSize: "3rem", fontWeight: 200, color: GREEN, opacity: 0.15, fontFamily: MONO, lineHeight: 1 }}>{step.num}</div>
                 <h3 style={{ fontSize: "1.2rem", fontWeight: 600, margin: "0.75rem 0 0.5rem" }}>{step.title}</h3>
-                <p style={{ fontSize: "0.8rem", lineHeight: 1.7, color: "rgba(255,255,255,0.55)", margin: 0 }}>{step.desc}</p>
+                <p style={{ fontSize: "0.8rem", lineHeight: 1.7, color: "rgba(255,255,255,0.4)", margin: 0 }}>{step.desc}</p>
               </div>
             ))}
           </div>
@@ -287,7 +287,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Ready-made templates ── */}
-      <section style={{ background: "#111", padding: "6rem 3rem", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+      <section style={{ background: "#000", padding: "6rem 3rem", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: GREEN, marginBottom: "1rem" }}>
             Templates
@@ -295,7 +295,7 @@ export default function LandingPage() {
           <h2 style={{ fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 200, lineHeight: 1.15, letterSpacing: "-0.01em", marginBottom: "1rem" }}>
             Ready-made. Or roll your own.
           </h2>
-          <p style={{ fontSize: "0.95rem", lineHeight: 1.7, color: "rgba(255,255,255,0.55)", maxWidth: 600, marginBottom: "3rem" }}>
+          <p style={{ fontSize: "0.95rem", lineHeight: 1.7, color: "rgba(255,255,255,0.4)", maxWidth: 600, marginBottom: "3rem" }}>
             Start from curated templates across routing, switching, security, services, and cloud networking. Or write your own in declarative YAML (network) or Terraform HCL (cloud) and deploy in minutes.
           </p>
 
@@ -330,24 +330,24 @@ export default function LandingPage() {
           <div style={{ marginTop: "2rem", display: "flex", gap: "2rem", justifyContent: "center" }}>
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: "2rem", fontWeight: 200, color: GREEN, fontFamily: MONO }}>YAML</div>
-              <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: "0.3rem" }}>Network topologies</div>
+              <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: "0.3rem" }}>Network topologies</div>
             </div>
             <div style={{ width: 1, background: "rgba(255,255,255,0.06)" }} />
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: "2rem", fontWeight: 200, color: "#38bdf8", fontFamily: MONO }}>HCL</div>
-              <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: "0.3rem" }}>Cloud infrastructure</div>
+              <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: "0.3rem" }}>Cloud infrastructure</div>
             </div>
             <div style={{ width: 1, background: "rgba(255,255,255,0.06)" }} />
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: "2rem", fontWeight: 200, color: "#f59e0b", fontFamily: MONO }}>&lt;60s</div>
-              <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: "0.3rem" }}>Deploy time</div>
+              <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: "0.3rem" }}>Deploy time</div>
             </div>
           </div>
         </div>
       </section>
 
       {/* ── What can you lab? ── */}
-      <section style={{ background: "#111", padding: "6rem 3rem", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+      <section style={{ background: "#000", padding: "6rem 3rem", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: GREEN, marginBottom: "1rem" }}>
             What Can You Lab?
@@ -355,7 +355,7 @@ export default function LandingPage() {
           <h2 style={{ fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 200, lineHeight: 1.15, letterSpacing: "-0.01em", marginBottom: "1rem" }}>
             Deploy it. Break it. Understand it.
           </h2>
-          <p style={{ fontSize: "0.95rem", lineHeight: 1.7, color: "rgba(255,255,255,0.55)", maxWidth: 600, marginBottom: "3.5rem" }}>
+          <p style={{ fontSize: "0.95rem", lineHeight: 1.7, color: "rgba(255,255,255,0.4)", maxWidth: 600, marginBottom: "3.5rem" }}>
             Stop reading docs and start building. Deploy real topologies in minutes, trace packets across every hop, and understand how networks actually work \u2014 down to the wire.
           </p>
 
@@ -384,13 +384,13 @@ export default function LandingPage() {
                   border: `1px solid ${item.label === "CLOUD" ? "rgba(56,189,248,0.2)" : item.label === "HYBRID" ? "rgba(245,158,11,0.2)" : GREEN + "33"}`,
                 }}>{item.label}</span>
                 <h4 style={{ fontSize: "0.95rem", fontWeight: 600, margin: "0.6rem 0 0.3rem" }}>{item.title}</h4>
-                <p style={{ fontSize: "0.75rem", lineHeight: 1.6, color: "rgba(255,255,255,0.5)", margin: 0 }}>{item.desc}</p>
+                <p style={{ fontSize: "0.75rem", lineHeight: 1.6, color: "rgba(255,255,255,0.35)", margin: 0 }}>{item.desc}</p>
               </div>
             ))}
           </div>
 
           <div style={{ marginTop: "3rem", textAlign: "center" }}>
-            <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.45)", marginBottom: "1.5rem" }}>
+            <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.3)", marginBottom: "1.5rem" }}>
               Every lab comes with interactive shell access, packet capture on any link, and live deployment logs.
             </p>
             <Link href="/login" style={{
@@ -403,7 +403,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Comparison ── */}
-      <section style={{ background: "#111", padding: "6rem 3rem", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+      <section style={{ background: "#000", padding: "6rem 3rem", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: GREEN, marginBottom: "1rem" }}>
             Why Labbed?
@@ -458,7 +458,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Supported platforms ── */}
-      <section style={{ background: "#111", padding: "3rem 3rem 6rem", maxWidth: 1100, margin: "0 auto" }}>
+      <section style={{ background: "#000", padding: "3rem 3rem 6rem", maxWidth: 1100, margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "center", gap: "2.5rem", flexWrap: "wrap", opacity: 0.25 }}>
           {["FRRouting", "MikroTik", "OpenWrt", "FreeBSD", "GoBGP", "Kea DHCP", "CoreDNS", "Nginx", "AWS (Moto)", "Terraform"].map((name) => (
             <span key={name} style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: MONO }}>{name}</span>
@@ -484,15 +484,6 @@ export default function LandingPage() {
           AWS is a trademark of Amazon.com, Inc. Containerlab is a project by SRL Labs.
         </div>
       </section>
-
-      {/* Noise texture overlay */}
-      <div style={{
-        position: "fixed", inset: 0, pointerEvents: "none", zIndex: 9999,
-        opacity: 0.03,
-        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-        backgroundRepeat: "repeat",
-        backgroundSize: "200px 200px",
-      }} />
 
       <style>{`
         @keyframes bounce {

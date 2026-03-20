@@ -126,6 +126,13 @@ export default function AppShell({ children, navItems = [], activeNav }: AppShel
     >
       <MenuDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
+      {/* Grain texture overlay */}
+      <div style={{
+        position: "fixed", inset: 0, pointerEvents: "none", zIndex: 9999, opacity: 0.06,
+        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+        backgroundRepeat: "repeat", backgroundSize: "256px 256px", mixBlendMode: "multiply",
+      }} />
+
       {/* Left sidebar - 48px wide */}
       <aside
         style={{
@@ -215,6 +222,7 @@ export default function AppShell({ children, navItems = [], activeNav }: AppShel
               style={{
                 display: "flex",
                 alignItems: "center",
+                gap: "0.4rem",
                 padding: "0 1.5rem",
                 borderRight: "1px solid #000000",
                 textDecoration: "none",
@@ -226,6 +234,7 @@ export default function AppShell({ children, navItems = [], activeNav }: AppShel
                 fontFamily: "Manrope, sans-serif",
               }}
             >
+              <img src="/logo.png" alt="" style={{ width: 18, height: 18, borderRadius: 3 }} />
               LABBED
             </Link>
 

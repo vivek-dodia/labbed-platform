@@ -286,6 +286,66 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── Ready-made templates ── */}
+      <section style={{ background: "#000", padding: "6rem 3rem", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: GREEN, marginBottom: "1rem" }}>
+            Templates
+          </div>
+          <h2 style={{ fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 200, lineHeight: 1.15, letterSpacing: "-0.01em", marginBottom: "1rem" }}>
+            Ready-made. Or roll your own.
+          </h2>
+          <p style={{ fontSize: "0.95rem", lineHeight: 1.7, color: "rgba(255,255,255,0.4)", maxWidth: 600, marginBottom: "3rem" }}>
+            Start from curated templates across routing, switching, security, services, and cloud networking. Or write your own in declarative YAML (network) or Terraform HCL (cloud) and deploy in minutes.
+          </p>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1 }}>
+            {[
+              { collection: "Routing", templates: ["eBGP Multi-AS Peering", "OSPF Multi-Area", "Full Mesh iBGP + RR", "Static + Connected Routes"], color: GREEN },
+              { collection: "Cloud Networking", templates: ["VPC Basics", "Public/Private Subnets", "Security Groups", "VPC Peering", "Multi-AZ VPC"], color: "#38bdf8" },
+              { collection: "Campus & Services", templates: ["Campus L2/L3 Design", "Firewall Zones", "DNS + DHCP Stack", "Load Balanced Web Tier"], color: "#f59e0b" },
+            ].map((col) => (
+              <div key={col.collection} style={{
+                background: "rgba(255,255,255,0.015)", padding: "1.5rem",
+                borderTop: `2px solid ${col.color}33`,
+              }}>
+                <span style={{ fontSize: "0.55rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: col.color, fontFamily: MONO }}>{col.collection}</span>
+                <div style={{ marginTop: "1rem", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                  {col.templates.map((t) => (
+                    <div key={t} style={{
+                      fontSize: "0.8rem", color: "rgba(255,255,255,0.6)",
+                      padding: "0.4rem 0",
+                      borderBottom: "1px solid rgba(255,255,255,0.04)",
+                      display: "flex", alignItems: "center", gap: "0.5rem",
+                    }}>
+                      <span style={{ color: col.color, fontSize: "0.6rem", fontFamily: MONO }}>&gt;</span>
+                      {t}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: "2rem", display: "flex", gap: "2rem", justifyContent: "center" }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: "2rem", fontWeight: 200, color: GREEN, fontFamily: MONO }}>YAML</div>
+              <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: "0.3rem" }}>Network topologies</div>
+            </div>
+            <div style={{ width: 1, background: "rgba(255,255,255,0.06)" }} />
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: "2rem", fontWeight: 200, color: "#38bdf8", fontFamily: MONO }}>HCL</div>
+              <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: "0.3rem" }}>Cloud infrastructure</div>
+            </div>
+            <div style={{ width: 1, background: "rgba(255,255,255,0.06)" }} />
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: "2rem", fontWeight: 200, color: "#f59e0b", fontFamily: MONO }}>&lt;60s</div>
+              <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: "0.3rem" }}>Deploy time</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── What can you lab? ── */}
       <section style={{ background: "#000", padding: "6rem 3rem", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
@@ -338,6 +398,61 @@ export default function LandingPage() {
               fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
               padding: "0.8rem 2rem", fontFamily: MONO, display: "inline-block",
             }}>START YOUR FIRST LAB &darr;</Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Comparison ── */}
+      <section style={{ background: "#000", padding: "6rem 3rem", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: GREEN, marginBottom: "1rem" }}>
+            Why Labbed?
+          </div>
+          <h2 style={{ fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 200, lineHeight: 1.15, letterSpacing: "-0.01em", marginBottom: "3.5rem" }}>
+            Skip the setup. Start learning.
+          </h2>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.75rem", fontFamily: MONO }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${GREEN}33` }}>
+                  {["", "LABBED", "Hardware Lab", "GNS3 / EVE-NG", "Cisco CML", "Containerlab (DIY)"].map((h, i) => (
+                    <th key={i} style={{
+                      padding: "0.8rem 1rem", textAlign: i === 0 ? "left" : "center",
+                      fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase",
+                      color: i === 1 ? GREEN : "rgba(255,255,255,0.4)",
+                      background: i === 1 ? "rgba(121,246,115,0.05)" : "transparent",
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { feature: "Setup time", vals: ["< 1 min", "Days/weeks", "1\u20132 hours", "1\u20132 hours", "30\u201360 min"] },
+                  { feature: "Local install required", vals: ["\u2714 None", "Physical gear", "Desktop app", "Server VM", "Docker + CLI"] },
+                  { feature: "Browser-based UI", vals: ["\u2714 Yes", "\u2718 No", "Web UI (limited)", "Web UI", "\u2718 No"] },
+                  { feature: "Cloud lab support", vals: ["\u2714 AWS (Moto)", "\u2718 No", "\u2718 No", "\u2718 No", "\u2718 No"] },
+                  { feature: "Interactive shell", vals: ["\u2714 In-browser", "SSH only", "Telnet/SSH", "SSH", "Docker exec"] },
+                  { feature: "Packet capture", vals: ["\u2714 Click any link", "Port mirror", "Wireshark setup", "Built-in", "tcpdump (manual)"] },
+                  { feature: "Auto-cleanup", vals: ["\u2714 On logout", "Manual", "Manual", "Manual", "Manual"] },
+                  { feature: "Multi-tenant / RBAC", vals: ["\u2714 Built-in", "\u2718 No", "\u2718 No", "Basic", "\u2718 No"] },
+                  { feature: "Cost", vals: ["Free tier", "$$$$ hardware", "Free / paid", "$$ license", "Free (your infra)"] },
+                  { feature: "Real NOS images", vals: ["\u2714 FRR, MikroTik+", "\u2714 Real gear", "Emulated", "\u2714 Cisco IOS", "\u2714 Any container"] },
+                ].map((row, ri) => (
+                  <tr key={ri} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                    <td style={{ padding: "0.6rem 1rem", color: "rgba(255,255,255,0.6)", fontFamily: FONT, fontWeight: 600, fontSize: "0.7rem" }}>{row.feature}</td>
+                    {row.vals.map((v, vi) => (
+                      <td key={vi} style={{
+                        padding: "0.6rem 1rem", textAlign: "center",
+                        color: vi === 0 ? GREEN : "rgba(255,255,255,0.3)",
+                        background: vi === 0 ? "rgba(121,246,115,0.03)" : "transparent",
+                        fontWeight: vi === 0 ? 700 : 400,
+                      }}>{v}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </section>

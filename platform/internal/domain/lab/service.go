@@ -413,6 +413,9 @@ func (s *LabService) applyImageOverrides(definition string, nodeImages map[strin
 		return "", errors.New("topology YAML missing 'nodes' section")
 	}
 
+	// Track which nodes became SRL (need interface name rewriting)
+	srlNodes := make(map[string]bool)
+
 	for nodeName, imageUUID := range nodeImages {
 		nodeData, ok := nodes[nodeName].(map[string]interface{})
 		if !ok {
@@ -427,9 +430,18 @@ func (s *LabService) applyImageOverrides(definition string, nodeImages map[strin
 		nodeData["kind"] = clabKind
 		nodeData["image"] = dockerImage
 
+		if clabKind == "srl" {
+			srlNodes[nodeName] = true
+		}
+
 		// Rewrite config delivery (startup-config / binds) for the new NOS
 		nosKind := resolveNosKind(clabKind, dockerImage)
 		rewriteNodeConfig(nodeData, nodeName, nosKind)
+	}
+
+	// Rewrite link interfaces for nodes that changed to SRL (ethX → e1-X)
+	if len(srlNodes) > 0 {
+		rewriteLinksForSRL(topoSection, srlNodes)
 	}
 
 	out, err := yaml.Marshal(topo)
@@ -458,6 +470,51 @@ func resolveNosKind(clabKind, dockerImage string) string {
 		}
 	}
 	return ""
+}
+
+// rewriteLinksForSRL rewrites ethX → e1-X for nodes that were overridden to SRL kind.
+func rewriteLinksForSRL(topoSection map[string]interface{}, srlNodes map[string]bool) {
+	linksRaw, ok := topoSection["links"]
+	if !ok {
+		return
+	}
+	links, ok := linksRaw.([]interface{})
+	if !ok {
+		return
+	}
+
+	rewriteEndpoint := func(ep string) string {
+		parts := strings.SplitN(ep, ":", 2)
+		if len(parts) != 2 {
+			return ep
+		}
+		nodeName, iface := parts[0], parts[1]
+		if !srlNodes[nodeName] {
+			return ep
+		}
+		// Convert ethN → e1-N
+		if strings.HasPrefix(iface, "eth") {
+			num := strings.TrimPrefix(iface, "eth")
+			return nodeName + ":e1-" + num
+		}
+		return ep
+	}
+
+	for _, linkRaw := range links {
+		linkMap, ok := linkRaw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		endpointsRaw, ok := linkMap["endpoints"].([]interface{})
+		if !ok || len(endpointsRaw) != 2 {
+			continue
+		}
+		for i, epRaw := range endpointsRaw {
+			if ep, ok := epRaw.(string); ok {
+				endpointsRaw[i] = rewriteEndpoint(ep)
+			}
+		}
+	}
 }
 
 // extractNosKinds parses topology YAML and returns the set of NOS config profiles in use.

@@ -455,6 +455,8 @@ func (s *LabService) applyImageOverrides(definition string, nodeImages map[strin
 // Returns "" for generic nodes that don't have NOS-specific configs.
 func resolveNosKind(clabKind, dockerImage string) string {
 	switch clabKind {
+	case "srl", "nokia_srlinux":
+		return "srl"
 	case "mikrotik_ros":
 		return "mikrotik_ros"
 	case "openwrt":
@@ -582,6 +584,8 @@ func rewriteNodeConfig(nodeData map[string]interface{}, nodeName, nosKind string
 
 	// Add new config delivery
 	switch nosKind {
+	case "srl", "nokia_srlinux":
+		nodeData["startup-config"] = nodeName + ".cfg"
 	case "mikrotik_ros":
 		nodeData["startup-config"] = nodeName + ".rsc"
 	case "frr":
@@ -604,7 +608,8 @@ func isNodeConfigBind(bind, nodeName string) bool {
 	if idx := strings.Index(bind, ":"); idx >= 0 {
 		source = bind[:idx]
 	}
-	return source == nodeName+".rsc" ||
+	return source == nodeName+".cfg" ||
+		source == nodeName+".rsc" ||
 		source == nodeName+"-daemons" ||
 		source == nodeName+".conf" ||
 		source == nodeName+"-config.sh"

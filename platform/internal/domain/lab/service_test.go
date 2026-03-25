@@ -477,6 +477,8 @@ func TestResolveNosKind(t *testing.T) {
 	tests := []struct {
 		kind, image, want string
 	}{
+		{"srl", "ghcr.io/nokia/srlinux:24.10.1", "srl"},
+		{"nokia_srlinux", "ghcr.io/nokia/srlinux:24.10.1", "srl"},
 		{"mikrotik_ros", "vrnetlab/mikrotik_routeros:7.20.8", "mikrotik_ros"},
 		{"openwrt", "vrnetlab/openwrt_openwrt:24.10.0", "openwrt"},
 		{"freebsd", "vrnetlab/freebsd:14", "freebsd"},

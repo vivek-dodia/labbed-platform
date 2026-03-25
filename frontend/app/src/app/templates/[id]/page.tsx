@@ -7,6 +7,7 @@ import TopologyCanvas from "@/components/template/TopologyCanvas";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import { parseContainerlabYAML } from "@/lib/yaml-parser";
+import { nosDisplayName } from "@/lib/nos-display";
 import DeployConfigModal from "@/components/DeployConfigModal";
 import type {
   TemplateResponse,
@@ -343,7 +344,7 @@ export default function TopologyEditorPage() {
                   </div>
                   <div style={{ marginBottom: "1.2rem" }}>
                     <span style={{ ...labelStyle, fontSize: "0.6rem", opacity: 0.4 }}>KIND</span>
-                    <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "0.9rem", marginTop: "0.25rem" }}>{selectedParsed.kind || "linux"}</p>
+                    <p style={{ fontFamily: "'Space Mono', monospace", fontSize: "0.9rem", marginTop: "0.25rem" }}>{nosDisplayName(selectedParsed.kind || "linux")}</p>
                   </div>
                   <div style={{ marginBottom: "1.2rem" }}>
                     <span style={{ ...labelStyle, fontSize: "0.6rem", opacity: 0.4 }}>IMAGE</span>

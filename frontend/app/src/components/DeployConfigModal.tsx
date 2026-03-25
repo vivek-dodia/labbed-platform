@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import EditorialModal from "@/components/ui/EditorialModal";
 import { api } from "@/lib/api";
+import { nosDisplayName } from "@/lib/nos-display";
 import { parseContainerlabYAML } from "@/lib/yaml-parser";
 import type { NosImageResponse } from "@/types/api";
 
@@ -128,7 +129,7 @@ export default function DeployConfigModal({
                     border: "1px solid rgba(0,0,0,0.2)",
                     borderRadius: "3px",
                   }}>
-                    {node.kind}
+                    {nosDisplayName(node.kind)}
                   </span>
                   <span style={{ ...LABEL, fontSize: "0.55rem", opacity: 0.4 }}>
                     {friendlyImageName(node.image)}

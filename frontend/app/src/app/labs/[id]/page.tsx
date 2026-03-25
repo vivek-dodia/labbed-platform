@@ -15,6 +15,7 @@ import AwsCliTerminal from "@/components/AwsCliTerminal";
 import CloudTopologyCanvas from "@/components/CloudTopologyCanvas";
 import { useToast } from "@/components/ui/Toast";
 import type { LabResponse, NodeResponse, TemplateResponse, LabEventResponse, PaginatedResponse, BindFileResponse } from "@/types/api";
+import { nosDisplayName } from "@/lib/nos-display";
 
 /* ── Quick-command definitions ── */
 interface QuickCmd { label: string; cmd: string; description: string }
@@ -1107,7 +1108,7 @@ export default function LabDetailPage() {
                     >
                       <div style={{ fontSize: "0.8rem", fontWeight: 700, textTransform: "uppercase" }}>{shortName(node.name)}</div>
                       <div style={{ fontSize: "0.65rem", opacity: 0.5, fontFamily: MONO, marginTop: "0.1rem" }}>
-                        {lab.type === "cloud" ? node.kind.replace("aws_", "").replace(/_/g, " ") : node.kind} · {node.state}
+                        {lab.type === "cloud" ? node.kind.replace("aws_", "").replace(/_/g, " ") : nosDisplayName(node.kind)} · {node.state}
                       </div>
                       {lab.type === "cloud" && node.properties?.cidr_block && (
                         <div style={{ fontSize: "0.6rem", opacity: 0.4, fontFamily: MONO, marginTop: "0.1rem" }}>
@@ -1128,7 +1129,7 @@ export default function LabDetailPage() {
                 <div style={{ borderTop: BORDER, padding: "0.6rem 0.75rem", overflowY: "auto" }}>
                   <div style={{ ...LABEL, opacity: 0.5, marginBottom: "0.3rem", fontSize: "0.6rem" }}>SELECTED</div>
                   <div style={{ fontSize: "0.65rem", fontFamily: MONO, lineHeight: 1.7 }}>
-                    <div>TYPE: {selectedNodeData.kind}</div>
+                    <div>TYPE: {nosDisplayName(selectedNodeData.kind)}</div>
                     <div
                       style={{ cursor: "pointer" }}
                       onClick={() => selectedNodeData.containerId && copyToClipboard(selectedNodeData.containerId, "rid")}

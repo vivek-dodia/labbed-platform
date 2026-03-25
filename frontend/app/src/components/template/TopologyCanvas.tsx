@@ -21,6 +21,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { parseContainerlabYAML } from "@/lib/yaml-parser";
 import { NODE_W, NODE_H, getLayoutedPositions } from "@/lib/layout";
+import { nosDisplayName } from "@/lib/nos-display";
 
 export interface LinkEndpoint {
   node: string;
@@ -177,7 +178,7 @@ function TopoNode({ data }: { data: { label: string; kind: string; image: string
             color: sel ? "rgba(121,246,115,0.5)" : "rgba(0,0,0,0.4)",
             marginTop: 2,
           }}>
-            {data.kind} \u00b7 {data.image}
+            {nosDisplayName(data.kind)} \u00b7 {data.image.split("/").pop()}
           </div>
         </div>
       </div>

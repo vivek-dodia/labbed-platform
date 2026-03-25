@@ -1,4 +1,5 @@
 import type { ParsedNode } from "@/lib/yaml-parser";
+import { nosDisplayName } from "@/lib/nos-display";
 
 interface Props {
   node: ParsedNode | null;
@@ -35,7 +36,7 @@ export default function PropertiesPanel({ node }: Props) {
             KIND
           </span>
           <p className="mono" style={{ fontSize: "0.9rem" }}>
-            {node.kind}
+            {nosDisplayName(node.kind)}
           </p>
         </div>
 

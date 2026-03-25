@@ -1,5 +1,7 @@
 package seed
 
+import "strings"
+
 var datacenterCollection = CollectionDef{
 	Name: "Datacenter Fabric",
 	Templates: []Template{
@@ -35,9 +37,9 @@ topology:
     - endpoints: ["srl1:e1-1", "srl2:e1-1"]
 `,
 			BindFiles: []BindFile{
-				{FilePath: "srl1.cfg", NosKind: "srl", Content: `set / interface e1-1 admin-state enable
-set / interface e1-1 subinterface 0 ipv4 admin-state enable
-set / interface e1-1 subinterface 0 ipv4 address 10.0.0.0/31
+				{FilePath: "srl1.cfg", NosKind: "srl", Content: `set / interface ethernet-1/1 admin-state enable
+set / interface ethernet-1/1 subinterface 0 ipv4 admin-state enable
+set / interface ethernet-1/1 subinterface 0 ipv4 address 10.0.0.0/31
 
 set / interface lo0 admin-state enable
 set / interface lo0 subinterface 0 ipv4 admin-state enable
@@ -45,7 +47,7 @@ set / interface lo0 subinterface 0 ipv4 address 10.0.0.11/32
 
 set / network-instance default type default
 set / network-instance default router-id 10.0.0.11
-set / network-instance default interface e1-1.0
+set / network-instance default interface ethernet-1/1.0
 set / network-instance default interface lo0.0
 
 set / network-instance default protocols bgp autonomous-system 65001
@@ -57,9 +59,9 @@ set / network-instance default protocols bgp neighbor 10.0.0.1 peer-group peer
 
 set / routing-policy policy all default-action policy-result accept
 `},
-				{FilePath: "srl2.cfg", NosKind: "srl", Content: `set / interface e1-1 admin-state enable
-set / interface e1-1 subinterface 0 ipv4 admin-state enable
-set / interface e1-1 subinterface 0 ipv4 address 10.0.0.1/31
+				{FilePath: "srl2.cfg", NosKind: "srl", Content: `set / interface ethernet-1/1 admin-state enable
+set / interface ethernet-1/1 subinterface 0 ipv4 admin-state enable
+set / interface ethernet-1/1 subinterface 0 ipv4 address 10.0.0.1/31
 
 set / interface lo0 admin-state enable
 set / interface lo0 subinterface 0 ipv4 admin-state enable
@@ -67,7 +69,7 @@ set / interface lo0 subinterface 0 ipv4 address 10.0.0.12/32
 
 set / network-instance default type default
 set / network-instance default router-id 10.0.0.12
-set / network-instance default interface e1-1.0
+set / network-instance default interface ethernet-1/1.0
 set / network-instance default interface lo0.0
 
 set / network-instance default protocols bgp autonomous-system 65002
@@ -102,9 +104,9 @@ topology:
     - endpoints: ["srl:e1-1", "frr:eth1"]
 `,
 			BindFiles: []BindFile{
-				{FilePath: "srl.cfg", NosKind: "srl", Content: `set / interface e1-1 admin-state enable
-set / interface e1-1 subinterface 0 ipv4 admin-state enable
-set / interface e1-1 subinterface 0 ipv4 address 10.0.0.0/31
+				{FilePath: "srl.cfg", NosKind: "srl", Content: `set / interface ethernet-1/1 admin-state enable
+set / interface ethernet-1/1 subinterface 0 ipv4 admin-state enable
+set / interface ethernet-1/1 subinterface 0 ipv4 address 10.0.0.0/31
 
 set / interface lo0 admin-state enable
 set / interface lo0 subinterface 0 ipv4 admin-state enable
@@ -112,7 +114,7 @@ set / interface lo0 subinterface 0 ipv4 address 10.0.0.1/32
 
 set / network-instance default type default
 set / network-instance default router-id 10.0.0.1
-set / network-instance default interface e1-1.0
+set / network-instance default interface ethernet-1/1.0
 set / network-instance default interface lo0.0
 
 set / network-instance default protocols bgp autonomous-system 65001
@@ -168,9 +170,9 @@ topology:
     - endpoints: ["srl:e1-1", "sonic:eth1"]
 `,
 			BindFiles: []BindFile{
-				{FilePath: "srl.cfg", NosKind: "srl", Content: `set / interface e1-1 admin-state enable
-set / interface e1-1 subinterface 0 ipv4 admin-state enable
-set / interface e1-1 subinterface 0 ipv4 address 10.0.0.0/31
+				{FilePath: "srl.cfg", NosKind: "srl", Content: `set / interface ethernet-1/1 admin-state enable
+set / interface ethernet-1/1 subinterface 0 ipv4 admin-state enable
+set / interface ethernet-1/1 subinterface 0 ipv4 address 10.0.0.0/31
 
 set / interface lo0 admin-state enable
 set / interface lo0 subinterface 0 ipv4 admin-state enable
@@ -178,7 +180,7 @@ set / interface lo0 subinterface 0 ipv4 address 10.0.0.1/32
 
 set / network-instance default type default
 set / network-instance default router-id 10.0.0.1
-set / network-instance default interface e1-1.0
+set / network-instance default interface ethernet-1/1.0
 set / network-instance default interface lo0.0
 
 set / network-instance default protocols bgp autonomous-system 65001
@@ -431,12 +433,25 @@ type srlNeighbor struct {
 	Addr, Peer, PeerAS string
 }
 
+// srlIfaceName converts containerlab short interface names to SR Linux full names.
+// e.g. "e1-1" → "ethernet-1/1"
+func srlIfaceName(short string) string {
+	if strings.HasPrefix(short, "e") && strings.Contains(short, "-") {
+		// e1-1 → ethernet-1/1
+		parts := strings.SplitN(short[1:], "-", 2)
+		if len(parts) == 2 {
+			return "ethernet-" + parts[0] + "/" + parts[1]
+		}
+	}
+	return short
+}
+
 func srlSpine(name, routerID, as string, neighbors []srlNeighbor, ifaces ...string) string {
 	cfg := "set / system information location \"Labbed DC Fabric\"\n"
 	cfg += "set / system information description \"" + name + "\"\n\n"
 	// Interfaces
 	for i, n := range neighbors {
-		iface := ifaces[i]
+		iface := srlIfaceName(ifaces[i])
 		cfg += "set / interface " + iface + " admin-state enable\n"
 		cfg += "set / interface " + iface + " subinterface 0 ipv4 admin-state enable\n"
 		cfg += "set / interface " + iface + " subinterface 0 ipv4 address " + n.Addr + "\n\n"
@@ -449,7 +464,7 @@ func srlSpine(name, routerID, as string, neighbors []srlNeighbor, ifaces ...stri
 	cfg += "set / network-instance default type default\n"
 	cfg += "set / network-instance default router-id " + routerID + "\n"
 	for _, iface := range ifaces {
-		cfg += "set / network-instance default interface " + iface + ".0\n"
+		cfg += "set / network-instance default interface " + srlIfaceName(iface) + ".0\n"
 	}
 	cfg += "set / network-instance default interface lo0.0\n\n"
 	// BGP
@@ -471,19 +486,22 @@ func srlLeaf(name, routerID, as string, neighbors []srlNeighbor, uplink1, uplink
 	cfg := "set / system information location \"Labbed DC Fabric\"\n"
 	cfg += "set / system information description \"" + name + "\"\n\n"
 	// Uplinks
+	ul1 := srlIfaceName(uplink1)
+	ul2 := srlIfaceName(uplink2)
+	srvIface := srlIfaceName(serverIface)
 	for i, n := range neighbors {
-		iface := uplink1
+		iface := ul1
 		if i == 1 {
-			iface = uplink2
+			iface = ul2
 		}
 		cfg += "set / interface " + iface + " admin-state enable\n"
 		cfg += "set / interface " + iface + " subinterface 0 ipv4 admin-state enable\n"
 		cfg += "set / interface " + iface + " subinterface 0 ipv4 address " + n.Addr + "\n\n"
 	}
 	// Server-facing
-	cfg += "set / interface " + serverIface + " admin-state enable\n"
-	cfg += "set / interface " + serverIface + " subinterface 0 ipv4 admin-state enable\n"
-	cfg += "set / interface " + serverIface + " subinterface 0 ipv4 address " + serverAddr + "\n\n"
+	cfg += "set / interface " + srvIface + " admin-state enable\n"
+	cfg += "set / interface " + srvIface + " subinterface 0 ipv4 admin-state enable\n"
+	cfg += "set / interface " + srvIface + " subinterface 0 ipv4 address " + serverAddr + "\n\n"
 	// Loopback
 	cfg += "set / interface lo0 admin-state enable\n"
 	cfg += "set / interface lo0 subinterface 0 ipv4 admin-state enable\n"
@@ -491,9 +509,9 @@ func srlLeaf(name, routerID, as string, neighbors []srlNeighbor, uplink1, uplink
 	// Network instance
 	cfg += "set / network-instance default type default\n"
 	cfg += "set / network-instance default router-id " + routerID + "\n"
-	cfg += "set / network-instance default interface " + uplink1 + ".0\n"
-	cfg += "set / network-instance default interface " + uplink2 + ".0\n"
-	cfg += "set / network-instance default interface " + serverIface + ".0\n"
+	cfg += "set / network-instance default interface " + ul1 + ".0\n"
+	cfg += "set / network-instance default interface " + ul2 + ".0\n"
+	cfg += "set / network-instance default interface " + srvIface + ".0\n"
 	cfg += "set / network-instance default interface lo0.0\n\n"
 	// BGP
 	cfg += "set / network-instance default protocols bgp autonomous-system " + as + "\n"

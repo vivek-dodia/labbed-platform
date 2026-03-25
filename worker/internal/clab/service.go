@@ -484,8 +484,9 @@ func (s *Service) Capture(ctx context.Context, containerName, iface string, coun
 // on health checks / management IP assignment.
 func (s *Service) Deploy(ctx context.Context, opts DeployOptions) ([]NodeInfo, error) {
 	deployTimeout := 5 * time.Minute
-	deployCtx, deployCancel := context.WithTimeout(ctx, deployTimeout)
-	defer deployCancel()
+	// Use a detached context so postdeploy (startup-config application for SRL etc.)
+	// can continue even after we return early when containers are up.
+	deployCtx, deployCancel := context.WithTimeout(context.Background(), deployTimeout)
 
 	// Change to the topology directory for relative path resolution
 	topoDir := filepath.Dir(opts.TopoPath)
@@ -552,6 +553,7 @@ func (s *Service) Deploy(ctx context.Context, opts DeployOptions) ([]NodeInfo, e
 		select {
 		case result := <-ch:
 			// Deploy finished (success or error)
+			deployCancel()
 			if result.err != nil {
 				return nil, fmt.Errorf("deployment failed: %w", result.err)
 			}
@@ -583,7 +585,12 @@ func (s *Service) Deploy(ctx context.Context, opts DeployOptions) ([]NodeInfo, e
 					}
 					if allRunning {
 						log.Printf("all %d containers running, proceeding without waiting for clab.Deploy to return", len(nodes))
-						deployCancel() // cancel the blocking deploy
+						// Let containerlab's postdeploy finish in the background
+						// (applies startup-config for SRL, health checks, etc.)
+						go func() {
+							<-ch
+							deployCancel()
+						}()
 						return nodes, nil
 					}
 				}
@@ -597,12 +604,16 @@ func (s *Service) Deploy(ctx context.Context, opts DeployOptions) ([]NodeInfo, e
 				os.Chdir(topoDir)
 				if inspectErr == nil && len(nodes) > 0 {
 					log.Printf("containers found via inspect after timeout, proceeding (%d nodes)", len(nodes))
-					deployCancel()
+					go func() {
+						<-ch
+						deployCancel()
+					}()
 					return nodes, nil
 				}
 			}
 
 		case <-ctx.Done():
+			deployCancel()
 			return nil, fmt.Errorf("deploy timed out: %w", ctx.Err())
 		}
 	}

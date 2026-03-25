@@ -162,6 +162,7 @@ topology:
     sonic:
       kind: sonic-vs
       image: netreplica/docker-sonic-vs:latest
+      startup-config: sonic.json
 
   links:
     - endpoints: ["srl:e1-1", "sonic:eth1"]
@@ -189,6 +190,11 @@ set / network-instance default protocols bgp neighbor 10.0.0.1 peer-group sonic
 
 set / routing-policy policy all default-action policy-result accept
 `},
+				{FilePath: "sonic.json", NosKind: "sonic-vs", Content: sonicConfig("sonic", "10.0.0.2", "65002", []sonicNeighbor{
+					{Addr: "10.0.0.1", LocalAddr: "10.0.0.1", PeerAS: "65001"},
+				}, []sonicInterface{
+					{Name: "Ethernet0", Addr: "10.0.0.1/31"},
+				})},
 			},
 		},
 		{
@@ -281,15 +287,19 @@ topology:
     spine1:
       kind: sonic-vs
       image: netreplica/docker-sonic-vs:latest
+      startup-config: spine1.json
     spine2:
       kind: sonic-vs
       image: netreplica/docker-sonic-vs:latest
+      startup-config: spine2.json
     leaf1:
       kind: sonic-vs
       image: netreplica/docker-sonic-vs:latest
+      startup-config: leaf1.json
     leaf2:
       kind: sonic-vs
       image: netreplica/docker-sonic-vs:latest
+      startup-config: leaf2.json
     server1:
       kind: linux
       image: ghcr.io/vivek-dodia/labbed-host:latest
@@ -311,6 +321,38 @@ topology:
     - endpoints: ["leaf1:eth3", "server1:eth1"]
     - endpoints: ["leaf2:eth3", "server2:eth1"]
 `,
+			BindFiles: []BindFile{
+				{FilePath: "spine1.json", NosKind: "sonic-vs", Content: sonicConfig("spine1", "10.0.0.1", "65000", []sonicNeighbor{
+					{Addr: "10.10.1.1", LocalAddr: "10.10.1.0", PeerAS: "65001"},
+					{Addr: "10.10.2.1", LocalAddr: "10.10.2.0", PeerAS: "65002"},
+				}, []sonicInterface{
+					{Name: "Ethernet0", Addr: "10.10.1.0/31"},
+					{Name: "Ethernet4", Addr: "10.10.2.0/31"},
+				})},
+				{FilePath: "spine2.json", NosKind: "sonic-vs", Content: sonicConfig("spine2", "10.0.0.2", "65000", []sonicNeighbor{
+					{Addr: "10.10.3.1", LocalAddr: "10.10.3.0", PeerAS: "65001"},
+					{Addr: "10.10.4.1", LocalAddr: "10.10.4.0", PeerAS: "65002"},
+				}, []sonicInterface{
+					{Name: "Ethernet0", Addr: "10.10.3.0/31"},
+					{Name: "Ethernet4", Addr: "10.10.4.0/31"},
+				})},
+				{FilePath: "leaf1.json", NosKind: "sonic-vs", Content: sonicConfig("leaf1", "10.0.0.11", "65001", []sonicNeighbor{
+					{Addr: "10.10.1.0", LocalAddr: "10.10.1.1", PeerAS: "65000"},
+					{Addr: "10.10.3.0", LocalAddr: "10.10.3.1", PeerAS: "65000"},
+				}, []sonicInterface{
+					{Name: "Ethernet0", Addr: "10.10.1.1/31"},
+					{Name: "Ethernet4", Addr: "10.10.3.1/31"},
+					{Name: "Ethernet8", Addr: "10.1.1.1/24"},
+				})},
+				{FilePath: "leaf2.json", NosKind: "sonic-vs", Content: sonicConfig("leaf2", "10.0.0.12", "65002", []sonicNeighbor{
+					{Addr: "10.10.2.0", LocalAddr: "10.10.2.1", PeerAS: "65000"},
+					{Addr: "10.10.4.0", LocalAddr: "10.10.4.1", PeerAS: "65000"},
+				}, []sonicInterface{
+					{Name: "Ethernet0", Addr: "10.10.2.1/31"},
+					{Name: "Ethernet4", Addr: "10.10.4.1/31"},
+					{Name: "Ethernet8", Addr: "10.1.2.1/24"},
+				})},
+			},
 		},
 		{
 			Name: "SR Linux + FRR Mixed Fabric",
@@ -491,6 +533,76 @@ bfdd=no
 fabricd=no
 vrrpd=no
 `
+
+// ── SONiC config_db.json generator ──
+
+type sonicNeighbor struct {
+	Addr, LocalAddr, PeerAS string
+}
+
+type sonicInterface struct {
+	Name, Addr string
+}
+
+func sonicConfig(hostname, loopbackIP, asn string, neighbors []sonicNeighbor, interfaces []sonicInterface) string {
+	cfg := "{\n"
+	// DEVICE_METADATA
+	cfg += "  \"DEVICE_METADATA\": {\n"
+	cfg += "    \"localhost\": {\n"
+	cfg += "      \"bgp_asn\": \"" + asn + "\",\n"
+	cfg += "      \"hostname\": \"" + hostname + "\",\n"
+	cfg += "      \"hwsku\": \"Force10-S6000\",\n"
+	cfg += "      \"platform\": \"x86_64-kvm_x86_64-r0\",\n"
+	cfg += "      \"type\": \"LeafRouter\"\n"
+	cfg += "    }\n"
+	cfg += "  },\n"
+	// LOOPBACK_INTERFACE
+	cfg += "  \"LOOPBACK_INTERFACE\": {\n"
+	cfg += "    \"Loopback0\": {},\n"
+	cfg += "    \"Loopback0|" + loopbackIP + "/32\": {}\n"
+	cfg += "  },\n"
+	// INTERFACE
+	cfg += "  \"INTERFACE\": {\n"
+	for i, iface := range interfaces {
+		cfg += "    \"" + iface.Name + "\": {},\n"
+		comma := ","
+		if i == len(interfaces)-1 {
+			comma = ""
+		}
+		cfg += "    \"" + iface.Name + "|" + iface.Addr + "\": {}" + comma + "\n"
+	}
+	cfg += "  },\n"
+	// PORT — enable all referenced interfaces
+	cfg += "  \"PORT\": {\n"
+	for i, iface := range interfaces {
+		comma := ","
+		if i == len(interfaces)-1 {
+			comma = ""
+		}
+		cfg += "    \"" + iface.Name + "\": { \"admin_status\": \"up\", \"speed\": \"10000\" }" + comma + "\n"
+	}
+	cfg += "  },\n"
+	// BGP_NEIGHBOR
+	cfg += "  \"BGP_NEIGHBOR\": {\n"
+	for i, n := range neighbors {
+		comma := ","
+		if i == len(neighbors)-1 {
+			comma = ""
+		}
+		cfg += "    \"" + n.Addr + "\": {\n"
+		cfg += "      \"asn\": \"" + n.PeerAS + "\",\n"
+		cfg += "      \"holdtime\": \"180\",\n"
+		cfg += "      \"keepalive\": \"60\",\n"
+		cfg += "      \"local_addr\": \"" + n.LocalAddr + "\",\n"
+		cfg += "      \"name\": \"" + n.Addr + "\",\n"
+		cfg += "      \"nhopself\": \"0\",\n"
+		cfg += "      \"rrclient\": \"0\"\n"
+		cfg += "    }" + comma + "\n"
+	}
+	cfg += "  }\n"
+	cfg += "}\n"
+	return cfg
+}
 
 func frrLeaf(name, routerID, as string, neighbors []frrNeighbor, serverAddr, serverIface string) string {
 	cfg := "frr version 10.3.1\n"

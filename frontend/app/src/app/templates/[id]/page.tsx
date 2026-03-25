@@ -427,12 +427,12 @@ export default function TopologyEditorPage() {
               <button onClick={() => setShowFileEdit(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", fontSize: "1.2rem", padding: 0 }}>×</button>
             </div>
             {/* Editor */}
-            <div style={{ flex: 1, minHeight: 0, position: "relative", display: "flex" }}>
+            <div style={{ flex: 1, minHeight: 0, maxHeight: "65vh", overflowY: "auto", display: "flex" }}>
               {/* Line numbers */}
               <div style={{
                 padding: "0.8rem 0", width: 40, textAlign: "right", fontFamily: "'Space Mono', monospace",
                 fontSize: "0.75rem", lineHeight: "1.45rem", color: "rgba(255,255,255,0.15)", userSelect: "none",
-                borderRight: "1px solid rgba(255,255,255,0.06)", flexShrink: 0, overflowY: "hidden",
+                borderRight: "1px solid rgba(255,255,255,0.06)", flexShrink: 0, position: "sticky", left: 0,
               }}>
                 {editContent.split("\n").map((_, i) => (
                   <div key={i} style={{ paddingRight: 8 }}>{i + 1}</div>
@@ -442,10 +442,10 @@ export default function TopologyEditorPage() {
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
                 style={{
-                  flex: 1, minHeight: 350, maxHeight: "60vh", background: "transparent", border: "none",
+                  flex: 1, minHeight: Math.max(350, editContent.split("\n").length * 23.2 + 26), background: "transparent", border: "none",
                   padding: "0.8rem 1rem", fontFamily: "'Space Mono', monospace", fontSize: "0.8rem",
                   lineHeight: "1.45rem", outline: "none", resize: "none", color: "#e0e0e0",
-                  overflowY: "auto", whiteSpace: "pre", tabSize: 2,
+                  overflowY: "hidden", whiteSpace: "pre", tabSize: 2,
                 }}
                 spellCheck={false}
               />

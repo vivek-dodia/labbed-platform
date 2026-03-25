@@ -893,6 +893,13 @@ export default function LabDetailPage() {
     document.body.style.userSelect = "none";
   }, [panelRatio]);
 
+  // All links from the topology definition for the capture tab
+  // Must be before early returns to keep hook order consistent
+  const allLinks = useMemo(() => {
+    if (!template) return [];
+    return parseContainerlabYAML(template.definition).links;
+  }, [template]);
+
   /* Loading */
   if (!lab) {
     return (
@@ -910,12 +917,6 @@ export default function LabDetailPage() {
   const { category: cmdCategory, commands: quickCommands } = getCommandsForImage(selectedNodeData?.image || "");
   const nodeCount = lab.nodes?.length || 0;
   const showBottomPanel = bottomOpen;
-
-  // All links from the topology definition for the capture tab
-  const allLinks = useMemo(() => {
-    if (!template) return [];
-    return parseContainerlabYAML(template.definition).links;
-  }, [template]);
 
   /* Nodes with IPv4 for ping/trace target dropdown (exclude selected) */
   const pingTargets = (lab.nodes || []).filter((n) => n.ipv4 && n.name !== selectedNode);

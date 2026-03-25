@@ -13,6 +13,7 @@ import DeployConfigModal from "@/components/DeployConfigModal";
 import { getCompletions } from "@/lib/completions";
 import AwsCliTerminal from "@/components/AwsCliTerminal";
 import CloudTopologyCanvas from "@/components/CloudTopologyCanvas";
+import { useToast } from "@/components/ui/Toast";
 import type { LabResponse, NodeResponse, TemplateResponse, LabEventResponse, PaginatedResponse, BindFileResponse } from "@/types/api";
 
 /* ── Quick-command definitions ── */
@@ -252,10 +253,12 @@ interface TermLine { type: "input" | "output"; text: string }
 
 export default function LabDetailPage() {
   const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
   const wsStatus = useWSStatus();
+  const prevState = useRef<string | null>(null);
 
   const [lab, setLab] = useState<LabResponse | null>(null);
   const [template, setTemplate] = useState<TemplateResponse | null>(null);
@@ -367,6 +370,17 @@ export default function LabDetailPage() {
     setDeployLogs((prev) => [...prev, line]);
   }, []);
   useWSChannel(logsChannel, handleLogMessage);
+
+  /* Toast on state transition */
+  useEffect(() => {
+    if (!lab) return;
+    const prev = prevState.current;
+    prevState.current = lab.state;
+    if (!prev || prev === lab.state) return;
+    if (lab.state === "running") toast("Lab is running", "success");
+    else if (lab.state === "stopped") toast("Lab stopped", "info");
+    else if (lab.state === "failed") toast(lab.errorMessage || "Lab failed", "error");
+  }, [lab?.state, lab?.errorMessage, toast]);
 
   /* Auto-switch to logs tab when deploying, aws tab when cloud running */
   useEffect(() => {
@@ -898,12 +912,18 @@ export default function LabDetailPage() {
 
         {/* Top bar */}
         <header style={{ height: 48, minHeight: 48, borderBottom: BORDER, display: "flex", alignItems: "stretch" }}>
-          <Link href="/" style={{ display: "flex", alignItems: "center", padding: "0 1.25rem", borderRight: BORDER, textDecoration: "none", color: INK, fontWeight: 800, fontSize: "0.85rem", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+          <Link href="/" style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0 1.25rem", borderRight: BORDER, textDecoration: "none", color: INK, fontWeight: 800, fontSize: "0.85rem", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+            <img src="/logo.png" alt="" style={{ width: 16, height: 16, borderRadius: 3 }} />
             LABBED
           </Link>
-          <Link href="/" style={{ display: "flex", alignItems: "center", padding: "0 1.25rem", borderRight: BORDER, textDecoration: "none", color: INK, fontSize: "0.8rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", opacity: 0.6 }}>
-            &larr; LABS
+          <Link href="/" style={{ display: "flex", alignItems: "center", padding: "0 1.25rem", borderRight: BORDER, textDecoration: "none", color: INK, fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", opacity: 0.5, fontFamily: MONO }}>
+            LABS
           </Link>
+          {template && (
+            <Link href={`/templates/${template.uuid}`} style={{ display: "flex", alignItems: "center", padding: "0 1rem", borderRight: BORDER, textDecoration: "none", color: INK, fontSize: "0.6rem", fontFamily: MONO, opacity: 0.35 }}>
+              {template.name}
+            </Link>
+          )}
           <div style={{ display: "flex", alignItems: "center", padding: "0 1.25rem", borderRight: BORDER, gap: "0.75rem" }}>
             <span style={{ fontSize: "0.9rem", fontWeight: 600 }}>{lab.name}</span>
             <StatusBadge state={lab.state} />
@@ -997,10 +1017,34 @@ export default function LabDetailPage() {
                     nodeStates={nodeStates}
                   />
                 ) : (
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", opacity: 0.2 }}>
-                    <span style={LABEL}>LOADING TOPOLOGY...</span>
-                  </div>
-                )}
+                  lab.state === "scheduled" || lab.state === "stopped" || lab.state === "failed" ? (
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: "1rem" }}>
+                      <span style={{ ...LABEL, opacity: 0.3 }}>
+                        {lab.state === "scheduled" ? "READY TO DEPLOY" : lab.state === "failed" ? "DEPLOYMENT FAILED" : "LAB STOPPED"}
+                      </span>
+                      <button
+                        onClick={() => handleAction("deploy")}
+                        disabled={!!actionLoading}
+                        style={{
+                          background: INK, color: BG, border: "none",
+                          padding: "0.6rem 1.5rem", fontSize: "0.7rem",
+                          fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em",
+                          cursor: "pointer", fontFamily: MONO,
+                        }}
+                      >
+                        {actionLoading === "deploy" ? "..." : "DEPLOY NOW"}
+                      </button>
+                      {lab.state === "scheduled" && (
+                        <span style={{ fontSize: "0.6rem", opacity: 0.25, fontFamily: MONO }}>
+                          Tip: you can choose NOS images in the deploy dialog
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", opacity: 0.2 }}>
+                      <span style={LABEL}>LOADING TOPOLOGY...</span>
+                    </div>
+                  ))}
               </div>
             </div>
 

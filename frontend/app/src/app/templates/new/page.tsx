@@ -131,16 +131,15 @@ export default function NewTopologyPage() {
               onClick={() => setTemplateType(t)}
               style={{
                 padding: "0.4rem 1rem",
-                borderRadius: "99px",
                 border: "1px solid #000000",
                 background: templateType === t ? "#000000" : "transparent",
                 color: templateType === t ? "#79f673" : "#000000",
-                fontSize: "0.7rem",
+                fontSize: "0.65rem",
                 fontWeight: 700,
                 textTransform: "uppercase",
-                letterSpacing: "0.05em",
+                letterSpacing: "0.08em",
                 cursor: "pointer",
-                fontFamily: "'Manrope', sans-serif",
+                fontFamily: "'Space Mono', monospace",
               }}
             >
               {t}

@@ -4,6 +4,194 @@ var datacenterCollection = CollectionDef{
 	Name: "Datacenter Fabric",
 	Templates: []Template{
 		{
+			Name: "SR Linux — Single Node Explorer",
+			Definition: `name: srl-single
+
+topology:
+  nodes:
+    srl:
+      kind: srl
+      image: ghcr.io/nokia/srlinux:24.10.1
+
+  links: []
+`,
+		},
+		{
+			Name: "SR Linux — Two Node Peering",
+			Definition: `name: srl-peering
+
+topology:
+  nodes:
+    srl1:
+      kind: srl
+      image: ghcr.io/nokia/srlinux:24.10.1
+      startup-config: srl1.cfg
+    srl2:
+      kind: srl
+      image: ghcr.io/nokia/srlinux:24.10.1
+      startup-config: srl2.cfg
+
+  links:
+    - endpoints: ["srl1:e1-1", "srl2:e1-1"]
+`,
+			BindFiles: []BindFile{
+				{FilePath: "srl1.cfg", NosKind: "srl", Content: `set / interface e1-1 admin-state enable
+set / interface e1-1 subinterface 0 ipv4 admin-state enable
+set / interface e1-1 subinterface 0 ipv4 address 10.0.0.0/31
+
+set / interface lo0 admin-state enable
+set / interface lo0 subinterface 0 ipv4 admin-state enable
+set / interface lo0 subinterface 0 ipv4 address 10.0.0.11/32
+
+set / network-instance default type default
+set / network-instance default router-id 10.0.0.11
+set / network-instance default interface e1-1.0
+set / network-instance default interface lo0.0
+
+set / network-instance default protocols bgp autonomous-system 65001
+set / network-instance default protocols bgp router-id 10.0.0.11
+set / network-instance default protocols bgp group peer export-policy all
+set / network-instance default protocols bgp group peer import-policy all
+set / network-instance default protocols bgp neighbor 10.0.0.1 peer-as 65002
+set / network-instance default protocols bgp neighbor 10.0.0.1 peer-group peer
+
+set / routing-policy policy all default-action policy-result accept
+`},
+				{FilePath: "srl2.cfg", NosKind: "srl", Content: `set / interface e1-1 admin-state enable
+set / interface e1-1 subinterface 0 ipv4 admin-state enable
+set / interface e1-1 subinterface 0 ipv4 address 10.0.0.1/31
+
+set / interface lo0 admin-state enable
+set / interface lo0 subinterface 0 ipv4 admin-state enable
+set / interface lo0 subinterface 0 ipv4 address 10.0.0.12/32
+
+set / network-instance default type default
+set / network-instance default router-id 10.0.0.12
+set / network-instance default interface e1-1.0
+set / network-instance default interface lo0.0
+
+set / network-instance default protocols bgp autonomous-system 65002
+set / network-instance default protocols bgp router-id 10.0.0.12
+set / network-instance default protocols bgp group peer export-policy all
+set / network-instance default protocols bgp group peer import-policy all
+set / network-instance default protocols bgp neighbor 10.0.0.0 peer-as 65001
+set / network-instance default protocols bgp neighbor 10.0.0.0 peer-group peer
+
+set / routing-policy policy all default-action policy-result accept
+`},
+			},
+		},
+		{
+			Name: "SR Linux + FRR Peering",
+			Definition: `name: srl-frr-peering
+
+topology:
+  nodes:
+    srl:
+      kind: srl
+      image: ghcr.io/nokia/srlinux:24.10.1
+      startup-config: srl.cfg
+    frr:
+      kind: linux
+      image: quay.io/frrouting/frr:10.3.1
+      binds:
+        - frr-daemons:/etc/frr/daemons
+        - frr.conf:/etc/frr/frr.conf
+
+  links:
+    - endpoints: ["srl:e1-1", "frr:eth1"]
+`,
+			BindFiles: []BindFile{
+				{FilePath: "srl.cfg", NosKind: "srl", Content: `set / interface e1-1 admin-state enable
+set / interface e1-1 subinterface 0 ipv4 admin-state enable
+set / interface e1-1 subinterface 0 ipv4 address 10.0.0.0/31
+
+set / interface lo0 admin-state enable
+set / interface lo0 subinterface 0 ipv4 admin-state enable
+set / interface lo0 subinterface 0 ipv4 address 10.0.0.1/32
+
+set / network-instance default type default
+set / network-instance default router-id 10.0.0.1
+set / network-instance default interface e1-1.0
+set / network-instance default interface lo0.0
+
+set / network-instance default protocols bgp autonomous-system 65001
+set / network-instance default protocols bgp router-id 10.0.0.1
+set / network-instance default protocols bgp group frr export-policy all
+set / network-instance default protocols bgp group frr import-policy all
+set / network-instance default protocols bgp neighbor 10.0.0.1 peer-as 65002
+set / network-instance default protocols bgp neighbor 10.0.0.1 peer-group frr
+
+set / routing-policy policy all default-action policy-result accept
+`},
+				{FilePath: "frr-daemons", NosKind: "frr", Content: frrDaemons},
+				{FilePath: "frr.conf", NosKind: "frr", Content: `frr version 10.3.1
+frr defaults traditional
+hostname frr
+!
+interface eth1
+ ip address 10.0.0.1/31
+!
+interface lo
+ ip address 10.0.0.2/32
+!
+router bgp 65002
+ bgp router-id 10.0.0.2
+ no bgp ebgp-requires-policy
+ neighbor 10.0.0.0 remote-as 65001
+ !
+ address-family ipv4 unicast
+  redistribute connected
+ exit-address-family
+!
+line vty
+!
+`},
+			},
+		},
+		{
+			Name: "SR Linux + SONiC Peering",
+			Definition: `name: srl-sonic-peering
+
+topology:
+  nodes:
+    srl:
+      kind: srl
+      image: ghcr.io/nokia/srlinux:24.10.1
+      startup-config: srl.cfg
+    sonic:
+      kind: sonic-vs
+      image: netreplica/docker-sonic-vs:latest
+
+  links:
+    - endpoints: ["srl:e1-1", "sonic:eth1"]
+`,
+			BindFiles: []BindFile{
+				{FilePath: "srl.cfg", NosKind: "srl", Content: `set / interface e1-1 admin-state enable
+set / interface e1-1 subinterface 0 ipv4 admin-state enable
+set / interface e1-1 subinterface 0 ipv4 address 10.0.0.0/31
+
+set / interface lo0 admin-state enable
+set / interface lo0 subinterface 0 ipv4 admin-state enable
+set / interface lo0 subinterface 0 ipv4 address 10.0.0.1/32
+
+set / network-instance default type default
+set / network-instance default router-id 10.0.0.1
+set / network-instance default interface e1-1.0
+set / network-instance default interface lo0.0
+
+set / network-instance default protocols bgp autonomous-system 65001
+set / network-instance default protocols bgp router-id 10.0.0.1
+set / network-instance default protocols bgp group sonic export-policy all
+set / network-instance default protocols bgp group sonic import-policy all
+set / network-instance default protocols bgp neighbor 10.0.0.1 peer-as 65002
+set / network-instance default protocols bgp neighbor 10.0.0.1 peer-group sonic
+
+set / routing-policy policy all default-action policy-result accept
+`},
+			},
+		},
+		{
 			Name: "Leaf-Spine eBGP Fabric (SR Linux)",
 			Definition: `name: srl-leaf-spine
 

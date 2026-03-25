@@ -378,8 +378,6 @@ func (s *Service) Exec(ctx context.Context, containerName, command, kind string)
 	switch kind {
 	case "srl", "nokia_srlinux":
 		args = []string{"exec", containerName, "sr_cli", "-e", command}
-	case "sonic-vs", "sonic-vm":
-		args = []string{"exec", containerName, "vtysh", "-c", command}
 	default:
 		args = []string{"exec", containerName, "sh", "-c", command}
 	}

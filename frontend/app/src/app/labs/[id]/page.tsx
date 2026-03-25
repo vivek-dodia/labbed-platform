@@ -33,12 +33,12 @@ const SRL_COMMANDS: QuickCmd[] = [
 const SONIC_COMMANDS: QuickCmd[] = [
   { label: "INTF", cmd: "show interfaces status", description: "Interface status" },
   { label: "IP INTF", cmd: "show ip interface", description: "IP interfaces" },
-  { label: "ROUTES", cmd: "show ip route", description: "IP routing table" },
-  { label: "BGP", cmd: "show ip bgp summary", description: "BGP summary" },
-  { label: "BGP NBR", cmd: "show ip bgp neighbors", description: "BGP neighbors" },
+  { label: "ROUTES", cmd: "vtysh -c 'show ip route'", description: "IP routing table" },
+  { label: "BGP", cmd: "vtysh -c 'show ip bgp summary'", description: "BGP summary" },
+  { label: "BGP NBR", cmd: "vtysh -c 'show ip bgp neighbors'", description: "BGP neighbors" },
   { label: "LLDP", cmd: "show lldp table", description: "LLDP neighbors" },
   { label: "VLAN", cmd: "show vlan brief", description: "VLAN info" },
-  { label: "PLATFORM", cmd: "show platform summary", description: "Platform info" },
+  { label: "CONFIG", cmd: "show runningconfiguration all", description: "Running config" },
 ];
 
 const FRR_COMMANDS: QuickCmd[] = [
@@ -192,7 +192,9 @@ function getRunningConfigCmd(node: NodeResponse): string {
   if (img.includes("frr") || img.includes("frrouting")) return "vtysh -c 'show running-config'";
   if (img.includes("routeros") || img.includes("mikrotik")) return "/export";
   if (img.includes("openwrt")) return "uci show";
-  return "cat /etc/network/interfaces 2>/dev/null; ip addr show";
+  if (img.includes("freebsd")) return "ifconfig; netstat -rn";
+  if (img.includes("gobgp")) return "gobgp global; gobgp neighbor";
+  return "ip addr show; ip route show";
 }
 
 /* ── YAML syntax highlighting ── */

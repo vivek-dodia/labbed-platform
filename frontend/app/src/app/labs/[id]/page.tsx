@@ -1905,6 +1905,26 @@ export default function LabDetailPage() {
                             }}>CLEAR</button>
                           )}
 
+                          {/* Generate traffic: ping from selected side */}
+                          {!captureActive && captureLink && isLive && (
+                            <button
+                              onClick={() => {
+                                const side = captureSide === "a" ? captureLink.a : captureLink.b;
+                                const peer = captureSide === "a" ? captureLink.b : captureLink.a;
+                                const fullNode = lab?.nodes?.find((n) => n.name === side.node || n.name.endsWith(`-${side.node}`));
+                                if (fullNode) {
+                                  const channel = `shell:${lab!.uuid}:${fullNode.name}`;
+                                  sendInput(channel, `ping -c 4 ${peer.node} 2>/dev/null || echo 'ping sent'\n`);
+                                }
+                              }}
+                              style={{
+                                ...LABEL, fontSize: "0.55rem", padding: "4px 10px",
+                                border: "1px solid rgba(255,255,255,0.15)", background: "transparent",
+                                color: BG, cursor: "pointer", borderRadius: 99,
+                              }}
+                            >PING</button>
+                          )}
+
                           {captureActive && (
                             <span style={{ fontSize: "0.55rem", color: "#ff5f56", fontWeight: 700, letterSpacing: "0.08em" }}>
                               \u25CF LIVE
@@ -1928,12 +1948,12 @@ export default function LabDetailPage() {
                               </div>
                               <div style={{ fontSize: "0.65rem", opacity: 0.6, fontFamily: MONO }}>
                                 {captureActive
-                                  ? `tcpdump -i ${captureIface} on ${captureShortNode}`
-                                  : "Click START to begin capturing packets"}
+                                  ? `nsenter tcpdump -i ${captureIface} on ${captureShortNode} (host-side, works on all NOS)`
+                                  : "Click START to capture \u2014 uses host-side tcpdump via nsenter (no tcpdump needed inside the node)"}
                               </div>
                             </div>
-                          ) : (
-                            captureLines.map((line, i) => {
+                          ) : (<>
+                            {captureLines.map((line, i) => {
                               const isHeader = line.includes("listening on") || line.includes("verbose output");
                               const isStats = line.includes("packets captured") || line.includes("packets received") || line.includes("packets dropped");
                               return (
@@ -1948,8 +1968,13 @@ export default function LabDetailPage() {
                                   {line}
                                 </div>
                               );
-                            })
-                          )}
+                            })}
+                            {!captureActive && captureLines.some(l => l.includes("0 packets captured")) && (
+                              <div style={{ opacity: 0.3, textAlign: "center", marginTop: "1rem", fontSize: "0.65rem", fontFamily: MONO }}>
+                                No traffic on this link. Try generating traffic first (ping, curl, etc.) then start capture again.
+                              </div>
+                            )}
+                          </>)}
                         </div>
 
                         {/* Footer */}

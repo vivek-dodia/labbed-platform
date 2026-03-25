@@ -52,8 +52,8 @@ set / network-instance default interface lo0.0
 
 set / network-instance default protocols bgp autonomous-system 65001
 set / network-instance default protocols bgp router-id 10.0.0.11
-set / network-instance default protocols bgp group peer export-policy all
-set / network-instance default protocols bgp group peer import-policy all
+set / network-instance default protocols bgp group peer export-policy [ all ]
+set / network-instance default protocols bgp group peer import-policy [ all ]
 set / network-instance default protocols bgp neighbor 10.0.0.1 peer-as 65002
 set / network-instance default protocols bgp neighbor 10.0.0.1 peer-group peer
 
@@ -74,8 +74,8 @@ set / network-instance default interface lo0.0
 
 set / network-instance default protocols bgp autonomous-system 65002
 set / network-instance default protocols bgp router-id 10.0.0.12
-set / network-instance default protocols bgp group peer export-policy all
-set / network-instance default protocols bgp group peer import-policy all
+set / network-instance default protocols bgp group peer export-policy [ all ]
+set / network-instance default protocols bgp group peer import-policy [ all ]
 set / network-instance default protocols bgp neighbor 10.0.0.0 peer-as 65001
 set / network-instance default protocols bgp neighbor 10.0.0.0 peer-group peer
 
@@ -119,8 +119,8 @@ set / network-instance default interface lo0.0
 
 set / network-instance default protocols bgp autonomous-system 65001
 set / network-instance default protocols bgp router-id 10.0.0.1
-set / network-instance default protocols bgp group frr export-policy all
-set / network-instance default protocols bgp group frr import-policy all
+set / network-instance default protocols bgp group frr export-policy [ all ]
+set / network-instance default protocols bgp group frr import-policy [ all ]
 set / network-instance default protocols bgp neighbor 10.0.0.1 peer-as 65002
 set / network-instance default protocols bgp neighbor 10.0.0.1 peer-group frr
 
@@ -185,8 +185,8 @@ set / network-instance default interface lo0.0
 
 set / network-instance default protocols bgp autonomous-system 65001
 set / network-instance default protocols bgp router-id 10.0.0.1
-set / network-instance default protocols bgp group sonic export-policy all
-set / network-instance default protocols bgp group sonic import-policy all
+set / network-instance default protocols bgp group sonic export-policy [ all ]
+set / network-instance default protocols bgp group sonic import-policy [ all ]
 set / network-instance default protocols bgp neighbor 10.0.0.1 peer-as 65002
 set / network-instance default protocols bgp neighbor 10.0.0.1 peer-group sonic
 
@@ -470,8 +470,8 @@ func srlSpine(name, routerID, as string, neighbors []srlNeighbor, ifaces ...stri
 	// BGP
 	cfg += "set / network-instance default protocols bgp autonomous-system " + as + "\n"
 	cfg += "set / network-instance default protocols bgp router-id " + routerID + "\n"
-	cfg += "set / network-instance default protocols bgp group leafs export-policy all\n"
-	cfg += "set / network-instance default protocols bgp group leafs import-policy all\n"
+	cfg += "set / network-instance default protocols bgp group leafs export-policy [ all ]\n"
+	cfg += "set / network-instance default protocols bgp group leafs import-policy [ all ]\n"
 	for _, n := range neighbors {
 		cfg += "set / network-instance default protocols bgp neighbor " + n.Peer + " peer-as " + n.PeerAS + "\n"
 		cfg += "set / network-instance default protocols bgp neighbor " + n.Peer + " peer-group leafs\n"
@@ -516,8 +516,8 @@ func srlLeaf(name, routerID, as string, neighbors []srlNeighbor, uplink1, uplink
 	// BGP
 	cfg += "set / network-instance default protocols bgp autonomous-system " + as + "\n"
 	cfg += "set / network-instance default protocols bgp router-id " + routerID + "\n"
-	cfg += "set / network-instance default protocols bgp group spines export-policy all\n"
-	cfg += "set / network-instance default protocols bgp group spines import-policy all\n"
+	cfg += "set / network-instance default protocols bgp group spines export-policy [ all ]\n"
+	cfg += "set / network-instance default protocols bgp group spines import-policy [ all ]\n"
 	for _, n := range neighbors {
 		cfg += "set / network-instance default protocols bgp neighbor " + n.Peer + " peer-as " + n.PeerAS + "\n"
 		cfg += "set / network-instance default protocols bgp neighbor " + n.Peer + " peer-group spines\n"

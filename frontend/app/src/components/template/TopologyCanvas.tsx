@@ -178,7 +178,7 @@ function TopoNode({ data }: { data: { label: string; kind: string; image: string
             color: sel ? "rgba(121,246,115,0.5)" : "rgba(0,0,0,0.4)",
             marginTop: 2,
           }}>
-            {nosDisplayName(data.kind)} \u00b7 {data.image.split("/").pop()}
+            {nosDisplayName(data.kind)}
           </div>
         </div>
       </div>

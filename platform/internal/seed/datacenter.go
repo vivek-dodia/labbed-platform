@@ -45,19 +45,20 @@ set / interface lo0 admin-state enable
 set / interface lo0 subinterface 0 ipv4 admin-state enable
 set / interface lo0 subinterface 0 ipv4 address 10.0.0.11/32
 
+set / routing-policy policy all default-action policy-result accept
+
 set / network-instance default type default
 set / network-instance default router-id 10.0.0.11
 set / network-instance default interface ethernet-1/1.0
 set / network-instance default interface lo0.0
-
 set / network-instance default protocols bgp autonomous-system 65001
 set / network-instance default protocols bgp router-id 10.0.0.11
+set / network-instance default protocols bgp afi-safi ipv4-unicast admin-state enable
 set / network-instance default protocols bgp group peer export-policy [ all ]
 set / network-instance default protocols bgp group peer import-policy [ all ]
+set / network-instance default protocols bgp group peer afi-safi ipv4-unicast admin-state enable
 set / network-instance default protocols bgp neighbor 10.0.0.1 peer-as 65002
 set / network-instance default protocols bgp neighbor 10.0.0.1 peer-group peer
-
-set / routing-policy policy all default-action policy-result accept
 `},
 				{FilePath: "srl2.cfg", NosKind: "srl", Content: `set / interface ethernet-1/1 admin-state enable
 set / interface ethernet-1/1 subinterface 0 ipv4 admin-state enable
@@ -67,19 +68,20 @@ set / interface lo0 admin-state enable
 set / interface lo0 subinterface 0 ipv4 admin-state enable
 set / interface lo0 subinterface 0 ipv4 address 10.0.0.12/32
 
+set / routing-policy policy all default-action policy-result accept
+
 set / network-instance default type default
 set / network-instance default router-id 10.0.0.12
 set / network-instance default interface ethernet-1/1.0
 set / network-instance default interface lo0.0
-
 set / network-instance default protocols bgp autonomous-system 65002
 set / network-instance default protocols bgp router-id 10.0.0.12
+set / network-instance default protocols bgp afi-safi ipv4-unicast admin-state enable
 set / network-instance default protocols bgp group peer export-policy [ all ]
 set / network-instance default protocols bgp group peer import-policy [ all ]
+set / network-instance default protocols bgp group peer afi-safi ipv4-unicast admin-state enable
 set / network-instance default protocols bgp neighbor 10.0.0.0 peer-as 65001
 set / network-instance default protocols bgp neighbor 10.0.0.0 peer-group peer
-
-set / routing-policy policy all default-action policy-result accept
 `},
 			},
 		},
@@ -112,19 +114,20 @@ set / interface lo0 admin-state enable
 set / interface lo0 subinterface 0 ipv4 admin-state enable
 set / interface lo0 subinterface 0 ipv4 address 10.0.0.1/32
 
+set / routing-policy policy all default-action policy-result accept
+
 set / network-instance default type default
 set / network-instance default router-id 10.0.0.1
 set / network-instance default interface ethernet-1/1.0
 set / network-instance default interface lo0.0
-
 set / network-instance default protocols bgp autonomous-system 65001
 set / network-instance default protocols bgp router-id 10.0.0.1
+set / network-instance default protocols bgp afi-safi ipv4-unicast admin-state enable
 set / network-instance default protocols bgp group frr export-policy [ all ]
 set / network-instance default protocols bgp group frr import-policy [ all ]
+set / network-instance default protocols bgp group frr afi-safi ipv4-unicast admin-state enable
 set / network-instance default protocols bgp neighbor 10.0.0.1 peer-as 65002
 set / network-instance default protocols bgp neighbor 10.0.0.1 peer-group frr
-
-set / routing-policy policy all default-action policy-result accept
 `},
 				{FilePath: "frr-daemons", NosKind: "frr", Content: frrDaemons},
 				{FilePath: "frr.conf", NosKind: "frr", Content: `frr version 10.3.1
@@ -178,19 +181,20 @@ set / interface lo0 admin-state enable
 set / interface lo0 subinterface 0 ipv4 admin-state enable
 set / interface lo0 subinterface 0 ipv4 address 10.0.0.1/32
 
+set / routing-policy policy all default-action policy-result accept
+
 set / network-instance default type default
 set / network-instance default router-id 10.0.0.1
 set / network-instance default interface ethernet-1/1.0
 set / network-instance default interface lo0.0
-
 set / network-instance default protocols bgp autonomous-system 65001
 set / network-instance default protocols bgp router-id 10.0.0.1
+set / network-instance default protocols bgp afi-safi ipv4-unicast admin-state enable
 set / network-instance default protocols bgp group sonic export-policy [ all ]
 set / network-instance default protocols bgp group sonic import-policy [ all ]
+set / network-instance default protocols bgp group sonic afi-safi ipv4-unicast admin-state enable
 set / network-instance default protocols bgp neighbor 10.0.0.1 peer-as 65002
 set / network-instance default protocols bgp neighbor 10.0.0.1 peer-group sonic
-
-set / routing-policy policy all default-action policy-result accept
 `},
 				{FilePath: "sonic.json", NosKind: "sonic-vs", Content: sonicConfig("sonic", "10.0.0.2", "65002", []sonicNeighbor{
 					{Addr: "10.0.0.1", LocalAddr: "10.0.0.1", PeerAS: "65001"},
@@ -468,17 +472,19 @@ func srlSpine(name, routerID, as string, neighbors []srlNeighbor, ifaces ...stri
 	}
 	cfg += "set / network-instance default interface lo0.0\n\n"
 	// BGP
+	// Policy (must come before BGP references to it)
+	cfg += "set / routing-policy policy all default-action policy-result accept\n\n"
+	// BGP
 	cfg += "set / network-instance default protocols bgp autonomous-system " + as + "\n"
 	cfg += "set / network-instance default protocols bgp router-id " + routerID + "\n"
+	cfg += "set / network-instance default protocols bgp afi-safi ipv4-unicast admin-state enable\n"
 	cfg += "set / network-instance default protocols bgp group leafs export-policy [ all ]\n"
 	cfg += "set / network-instance default protocols bgp group leafs import-policy [ all ]\n"
+	cfg += "set / network-instance default protocols bgp group leafs afi-safi ipv4-unicast admin-state enable\n"
 	for _, n := range neighbors {
 		cfg += "set / network-instance default protocols bgp neighbor " + n.Peer + " peer-as " + n.PeerAS + "\n"
 		cfg += "set / network-instance default protocols bgp neighbor " + n.Peer + " peer-group leafs\n"
 	}
-	cfg += "\n"
-	// Policy
-	cfg += "set / routing-policy policy all default-action policy-result accept\n"
 	return cfg
 }
 
@@ -513,18 +519,19 @@ func srlLeaf(name, routerID, as string, neighbors []srlNeighbor, uplink1, uplink
 	cfg += "set / network-instance default interface " + ul2 + ".0\n"
 	cfg += "set / network-instance default interface " + srvIface + ".0\n"
 	cfg += "set / network-instance default interface lo0.0\n\n"
+	// Policy (must come before BGP references)
+	cfg += "set / routing-policy policy all default-action policy-result accept\n\n"
 	// BGP
 	cfg += "set / network-instance default protocols bgp autonomous-system " + as + "\n"
 	cfg += "set / network-instance default protocols bgp router-id " + routerID + "\n"
+	cfg += "set / network-instance default protocols bgp afi-safi ipv4-unicast admin-state enable\n"
 	cfg += "set / network-instance default protocols bgp group spines export-policy [ all ]\n"
 	cfg += "set / network-instance default protocols bgp group spines import-policy [ all ]\n"
+	cfg += "set / network-instance default protocols bgp group spines afi-safi ipv4-unicast admin-state enable\n"
 	for _, n := range neighbors {
 		cfg += "set / network-instance default protocols bgp neighbor " + n.Peer + " peer-as " + n.PeerAS + "\n"
 		cfg += "set / network-instance default protocols bgp neighbor " + n.Peer + " peer-group spines\n"
 	}
-	cfg += "\n"
-	// Policy
-	cfg += "set / routing-policy policy all default-action policy-result accept\n"
 	return cfg
 }
 

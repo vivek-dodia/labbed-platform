@@ -283,7 +283,7 @@ const FONT = "'Manrope', -apple-system, sans-serif";
 const MONO = "'Space Mono', monospace";
 const LABEL: React.CSSProperties = { fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 };
 
-type BottomTab = "terminal" | "logs" | "events" | "yaml" | "bulk" | "aws";
+type BottomTab = "terminal" | "logs" | "events" | "yaml" | "bulk" | "capture" | "aws";
 
 /* ── Terminal line type ── */
 interface TermLine { type: "input" | "output"; text: string }
@@ -829,6 +829,7 @@ export default function LabDetailPage() {
     setCaptureLines([]);
     setCaptureActive(false);
     setCaptureFilter("");
+    setBottomTab("capture");
     setBottomOpen(true);
   }, [lab]);
 
@@ -866,11 +867,6 @@ export default function LabDetailPage() {
     setCaptureActive(false);
   }, []);
 
-  const closeCapture = useCallback(() => {
-    stopCapture();
-    setCaptureLink(null);
-    setCaptureLines([]);
-  }, [stopCapture]);
 
   /* Panel resize drag */
   const onDragStart = useCallback((e: React.MouseEvent) => {
@@ -914,6 +910,12 @@ export default function LabDetailPage() {
   const { category: cmdCategory, commands: quickCommands } = getCommandsForImage(selectedNodeData?.image || "");
   const nodeCount = lab.nodes?.length || 0;
   const showBottomPanel = bottomOpen;
+
+  // All links from the topology definition for the capture tab
+  const allLinks = useMemo(() => {
+    if (!template) return [];
+    return parseContainerlabYAML(template.definition).links;
+  }, [template]);
 
   /* Nodes with IPv4 for ping/trace target dropdown (exclude selected) */
   const pingTargets = (lab.nodes || []).filter((n) => n.ipv4 && n.name !== selectedNode);
@@ -1280,7 +1282,7 @@ export default function LabDetailPage() {
               <div style={{ borderBottom: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", flexShrink: 0 }}>
                 {(lab.type === "cloud"
                   ? ["aws", "logs", "events", "yaml"] as BottomTab[]
-                  : ["terminal", "logs", "events", "yaml", "bulk"] as BottomTab[]
+                  : ["terminal", "capture", "logs", "events", "yaml", "bulk"] as BottomTab[]
                 ).map((tab) => (
                   <button
                     key={tab}
@@ -1300,7 +1302,10 @@ export default function LabDetailPage() {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {tab === "bulk" ? "BULK CMD" : tab === "aws" ? "AWS CLI" : tab}
+                    {tab === "bulk" ? "BULK CMD" : tab === "aws" ? "AWS CLI" : tab === "capture" ? "SNIFFER" : tab}
+                    {tab === "capture" && captureActive && (
+                      <span style={{ marginLeft: 4, color: "#ff5f56", fontSize: "0.55rem" }}>{"\u25CF"}</span>
+                    )}
                     {tab === "logs" && deployLogs.length > 0 && (
                       <span style={{ marginLeft: 4, fontSize: "0.55rem", opacity: 0.5 }}>({deployLogs.length})</span>
                     )}
@@ -1748,6 +1753,227 @@ export default function LabDetailPage() {
                   </div>
                 </div>
               )}
+
+              {/* CAPTURE TAB */}
+              {bottomTab === "capture" && (
+                <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
+                  {/* Link list sidebar */}
+                  <div style={{
+                    width: 260, minWidth: 260, borderRight: "1px solid rgba(255,255,255,0.08)",
+                    display: "flex", flexDirection: "column", overflow: "hidden",
+                  }}>
+                    <div style={{ padding: "0.5rem 0.75rem", borderBottom: "1px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
+                      <span style={{ ...LABEL, fontSize: "0.55rem", opacity: 0.4 }}>LINKS ({allLinks.length})</span>
+                    </div>
+                    <div style={{ flex: 1, overflowY: "auto" }}>
+                      {allLinks.length === 0 && (
+                        <div style={{ padding: "1rem", opacity: 0.2, fontSize: "0.65rem", textAlign: "center" }}>NO LINKS</div>
+                      )}
+                      {allLinks.map((link, i) => {
+                        const isSelected = captureLink?.a.node === link.a.node && captureLink?.a.iface === link.a.iface
+                          && captureLink?.b.node === link.b.node && captureLink?.b.iface === link.b.iface;
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => {
+                              stopCapture();
+                              setCaptureLink({ a: link.a, b: link.b });
+                              setCaptureSide("a");
+                              setCaptureLines([]);
+                              setCaptureFilter("");
+                            }}
+                            style={{
+                              display: "block", width: "100%", textAlign: "left",
+                              padding: "0.5rem 0.75rem",
+                              background: isSelected ? "rgba(121,246,115,0.08)" : "transparent",
+                              border: "none", borderBottom: "1px solid rgba(255,255,255,0.04)",
+                              cursor: "pointer", color: BG, fontFamily: MONO, fontSize: "0.65rem",
+                              borderLeft: isSelected ? `2px solid ${BG}` : "2px solid transparent",
+                            }}
+                          >
+                            <div style={{ fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>
+                              {link.a.node}
+                              <span style={{ opacity: 0.3, margin: "0 4px" }}>\u2194</span>
+                              {link.b.node}
+                            </div>
+                            <div style={{ opacity: 0.4, fontSize: "0.6rem" }}>
+                              {link.a.iface} \u2194 {link.b.iface}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Capture main area */}
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+                    {!captureLink ? (
+                      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.2 }}>
+                        <div style={{ textAlign: "center" }}>
+                          <div style={{ ...LABEL, fontSize: "0.9rem", marginBottom: "0.5rem" }}>PACKET SNIFFER</div>
+                          <div style={{ fontSize: "0.65rem", fontFamily: MONO }}>
+                            {isLive ? "Select a link to start capturing" : "Deploy lab to capture packets"}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Controls bar */}
+                        <div style={{ padding: "0.5rem 0.75rem", borderBottom: "1px solid rgba(255,255,255,0.08)", display: "flex", gap: 8, alignItems: "center", flexShrink: 0, flexWrap: "wrap" }}>
+                          {/* Side selector */}
+                          <div style={{ display: "flex", gap: 4 }}>
+                            <button
+                              onClick={() => setCaptureSide("a")}
+                              style={{
+                                background: captureSide === "a" ? "rgba(255,255,255,0.1)" : "transparent",
+                                border: "1px solid rgba(255,255,255,0.15)", borderRadius: 99,
+                                color: BG, fontSize: "0.6rem", padding: "0.2rem 0.5rem",
+                                cursor: "pointer", fontFamily: MONO,
+                              }}
+                            >
+                              {captureLink.a.node}:{captureLink.a.iface}
+                            </button>
+                            <button
+                              onClick={() => setCaptureSide("b")}
+                              style={{
+                                background: captureSide === "b" ? "rgba(255,255,255,0.1)" : "transparent",
+                                border: "1px solid rgba(255,255,255,0.15)", borderRadius: 99,
+                                color: BG, fontSize: "0.6rem", padding: "0.2rem 0.5rem",
+                                cursor: "pointer", fontFamily: MONO,
+                              }}
+                            >
+                              {captureLink.b.node}:{captureLink.b.iface}
+                            </button>
+                          </div>
+
+                          {/* BPF filter */}
+                          <input
+                            value={captureFilter}
+                            onChange={(e) => setCaptureFilter(e.target.value)}
+                            placeholder="BPF filter (e.g. tcp port 179, icmp, arp)"
+                            disabled={captureActive}
+                            style={{
+                              flex: 1, minWidth: 150,
+                              background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)",
+                              color: BG, fontFamily: MONO, fontSize: "0.7rem", padding: "4px 8px",
+                              outline: "none", caretColor: BG,
+                            }}
+                            spellCheck={false}
+                          />
+
+                          {/* Packet count */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <span style={{ fontSize: "0.55rem", opacity: 0.4, textTransform: "uppercase", letterSpacing: "0.05em" }}>PKT:</span>
+                            <select
+                              value={captureCount}
+                              onChange={(e) => setCaptureCount(Number(e.target.value))}
+                              disabled={captureActive}
+                              style={{
+                                background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)",
+                                color: BG, fontFamily: MONO, fontSize: "0.65rem", padding: "2px 4px",
+                              }}
+                            >
+                              <option value={20}>20</option>
+                              <option value={50}>50</option>
+                              <option value={100}>100</option>
+                              <option value={500}>500</option>
+                            </select>
+                          </div>
+
+                          {/* Start/Stop */}
+                          {captureActive ? (
+                            <button onClick={stopCapture} style={{
+                              ...LABEL, fontSize: "0.6rem", padding: "4px 14px",
+                              border: "1px solid #ff5f56", background: "rgba(255,95,86,0.15)",
+                              color: "#ff5f56", cursor: "pointer", borderRadius: 99,
+                            }}>STOP</button>
+                          ) : (
+                            <button onClick={startCapture} disabled={!isLive} style={{
+                              ...LABEL, fontSize: "0.6rem", padding: "4px 14px",
+                              border: `1px solid ${BG}`, background: BG, color: INK,
+                              cursor: "pointer", borderRadius: 99, opacity: isLive ? 1 : 0.3,
+                            }}>START</button>
+                          )}
+
+                          {/* Clear */}
+                          {captureLines.length > 0 && !captureActive && (
+                            <button onClick={() => setCaptureLines([])} style={{
+                              ...LABEL, fontSize: "0.55rem", padding: "4px 10px",
+                              border: "1px solid rgba(255,255,255,0.15)", background: "transparent",
+                              color: BG, cursor: "pointer", borderRadius: 99,
+                            }}>CLEAR</button>
+                          )}
+
+                          {captureActive && (
+                            <span style={{ fontSize: "0.55rem", color: "#ff5f56", fontWeight: 700, letterSpacing: "0.08em" }}>
+                              \u25CF LIVE
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Capture output */}
+                        <div
+                          ref={captureScrollRef}
+                          style={{
+                            flex: 1, overflowY: "auto", padding: "0.5rem 0.75rem",
+                            fontFamily: MONO, fontSize: "0.72rem", lineHeight: 1.5,
+                            whiteSpace: "pre-wrap", wordBreak: "break-all",
+                          }}
+                        >
+                          {captureLines.length === 0 ? (
+                            <div style={{ opacity: 0.2, textAlign: "center", marginTop: "2rem" }}>
+                              <div style={{ ...LABEL, fontSize: "0.8rem", marginBottom: "0.5rem" }}>
+                                {captureActive ? "LISTENING..." : "READY"}
+                              </div>
+                              <div style={{ fontSize: "0.65rem", opacity: 0.6, fontFamily: MONO }}>
+                                {captureActive
+                                  ? `tcpdump -i ${captureIface} on ${captureShortNode}`
+                                  : "Click START to begin capturing packets"}
+                              </div>
+                            </div>
+                          ) : (
+                            captureLines.map((line, i) => {
+                              const isHeader = line.includes("listening on") || line.includes("verbose output");
+                              const isStats = line.includes("packets captured") || line.includes("packets received") || line.includes("packets dropped");
+                              return (
+                                <div key={i} style={{
+                                  opacity: isHeader || isStats ? 0.4 : 0.8,
+                                  color: isStats ? "#ffbd2e" : isHeader ? "rgba(121,246,115,0.5)" : BG,
+                                  borderBottom: "1px solid rgba(255,255,255,0.02)", padding: "1px 0",
+                                }}>
+                                  <span style={{ color: "rgba(121,246,115,0.2)", userSelect: "none", marginRight: 8, fontSize: "0.6rem" }}>
+                                    {String(i + 1).padStart(4)}
+                                  </span>
+                                  {line}
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+
+                        {/* Footer */}
+                        {captureLines.length > 0 && (
+                          <div style={{ padding: "0.4rem 0.75rem", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-between", flexShrink: 0 }}>
+                            <span style={{ fontFamily: MONO, fontSize: "0.6rem", opacity: 0.4 }}>
+                              {captureLines.length} lines captured
+                            </span>
+                            <button
+                              onClick={() => copyToClipboard(captureLines.join("\n"), "capture")}
+                              style={{
+                                background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)",
+                                borderRadius: 99, color: BG, fontSize: "0.55rem", padding: "0.15rem 0.5rem",
+                                cursor: "pointer", fontFamily: FONT, textTransform: "uppercase",
+                              }}
+                            >
+                              {copiedField === "capture" ? "COPIED!" : "COPY ALL"}
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1900,263 +2126,6 @@ export default function LabDetailPage() {
             </div>
           )}
 
-          {/* Packet capture overlay */}
-          {captureLink && (
-            <div style={{
-              position: "fixed",
-              top: 0, left: 0, right: 0, bottom: 0,
-              backgroundColor: "rgba(0,0,0,0.85)",
-              zIndex: 1000,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }} onClick={closeCapture}>
-              <div
-                style={{
-                  width: "85%",
-                  maxWidth: 1000,
-                  maxHeight: "85vh",
-                  backgroundColor: INK,
-                  color: BG,
-                  border: `2px solid ${BG}`,
-                  display: "flex",
-                  flexDirection: "column",
-                  overflow: "hidden",
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* Header */}
-                <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid rgba(121,246,115,0.2)", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ ...LABEL }}>
-                      PACKET CAPTURE
-                    </span>
-                    <span style={{ fontFamily: MONO, fontSize: "0.65rem", opacity: 0.5 }}>
-                      {captureLink.a.node}:{captureLink.a.iface} \u2194 {captureLink.b.node}:{captureLink.b.iface}
-                    </span>
-                    {captureActive && (
-                      <span style={{ fontSize: "0.55rem", color: "#ff5f56", fontWeight: 700, letterSpacing: "0.08em" }}>
-                        \u25CF LIVE
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    onClick={closeCapture}
-                    style={{ background: "none", border: "none", color: BG, cursor: "pointer", fontSize: "1rem" }}
-                  >
-                    \u2715
-                  </button>
-                </div>
-
-                {/* Controls */}
-                <div style={{ padding: "0.6rem 1rem", borderBottom: "1px solid rgba(121,246,115,0.1)", display: "flex", gap: 8, alignItems: "center", flexShrink: 0, flexWrap: "wrap" }}>
-                  {/* Side selector */}
-                  <div style={{ display: "flex", gap: 4 }}>
-                    <button
-                      onClick={() => setCaptureSide("a")}
-                      style={{
-                        background: captureSide === "a" ? "rgba(255,255,255,0.1)" : "transparent",
-                        border: "1px solid rgba(255,255,255,0.15)",
-                        borderRadius: 99,
-                        color: BG,
-                        fontSize: "0.6rem",
-                        padding: "0.2rem 0.5rem",
-                        cursor: "pointer",
-                        fontFamily: MONO,
-                      }}
-                    >
-                      {captureLink.a.node}:{captureLink.a.iface}
-                    </button>
-                    <button
-                      onClick={() => setCaptureSide("b")}
-                      style={{
-                        background: captureSide === "b" ? "rgba(255,255,255,0.1)" : "transparent",
-                        border: "1px solid rgba(255,255,255,0.15)",
-                        borderRadius: 99,
-                        color: BG,
-                        fontSize: "0.6rem",
-                        padding: "0.2rem 0.5rem",
-                        cursor: "pointer",
-                        fontFamily: MONO,
-                      }}
-                    >
-                      {captureLink.b.node}:{captureLink.b.iface}
-                    </button>
-                  </div>
-
-                  {/* BPF filter */}
-                  <input
-                    value={captureFilter}
-                    onChange={(e) => setCaptureFilter(e.target.value)}
-                    placeholder="BPF filter (e.g. tcp port 179, icmp, arp)"
-                    disabled={captureActive}
-                    style={{
-                      flex: 1,
-                      minWidth: 180,
-                      background: "rgba(255,255,255,0.05)",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      color: BG,
-                      fontFamily: MONO,
-                      fontSize: "0.7rem",
-                      padding: "4px 8px",
-                      outline: "none",
-                      caretColor: BG,
-                    }}
-                    spellCheck={false}
-                  />
-
-                  {/* Packet count */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ fontSize: "0.55rem", opacity: 0.4, textTransform: "uppercase", letterSpacing: "0.05em" }}>PKT:</span>
-                    <select
-                      value={captureCount}
-                      onChange={(e) => setCaptureCount(Number(e.target.value))}
-                      disabled={captureActive}
-                      style={{
-                        background: "rgba(255,255,255,0.05)",
-                        border: "1px solid rgba(255,255,255,0.12)",
-                        color: BG,
-                        fontFamily: MONO,
-                        fontSize: "0.65rem",
-                        padding: "2px 4px",
-                      }}
-                    >
-                      <option value={20}>20</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                      <option value={500}>500</option>
-                    </select>
-                  </div>
-
-                  {/* Start/Stop */}
-                  {captureActive ? (
-                    <button
-                      onClick={stopCapture}
-                      style={{
-                        ...LABEL,
-                        fontSize: "0.6rem",
-                        padding: "4px 14px",
-                        border: "1px solid #ff5f56",
-                        background: "rgba(255,95,86,0.15)",
-                        color: "#ff5f56",
-                        cursor: "pointer",
-                        borderRadius: 99,
-                      }}
-                    >
-                      STOP
-                    </button>
-                  ) : (
-                    <button
-                      onClick={startCapture}
-                      style={{
-                        ...LABEL,
-                        fontSize: "0.6rem",
-                        padding: "4px 14px",
-                        border: `1px solid ${BG}`,
-                        background: BG,
-                        color: INK,
-                        cursor: "pointer",
-                        borderRadius: 99,
-                      }}
-                    >
-                      START
-                    </button>
-                  )}
-
-                  {/* Clear */}
-                  {captureLines.length > 0 && !captureActive && (
-                    <button
-                      onClick={() => setCaptureLines([])}
-                      style={{
-                        ...LABEL,
-                        fontSize: "0.55rem",
-                        padding: "4px 10px",
-                        border: "1px solid rgba(255,255,255,0.15)",
-                        background: "transparent",
-                        color: BG,
-                        cursor: "pointer",
-                        borderRadius: 99,
-                      }}
-                    >
-                      CLEAR
-                    </button>
-                  )}
-                </div>
-
-                {/* Capture output */}
-                <div
-                  ref={captureScrollRef}
-                  style={{
-                    flex: 1,
-                    overflowY: "auto",
-                    padding: "0.75rem 1rem",
-                    fontFamily: MONO,
-                    fontSize: "0.72rem",
-                    lineHeight: 1.5,
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-all",
-                  }}
-                >
-                  {captureLines.length === 0 ? (
-                    <div style={{ opacity: 0.2, textAlign: "center", marginTop: "3rem" }}>
-                      <div style={{ ...LABEL, fontSize: "0.9rem", marginBottom: "0.5rem" }}>
-                        {captureActive ? "LISTENING..." : "PACKET SNIFFER"}
-                      </div>
-                      <div style={{ fontSize: "0.65rem", opacity: 0.6, fontFamily: MONO }}>
-                        {captureActive
-                          ? `tcpdump -i ${captureIface} on ${captureShortNode}`
-                          : "Click START to begin capturing packets on this link"}
-                      </div>
-                    </div>
-                  ) : (
-                    captureLines.map((line, i) => {
-                      // Highlight packet lines with color coding
-                      const isHeader = line.includes("listening on") || line.includes("verbose output");
-                      const isStats = line.includes("packets captured") || line.includes("packets received") || line.includes("packets dropped");
-                      return (
-                        <div key={i} style={{
-                          opacity: isHeader || isStats ? 0.4 : 0.8,
-                          color: isStats ? "#ffbd2e" : isHeader ? "rgba(121,246,115,0.5)" : BG,
-                          borderBottom: "1px solid rgba(255,255,255,0.02)",
-                          padding: "1px 0",
-                        }}>
-                          <span style={{ color: "rgba(121,246,115,0.2)", userSelect: "none", marginRight: 8, fontSize: "0.6rem" }}>
-                            {String(i + 1).padStart(4)}
-                          </span>
-                          {line}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-
-                {/* Footer stats */}
-                {captureLines.length > 0 && (
-                  <div style={{ padding: "0.4rem 1rem", borderTop: "1px solid rgba(121,246,115,0.1)", display: "flex", justifyContent: "space-between", flexShrink: 0 }}>
-                    <span style={{ fontFamily: MONO, fontSize: "0.6rem", opacity: 0.4 }}>
-                      {captureLines.length} lines captured
-                    </span>
-                    <button
-                      onClick={() => copyToClipboard(captureLines.join("\n"), "capture")}
-                      style={{
-                        background: "rgba(255,255,255,0.05)",
-                        border: "1px solid rgba(255,255,255,0.12)",
-                        borderRadius: 99,
-                        color: BG,
-                        fontSize: "0.55rem",
-                        padding: "0.15rem 0.5rem",
-                        cursor: "pointer",
-                        fontFamily: FONT,
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      {copiedField === "capture" ? "COPIED!" : "COPY ALL"}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 

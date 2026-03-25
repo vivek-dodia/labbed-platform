@@ -324,7 +324,7 @@ func (h *Handler) HandleExec(c *gin.Context) {
 	if clab.IsVrnetlabKind(req.NodeKind) {
 		output, err = h.clabService.VrnetlabExec(ctx, req.NodeName, req.Command, req.NodeKind)
 	} else {
-		output, err = h.clabService.Exec(ctx, req.NodeName, req.Command)
+		output, err = h.clabService.Exec(ctx, req.NodeName, req.Command, req.NodeKind)
 	}
 
 	if err != nil {

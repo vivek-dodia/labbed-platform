@@ -19,6 +19,28 @@ import type { LabResponse, NodeResponse, TemplateResponse, LabEventResponse, Pag
 /* ── Quick-command definitions ── */
 interface QuickCmd { label: string; cmd: string; description: string }
 
+const SRL_COMMANDS: QuickCmd[] = [
+  { label: "INTF", cmd: "show interface brief", description: "Interface status" },
+  { label: "ROUTES", cmd: "show network-instance default route-table all", description: "Routing table" },
+  { label: "BGP", cmd: "show network-instance default protocols bgp neighbor", description: "BGP neighbors" },
+  { label: "BGP RIB", cmd: "show network-instance default protocols bgp routes ipv4 summary", description: "BGP routes" },
+  { label: "LLDP", cmd: "show system lldp neighbor", description: "LLDP neighbors" },
+  { label: "NI", cmd: "show network-instance summary", description: "Network instances" },
+  { label: "CONFIG", cmd: "info flat", description: "Running config (flat)" },
+  { label: "SYSTEM", cmd: "show system information", description: "System info" },
+];
+
+const SONIC_COMMANDS: QuickCmd[] = [
+  { label: "INTF", cmd: "show interfaces status", description: "Interface status" },
+  { label: "IP INTF", cmd: "show ip interface", description: "IP interfaces" },
+  { label: "ROUTES", cmd: "show ip route", description: "IP routing table" },
+  { label: "BGP", cmd: "show ip bgp summary", description: "BGP summary" },
+  { label: "BGP NBR", cmd: "show ip bgp neighbors", description: "BGP neighbors" },
+  { label: "LLDP", cmd: "show lldp table", description: "LLDP neighbors" },
+  { label: "VLAN", cmd: "show vlan brief", description: "VLAN info" },
+  { label: "PLATFORM", cmd: "show platform summary", description: "Platform info" },
+];
+
 const FRR_COMMANDS: QuickCmd[] = [
   { label: "ROUTES", cmd: "vtysh -c 'show ip route'", description: "IP routing table" },
   { label: "BGP", cmd: "vtysh -c 'show bgp summary'", description: "BGP peer status" },
@@ -117,6 +139,8 @@ const NGINX_COMMANDS: QuickCmd[] = [
 
 function getCommandsForImage(image: string): { category: string; commands: QuickCmd[] } {
   const img = image.toLowerCase();
+  if (img.includes("srlinux") || img.includes("srl")) return { category: "SR LINUX", commands: SRL_COMMANDS };
+  if (img.includes("sonic")) return { category: "SONiC", commands: SONIC_COMMANDS };
   if (img.includes("frr") || img.includes("frrouting")) return { category: "FRR", commands: FRR_COMMANDS };
   if (img.includes("gobgp")) return { category: "GoBGP", commands: GOBGP_COMMANDS };
   if (img.includes("labbed-host")) return { category: "HOST", commands: LINUX_COMMANDS };
@@ -155,10 +179,20 @@ function timeAgo(dateStr: string): string {
 }
 
 /* Router detection for routing table feature */
-const ROUTER_IMAGES = ["frr", "frrouting", "srl", "ceos", "xrd", "vyos", "bird", "quagga", "gobgp", "routeros", "mikrotik", "openwrt", "freebsd"];
+const ROUTER_IMAGES = ["frr", "frrouting", "srl", "srlinux", "sonic", "ceos", "xrd", "vyos", "bird", "quagga", "gobgp", "routeros", "mikrotik", "openwrt", "freebsd"];
 function isRouterNode(node: NodeResponse): boolean {
   const img = node.image.toLowerCase();
   return ROUTER_IMAGES.some((r) => img.includes(r));
+}
+
+function getRunningConfigCmd(node: NodeResponse): string {
+  const img = node.image.toLowerCase();
+  if (img.includes("srlinux") || img.includes("srl")) return "info flat";
+  if (img.includes("sonic")) return "show runningconfiguration all";
+  if (img.includes("frr") || img.includes("frrouting")) return "vtysh -c 'show running-config'";
+  if (img.includes("routeros") || img.includes("mikrotik")) return "/export";
+  if (img.includes("openwrt")) return "uci show";
+  return "cat /etc/network/interfaces 2>/dev/null; ip addr show";
 }
 
 /* ── YAML syntax highlighting ── */
@@ -736,7 +770,7 @@ export default function LabDetailPage() {
     setConfigMode("running");
     const channel = `shell:${lab.uuid}:${selectedNode}`;
     const nodeData = lab.nodes?.find((n) => n.name === selectedNode);
-    const cmd = isRouterNode(nodeData!) ? "vtysh -c 'show running-config'" : "cat /etc/network/interfaces 2>/dev/null; ip addr show";
+    const cmd = getRunningConfigCmd(nodeData!);
     sendInput(channel, cmd + "\n");
     configTimerRef.current = setTimeout(() => {
       setRunningConfig({ status: "done", output: configOutputRef.current.join("") || "(no output)" });

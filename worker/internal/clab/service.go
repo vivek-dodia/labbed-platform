@@ -370,9 +370,19 @@ func stripAnsiCodes(s string) string {
 }
 
 // Exec runs a command inside a container using docker exec.
-func (s *Service) Exec(ctx context.Context, containerName, command string) (string, error) {
+// For SR Linux nodes, commands are wrapped with sr_cli to use the NOS CLI.
+func (s *Service) Exec(ctx context.Context, containerName, command, kind string) (string, error) {
 	dockerBin := findDockerBin()
-	args := []string{"exec", containerName, "sh", "-c", command}
+
+	var args []string
+	switch kind {
+	case "srl", "nokia_srlinux":
+		args = []string{"exec", containerName, "sr_cli", "-e", command}
+	case "sonic-vs", "sonic-vm":
+		args = []string{"exec", containerName, "vtysh", "-c", command}
+	default:
+		args = []string{"exec", containerName, "sh", "-c", command}
+	}
 
 	cmd := exec.CommandContext(ctx, dockerBin, args...)
 	var stdout, stderr bytes.Buffer

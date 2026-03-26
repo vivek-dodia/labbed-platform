@@ -191,7 +191,7 @@ topology:
         - ip route add 10.10.1.0/24 via 10.10.2.1
     router:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: router.rsc
 
   links:

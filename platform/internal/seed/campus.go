@@ -11,15 +11,15 @@ topology:
   nodes:
     core:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: core.rsc
     dist1:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: dist1.rsc
     dist2:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: dist2.rsc
     pc1:
       kind: linux
@@ -131,11 +131,11 @@ topology:
   nodes:
     core:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: core.rsc
     dist:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: dist.rsc
     dhcp:
       kind: linux
@@ -264,15 +264,15 @@ topology:
   nodes:
     core:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: core.rsc
     dist1:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: dist1.rsc
     dist2:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: dist2.rsc
     dhcp:
       kind: linux

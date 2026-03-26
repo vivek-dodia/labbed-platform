@@ -156,7 +156,7 @@ topology:
   nodes:
     router:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: router.rsc
     switch:
       kind: linux

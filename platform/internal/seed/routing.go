@@ -11,11 +11,11 @@ topology:
   nodes:
     router1:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: router1.rsc
     router2:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: router2.rsc
     host1:
       kind: linux
@@ -102,15 +102,15 @@ topology:
   nodes:
     r1:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: r1.rsc
     r2:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: r2.rsc
     r3:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: r3.rsc
     pc1:
       kind: linux
@@ -250,15 +250,15 @@ topology:
   nodes:
     core:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: core.rsc
     area1:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: area1.rsc
     area2:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: area2.rsc
     host1:
       kind: linux
@@ -380,19 +380,19 @@ topology:
   nodes:
     pe1:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: pe1.rsc
     pe2:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: pe2.rsc
     ce1:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: ce1.rsc
     ce2:
       kind: mikrotik_ros
-      image: vrnetlab/mikrotik_routeros:7.20.8
+      image: ghcr.io/vivek-dodia/vrnetlab-routeros:7.20.8
       startup-config: ce2.rsc
 
   links:

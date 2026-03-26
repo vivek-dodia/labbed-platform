@@ -483,7 +483,7 @@ func (s *Service) Capture(ctx context.Context, containerName, iface string, coun
 // we use Inspect to gather actual container info since Deploy can block
 // on health checks / management IP assignment.
 func (s *Service) Deploy(ctx context.Context, opts DeployOptions) ([]NodeInfo, error) {
-	deployTimeout := 5 * time.Minute
+	deployTimeout := 10 * time.Minute
 	// Use a detached context so postdeploy (startup-config application for SRL etc.)
 	// can continue even after we return early when containers are up.
 	deployCtx, deployCancel := context.WithTimeout(context.Background(), deployTimeout)

@@ -217,20 +217,18 @@ interface eth2
 			},
 		},
 		{
-			Name: "BNG — IPoE Subscribers (osvBNG)",
-			Definition: `# osvBNG broadband network gateway with IPoE subscribers and core router
-name: osvbng-ipoe
+			Name: "BNG — IPoE Subscribers",
+			Definition: `# Broadband Network Gateway: DHCP for subscribers, OSPF to core router
+name: bng-ipoe
 topology:
   nodes:
     bng:
       kind: linux
-      image: ghcr.io/vivek-dodia/mirror-osvbng:latest
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       binds:
-        - osvbng.yaml:/etc/osvbng/osvbng.yaml
-      env:
-        OSVBNG_NUM_INTERFACES: "2"
+        - bng-start.sh:/tmp/start.sh
       exec:
-        - sysctl -w vm.nr_hugepages=256
+        - ash /tmp/start.sh
     switch:
       kind: linux
       image: ghcr.io/vivek-dodia/labbed-host:latest
@@ -264,91 +262,21 @@ topology:
     - endpoints: ["bng:eth2", "core:eth1"]
 `,
 			BindFiles: []BindFile{
-				{FilePath: "osvbng.yaml", Content: `interfaces:
-  loop0:
-    description: Control Plane Loopback
-    enabled: true
-    address:
-      ipv4:
-        - 10.254.0.1/32
-    lcp: true
-  eth1:
-    description: Access Interface
-    enabled: true
-    bng_mode: access
-  eth2:
-    description: Core Link
-    enabled: true
-    bng_mode: core
-    lcp: true
-    address:
-      ipv4:
-        - 10.0.0.1/30
-  loop100:
-    description: Subscriber Gateway
-    enabled: true
-    address:
-      ipv4:
-        - 10.255.0.1/32
-    lcp: true
-
-subscriber-groups:
-  groups:
-    default:
-      access-type: ipoe
-      ipv4-profile: default
-      vlans:
-        - interface: loop100
-      aaa-policy: default-policy
-
-ipv4-profiles:
-  default:
-    gateway: 10.255.0.1
-    dns:
-      - 8.8.8.8
-    pools:
-      - name: subscriber-pool
-        network: 10.255.0.0/16
-        priority: 1
-    dhcp:
-      lease-time: 3600
-
-dhcp:
-  provider: local
-
-protocols:
-  ospf:
-    enabled: true
-    router-id: 10.254.0.1
-    areas:
-      "0.0.0.0":
-        interfaces:
-          eth2:
-            network: point-to-point
-          loop0:
-            passive: true
-          loop100:
-            passive: true
-
-aaa:
-  auth_provider: local
-  nas_identifier: osvbng
-  policy:
-    - name: default-policy
-      format: $mac-address$
-      max_concurrent_sessions: 1
-
-plugins:
-  northbound.api:
-    enabled: true
-    listen_address: :8080
-  subscriber.auth.local:
-    allow_all: true
-    database_path: /tmp/osvbng.db
-
-logging:
-  format: text
-  level: info
+				{FilePath: "bng-start.sh", Content: `#!/bin/ash
+# BNG access side — DHCP server for subscribers
+ip addr add 10.255.0.1/16 dev eth1
+# Core uplink
+ip addr add 10.0.0.1/30 dev eth2
+ip route add 0.0.0.0/0 via 10.0.0.2
+# Enable forwarding
+echo 1 > /proc/sys/net/ipv4/ip_forward
+# DHCP for subscribers
+dnsmasq --no-daemon --interface=eth1 \
+  --dhcp-range=10.255.1.1,10.255.1.254,255.255.0.0,1h \
+  --dhcp-option=3,10.255.0.1 \
+  --dhcp-option=6,8.8.8.8 \
+  --log-dhcp &
+echo "BNG ready: access=eth1 core=eth2"
 `},
 				{FilePath: "switch-start.sh", Content: `#!/bin/ash
 brctl addbr br0

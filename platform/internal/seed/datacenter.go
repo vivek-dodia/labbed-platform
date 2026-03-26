@@ -108,26 +108,26 @@ topology:
 			BindFiles: []BindFile{
 				{FilePath: "srl.cfg", NosKind: "srl", Content: `set / interface ethernet-1/1 admin-state enable
 set / interface ethernet-1/1 subinterface 0 ipv4 admin-state enable
-set / interface ethernet-1/1 subinterface 0 ipv4 address 10.0.0.0/31
+set / interface ethernet-1/1 subinterface 0 ipv4 address 10.1.0.0/31
 
 set / interface lo0 admin-state enable
 set / interface lo0 subinterface 0 ipv4 admin-state enable
-set / interface lo0 subinterface 0 ipv4 address 10.0.0.1/32
+set / interface lo0 subinterface 0 ipv4 address 10.255.0.1/32
 
 set / routing-policy policy all default-action policy-result accept
 
 set / network-instance default type default
-set / network-instance default router-id 10.0.0.1
+set / network-instance default router-id 10.255.0.1
 set / network-instance default interface ethernet-1/1.0
 set / network-instance default interface lo0.0
 set / network-instance default protocols bgp autonomous-system 65001
-set / network-instance default protocols bgp router-id 10.0.0.1
+set / network-instance default protocols bgp router-id 10.255.0.1
 set / network-instance default protocols bgp afi-safi ipv4-unicast admin-state enable
 set / network-instance default protocols bgp group frr export-policy [ all ]
 set / network-instance default protocols bgp group frr import-policy [ all ]
 set / network-instance default protocols bgp group frr afi-safi ipv4-unicast admin-state enable
-set / network-instance default protocols bgp neighbor 10.0.0.1 peer-as 65002
-set / network-instance default protocols bgp neighbor 10.0.0.1 peer-group frr
+set / network-instance default protocols bgp neighbor 10.1.0.1 peer-as 65002
+set / network-instance default protocols bgp neighbor 10.1.0.1 peer-group frr
 `},
 				{FilePath: "frr-daemons", NosKind: "frr", Content: frrDaemons},
 				{FilePath: "frr.conf", NosKind: "frr", Content: `frr version 10.3.1
@@ -135,15 +135,15 @@ frr defaults traditional
 hostname frr
 !
 interface eth1
- ip address 10.0.0.1/31
+ ip address 10.1.0.1/31
 !
 interface lo
- ip address 10.0.0.2/32
+ ip address 10.255.0.2/32
 !
 router bgp 65002
- bgp router-id 10.0.0.2
+ bgp router-id 10.255.0.2
  no bgp ebgp-requires-policy
- neighbor 10.0.0.0 remote-as 65001
+ neighbor 10.1.0.0 remote-as 65001
  !
  address-family ipv4 unicast
   redistribute connected
@@ -175,31 +175,31 @@ topology:
 			BindFiles: []BindFile{
 				{FilePath: "srl.cfg", NosKind: "srl", Content: `set / interface ethernet-1/1 admin-state enable
 set / interface ethernet-1/1 subinterface 0 ipv4 admin-state enable
-set / interface ethernet-1/1 subinterface 0 ipv4 address 10.0.0.0/31
+set / interface ethernet-1/1 subinterface 0 ipv4 address 10.1.0.0/31
 
 set / interface lo0 admin-state enable
 set / interface lo0 subinterface 0 ipv4 admin-state enable
-set / interface lo0 subinterface 0 ipv4 address 10.0.0.1/32
+set / interface lo0 subinterface 0 ipv4 address 10.255.0.1/32
 
 set / routing-policy policy all default-action policy-result accept
 
 set / network-instance default type default
-set / network-instance default router-id 10.0.0.1
+set / network-instance default router-id 10.255.0.1
 set / network-instance default interface ethernet-1/1.0
 set / network-instance default interface lo0.0
 set / network-instance default protocols bgp autonomous-system 65001
-set / network-instance default protocols bgp router-id 10.0.0.1
+set / network-instance default protocols bgp router-id 10.255.0.1
 set / network-instance default protocols bgp afi-safi ipv4-unicast admin-state enable
 set / network-instance default protocols bgp group sonic export-policy [ all ]
 set / network-instance default protocols bgp group sonic import-policy [ all ]
 set / network-instance default protocols bgp group sonic afi-safi ipv4-unicast admin-state enable
-set / network-instance default protocols bgp neighbor 10.0.0.1 peer-as 65002
-set / network-instance default protocols bgp neighbor 10.0.0.1 peer-group sonic
+set / network-instance default protocols bgp neighbor 10.1.0.1 peer-as 65002
+set / network-instance default protocols bgp neighbor 10.1.0.1 peer-group sonic
 `},
-				{FilePath: "sonic.json", NosKind: "sonic-vs", Content: sonicConfig("sonic", "10.0.0.2", "65002", []sonicNeighbor{
-					{Addr: "10.0.0.1", LocalAddr: "10.0.0.1", PeerAS: "65001"},
+				{FilePath: "sonic.json", NosKind: "sonic-vs", Content: sonicConfig("sonic", "10.255.0.2", "65002", []sonicNeighbor{
+					{Addr: "10.1.0.0", LocalAddr: "10.1.0.1", PeerAS: "65001"},
 				}, []sonicInterface{
-					{Name: "Ethernet0", Addr: "10.0.0.1/31"},
+					{Name: "Ethernet0", Addr: "10.1.0.1/31"},
 				})},
 			},
 		},

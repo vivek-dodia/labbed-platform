@@ -466,11 +466,14 @@ func resolveNosKind(clabKind, dockerImage string) string {
 	case "freebsd":
 		return "freebsd"
 	case "linux":
-		if strings.Contains(dockerImage, "frrouting/frr") {
+		if strings.Contains(dockerImage, "frrouting/frr") || strings.Contains(dockerImage, "mirror-frr") {
 			return "frr"
 		}
-		if strings.Contains(dockerImage, "gobgp") {
+		if strings.Contains(dockerImage, "gobgp") || strings.Contains(dockerImage, "mirror-gobgp") {
 			return "gobgp"
+		}
+		if strings.Contains(dockerImage, "osvbng") || strings.Contains(dockerImage, "mirror-osvbng") {
+			return "osvbng"
 		}
 	}
 	return ""

@@ -205,18 +205,15 @@ set / network-instance default protocols bgp neighbor 10.1.0.1 peer-group sonic
 		},
 		{
 			Name: "Leaf-Spine eBGP Fabric (SR Linux)",
-			Definition: `name: srl-leaf-spine
+			Definition: `# 1 spine + 2 leafs with eBGP underlay and host endpoints
+name: srl-leaf-spine
 
 topology:
   nodes:
-    spine1:
+    spine:
       kind: srl
       image: ghcr.io/vivek-dodia/mirror-srlinux:24.10.1
-      startup-config: spine1.cfg
-    spine2:
-      kind: srl
-      image: ghcr.io/vivek-dodia/mirror-srlinux:24.10.1
-      startup-config: spine2.cfg
+      startup-config: spine.cfg
     leaf1:
       kind: srl
       image: ghcr.io/vivek-dodia/mirror-srlinux:24.10.1
@@ -225,10 +222,6 @@ topology:
       kind: srl
       image: ghcr.io/vivek-dodia/mirror-srlinux:24.10.1
       startup-config: leaf2.cfg
-    leaf3:
-      kind: srl
-      image: ghcr.io/vivek-dodia/mirror-srlinux:24.10.1
-      startup-config: leaf3.cfg
     server1:
       kind: linux
       image: ghcr.io/vivek-dodia/labbed-host:latest
@@ -241,63 +234,91 @@ topology:
       exec:
         - ip addr add 10.1.2.10/24 dev eth1
         - ip route add 10.0.0.0/8 via 10.1.2.1
-    server3:
-      kind: linux
-      image: ghcr.io/vivek-dodia/labbed-host:latest
-      exec:
-        - ip addr add 10.1.3.10/24 dev eth1
-        - ip route add 10.0.0.0/8 via 10.1.3.1
 
   links:
-    - endpoints: ["spine1:e1-1", "leaf1:e1-49"]
-    - endpoints: ["spine1:e1-2", "leaf2:e1-49"]
-    - endpoints: ["spine1:e1-3", "leaf3:e1-49"]
-    - endpoints: ["spine2:e1-1", "leaf1:e1-50"]
-    - endpoints: ["spine2:e1-2", "leaf2:e1-50"]
-    - endpoints: ["spine2:e1-3", "leaf3:e1-50"]
+    - endpoints: ["spine:e1-1", "leaf1:e1-49"]
+    - endpoints: ["spine:e1-2", "leaf2:e1-49"]
     - endpoints: ["leaf1:e1-1", "server1:eth1"]
     - endpoints: ["leaf2:e1-1", "server2:eth1"]
-    - endpoints: ["leaf3:e1-1", "server3:eth1"]
 `,
 			BindFiles: []BindFile{
-				{FilePath: "spine1.cfg", NosKind: "srl", Content: srlSpine("spine1", "10.0.0.1", "65000", []srlNeighbor{
+				{FilePath: "spine.cfg", NosKind: "srl", Content: srlSpine("spine", "10.0.0.1", "65000", []srlNeighbor{
 					{Addr: "10.10.1.0/31", Peer: "10.10.1.1", PeerAS: "65001"},
 					{Addr: "10.10.2.0/31", Peer: "10.10.2.1", PeerAS: "65002"},
-					{Addr: "10.10.3.0/31", Peer: "10.10.3.1", PeerAS: "65003"},
-				}, "e1-1", "e1-2", "e1-3")},
-				{FilePath: "spine2.cfg", NosKind: "srl", Content: srlSpine("spine2", "10.0.0.2", "65000", []srlNeighbor{
-					{Addr: "10.10.4.0/31", Peer: "10.10.4.1", PeerAS: "65001"},
-					{Addr: "10.10.5.0/31", Peer: "10.10.5.1", PeerAS: "65002"},
-					{Addr: "10.10.6.0/31", Peer: "10.10.6.1", PeerAS: "65003"},
-				}, "e1-1", "e1-2", "e1-3")},
-				{FilePath: "leaf1.cfg", NosKind: "srl", Content: srlLeaf("leaf1", "10.0.0.11", "65001", []srlNeighbor{
-					{Addr: "10.10.1.1/31", Peer: "10.10.1.0", PeerAS: "65000"},
-					{Addr: "10.10.4.1/31", Peer: "10.10.4.0", PeerAS: "65000"},
-				}, "e1-49", "e1-50", "10.1.1.1/24", "e1-1")},
-				{FilePath: "leaf2.cfg", NosKind: "srl", Content: srlLeaf("leaf2", "10.0.0.12", "65002", []srlNeighbor{
-					{Addr: "10.10.2.1/31", Peer: "10.10.2.0", PeerAS: "65000"},
-					{Addr: "10.10.5.1/31", Peer: "10.10.5.0", PeerAS: "65000"},
-				}, "e1-49", "e1-50", "10.1.2.1/24", "e1-1")},
-				{FilePath: "leaf3.cfg", NosKind: "srl", Content: srlLeaf("leaf3", "10.0.0.13", "65003", []srlNeighbor{
-					{Addr: "10.10.3.1/31", Peer: "10.10.3.0", PeerAS: "65000"},
-					{Addr: "10.10.6.1/31", Peer: "10.10.6.0", PeerAS: "65000"},
-				}, "e1-49", "e1-50", "10.1.3.1/24", "e1-1")},
+				}, "e1-1", "e1-2")},
+				{FilePath: "leaf1.cfg", NosKind: "srl", Content: `set / system information location "Labbed DC Fabric — leaf1"
+
+set / interface ethernet-1/49 admin-state enable
+set / interface ethernet-1/49 subinterface 0 ipv4 admin-state enable
+set / interface ethernet-1/49 subinterface 0 ipv4 address 10.10.1.1/31
+
+set / interface ethernet-1/1 admin-state enable
+set / interface ethernet-1/1 subinterface 0 ipv4 admin-state enable
+set / interface ethernet-1/1 subinterface 0 ipv4 address 10.1.1.1/24
+
+set / interface lo0 admin-state enable
+set / interface lo0 subinterface 0 ipv4 admin-state enable
+set / interface lo0 subinterface 0 ipv4 address 10.0.0.11/32
+
+set / routing-policy policy all default-action policy-result accept
+
+set / network-instance default type default
+set / network-instance default router-id 10.0.0.11
+set / network-instance default interface ethernet-1/49.0
+set / network-instance default interface ethernet-1/1.0
+set / network-instance default interface lo0.0
+set / network-instance default protocols bgp autonomous-system 65001
+set / network-instance default protocols bgp router-id 10.0.0.11
+set / network-instance default protocols bgp afi-safi ipv4-unicast admin-state enable
+set / network-instance default protocols bgp group spine export-policy [ all ]
+set / network-instance default protocols bgp group spine import-policy [ all ]
+set / network-instance default protocols bgp group spine afi-safi ipv4-unicast admin-state enable
+set / network-instance default protocols bgp neighbor 10.10.1.0 peer-as 65000
+set / network-instance default protocols bgp neighbor 10.10.1.0 peer-group spine
+`},
+				{FilePath: "leaf2.cfg", NosKind: "srl", Content: `set / system information location "Labbed DC Fabric — leaf2"
+
+set / interface ethernet-1/49 admin-state enable
+set / interface ethernet-1/49 subinterface 0 ipv4 admin-state enable
+set / interface ethernet-1/49 subinterface 0 ipv4 address 10.10.2.1/31
+
+set / interface ethernet-1/1 admin-state enable
+set / interface ethernet-1/1 subinterface 0 ipv4 admin-state enable
+set / interface ethernet-1/1 subinterface 0 ipv4 address 10.1.2.1/24
+
+set / interface lo0 admin-state enable
+set / interface lo0 subinterface 0 ipv4 admin-state enable
+set / interface lo0 subinterface 0 ipv4 address 10.0.0.12/32
+
+set / routing-policy policy all default-action policy-result accept
+
+set / network-instance default type default
+set / network-instance default router-id 10.0.0.12
+set / network-instance default interface ethernet-1/49.0
+set / network-instance default interface ethernet-1/1.0
+set / network-instance default interface lo0.0
+set / network-instance default protocols bgp autonomous-system 65002
+set / network-instance default protocols bgp router-id 10.0.0.12
+set / network-instance default protocols bgp afi-safi ipv4-unicast admin-state enable
+set / network-instance default protocols bgp group spine export-policy [ all ]
+set / network-instance default protocols bgp group spine import-policy [ all ]
+set / network-instance default protocols bgp group spine afi-safi ipv4-unicast admin-state enable
+set / network-instance default protocols bgp neighbor 10.10.2.0 peer-as 65000
+set / network-instance default protocols bgp neighbor 10.10.2.0 peer-group spine
+`},
 			},
 		},
 		{
 			Name: "SONiC Leaf-Spine Fabric",
-			Definition: `name: sonic-fabric
+			Definition: `# 1 spine + 2 leafs with eBGP underlay
+name: sonic-fabric
 
 topology:
   nodes:
-    spine1:
+    spine:
       kind: sonic-vs
       image: ghcr.io/vivek-dodia/mirror-sonic-vs:latest
-      startup-config: spine1.json
-    spine2:
-      kind: sonic-vs
-      image: ghcr.io/vivek-dodia/mirror-sonic-vs:latest
-      startup-config: spine2.json
+      startup-config: spine.json
     leaf1:
       kind: sonic-vs
       image: ghcr.io/vivek-dodia/mirror-sonic-vs:latest
@@ -320,42 +341,29 @@ topology:
         - ip route add 10.0.0.0/8 via 10.1.2.1
 
   links:
-    - endpoints: ["spine1:eth1", "leaf1:eth1"]
-    - endpoints: ["spine1:eth2", "leaf2:eth1"]
-    - endpoints: ["spine2:eth1", "leaf1:eth2"]
-    - endpoints: ["spine2:eth2", "leaf2:eth2"]
+    - endpoints: ["spine:eth1", "leaf1:eth1"]
+    - endpoints: ["spine:eth2", "leaf2:eth1"]
     - endpoints: ["leaf1:eth3", "server1:eth1"]
     - endpoints: ["leaf2:eth3", "server2:eth1"]
 `,
 			BindFiles: []BindFile{
-				{FilePath: "spine1.json", NosKind: "sonic-vs", Content: sonicConfig("spine1", "10.0.0.1", "65000", []sonicNeighbor{
+				{FilePath: "spine.json", NosKind: "sonic-vs", Content: sonicConfig("spine", "10.0.0.1", "65000", []sonicNeighbor{
 					{Addr: "10.10.1.1", LocalAddr: "10.10.1.0", PeerAS: "65001"},
 					{Addr: "10.10.2.1", LocalAddr: "10.10.2.0", PeerAS: "65002"},
 				}, []sonicInterface{
 					{Name: "Ethernet0", Addr: "10.10.1.0/31"},
 					{Name: "Ethernet4", Addr: "10.10.2.0/31"},
 				})},
-				{FilePath: "spine2.json", NosKind: "sonic-vs", Content: sonicConfig("spine2", "10.0.0.2", "65000", []sonicNeighbor{
-					{Addr: "10.10.3.1", LocalAddr: "10.10.3.0", PeerAS: "65001"},
-					{Addr: "10.10.4.1", LocalAddr: "10.10.4.0", PeerAS: "65002"},
-				}, []sonicInterface{
-					{Name: "Ethernet0", Addr: "10.10.3.0/31"},
-					{Name: "Ethernet4", Addr: "10.10.4.0/31"},
-				})},
 				{FilePath: "leaf1.json", NosKind: "sonic-vs", Content: sonicConfig("leaf1", "10.0.0.11", "65001", []sonicNeighbor{
 					{Addr: "10.10.1.0", LocalAddr: "10.10.1.1", PeerAS: "65000"},
-					{Addr: "10.10.3.0", LocalAddr: "10.10.3.1", PeerAS: "65000"},
 				}, []sonicInterface{
 					{Name: "Ethernet0", Addr: "10.10.1.1/31"},
-					{Name: "Ethernet4", Addr: "10.10.3.1/31"},
 					{Name: "Ethernet8", Addr: "10.1.1.1/24"},
 				})},
 				{FilePath: "leaf2.json", NosKind: "sonic-vs", Content: sonicConfig("leaf2", "10.0.0.12", "65002", []sonicNeighbor{
 					{Addr: "10.10.2.0", LocalAddr: "10.10.2.1", PeerAS: "65000"},
-					{Addr: "10.10.4.0", LocalAddr: "10.10.4.1", PeerAS: "65000"},
 				}, []sonicInterface{
 					{Name: "Ethernet0", Addr: "10.10.2.1/31"},
-					{Name: "Ethernet4", Addr: "10.10.4.1/31"},
 					{Name: "Ethernet8", Addr: "10.1.2.1/24"},
 				})},
 			},

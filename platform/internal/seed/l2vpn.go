@@ -128,119 +128,133 @@ topology:
 			},
 		},
 		{
-			Name:  "SRL + FRR EVPN-VXLAN Bridge",
-			Draft: true, // SRL EVPN-VXLAN config needs EVI + version-specific tuning
-			Definition: `# SR Linux and FRR bridge remote LANs over EVPN-VXLAN with OSPF underlay + iBGP EVPN overlay
-name: srl-frr-vxlan
+			Name: "SRL EVPN-VXLAN — Two Leaf Bridge",
+			Definition: `# Two SR Linux leafs with eBGP underlay + iBGP EVPN overlay bridging hosts via VXLAN
+name: srl-evpn-vxlan
 topology:
   nodes:
-    srl:
+    leaf1:
       kind: srl
       image: ghcr.io/vivek-dodia/mirror-srlinux:24.10.1
-      startup-config: srl.cfg
-    frr:
-      kind: linux
-      image: ghcr.io/vivek-dodia/mirror-frr:10.3.1
-      binds:
-        - frr-daemons:/etc/frr/daemons
-        - frr.conf:/etc/frr/frr.conf
-      exec:
-        - ip link add vxlan100 type vxlan id 100 local 10.255.0.2 dstport 4789 nolearning
-        - ip link add br-cust type bridge
-        - ip link set vxlan100 master br-cust
-        - ip link set eth2 master br-cust
-        - ip link set vxlan100 up
-        - ip link set br-cust up
+      startup-config: leaf1.cfg
+    leaf2:
+      kind: srl
+      image: ghcr.io/vivek-dodia/mirror-srlinux:24.10.1
+      startup-config: leaf2.cfg
     host1:
       kind: linux
       image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
-        - ip addr add 10.100.0.10/24 dev eth1
+        - ip addr add 192.168.0.1/24 dev eth1
     host2:
       kind: linux
       image: ghcr.io/vivek-dodia/labbed-host:latest
       exec:
-        - ip addr add 10.100.0.20/24 dev eth1
+        - ip addr add 192.168.0.2/24 dev eth1
 
   links:
-    - endpoints: ["host1:eth1", "srl:e1-2"]
-    - endpoints: ["srl:e1-1", "frr:eth1"]
-    - endpoints: ["frr:eth2", "host2:eth1"]
+    - endpoints: ["host1:eth1", "leaf1:e1-1"]
+    - endpoints: ["leaf1:e1-49", "leaf2:e1-49"]
+    - endpoints: ["leaf2:e1-1", "host2:eth1"]
 `,
 			BindFiles: []BindFile{
-				{FilePath: "srl.cfg", NosKind: "srl", Content: `set / interface ethernet-1/1 admin-state enable
-set / interface ethernet-1/1 subinterface 0 ipv4 admin-state enable
-set / interface ethernet-1/1 subinterface 0 ipv4 address 172.16.0.0/31
+				{FilePath: "leaf1.cfg", NosKind: "srl", Content: `set / interface ethernet-1/49 admin-state enable
+set / interface ethernet-1/49 subinterface 0 ipv4 admin-state enable
+set / interface ethernet-1/49 subinterface 0 ipv4 address 192.168.11.1/30
 
-set / interface ethernet-1/2 admin-state enable
-set / interface ethernet-1/2 subinterface 0 type bridged
+set / interface ethernet-1/1 admin-state enable
+set / interface ethernet-1/1 vlan-tagging true
+set / interface ethernet-1/1 subinterface 0 type bridged
+set / interface ethernet-1/1 subinterface 0 admin-state enable
+set / interface ethernet-1/1 subinterface 0 vlan encap untagged
 
-set / interface lo0 admin-state enable
-set / interface lo0 subinterface 0 ipv4 admin-state enable
-set / interface lo0 subinterface 0 ipv4 address 10.255.0.1/32
+set / interface system0 admin-state enable
+set / interface system0 subinterface 0 ipv4 admin-state enable
+set / interface system0 subinterface 0 ipv4 address 10.0.0.1/32
 
 set / routing-policy policy all default-action policy-result accept
 
+set / tunnel-interface vxlan1 vxlan-interface 1 type bridged
+set / tunnel-interface vxlan1 vxlan-interface 1 ingress vni 1
+
 set / network-instance default type default
-set / network-instance default router-id 10.255.0.1
-set / network-instance default interface ethernet-1/1.0
-set / network-instance default interface lo0.0
-set / network-instance default protocols ospf instance main admin-state enable
-set / network-instance default protocols ospf instance main router-id 10.255.0.1
-set / network-instance default protocols ospf instance main area 0.0.0.0 interface ethernet-1/1.0 interface-type point-to-point
-set / network-instance default protocols ospf instance main area 0.0.0.0 interface lo0.0
-
-set / tunnel-interface vxlan1 vxlan-interface 100 type bridged
-set / tunnel-interface vxlan1 vxlan-interface 100 ingress vni 100
-set / tunnel-interface vxlan1 vxlan-interface 100 egress source-ip use-system-ipv4-address
-
-set / network-instance default protocols bgp autonomous-system 65000
-set / network-instance default protocols bgp router-id 10.255.0.1
+set / network-instance default interface ethernet-1/49.0
+set / network-instance default interface system0.0
+set / network-instance default protocols bgp autonomous-system 101
+set / network-instance default protocols bgp router-id 10.0.0.1
 set / network-instance default protocols bgp afi-safi ipv4-unicast admin-state enable
-set / network-instance default protocols bgp afi-safi evpn admin-state enable
-set / network-instance default protocols bgp group overlay export-policy [ all ]
-set / network-instance default protocols bgp group overlay import-policy [ all ]
-set / network-instance default protocols bgp group overlay afi-safi ipv4-unicast admin-state disable
-set / network-instance default protocols bgp group overlay afi-safi evpn admin-state enable
-set / network-instance default protocols bgp group overlay local-as as-number 65000
-set / network-instance default protocols bgp group overlay peer-as 65000
-set / network-instance default protocols bgp neighbor 10.255.0.2 peer-group overlay
+set / network-instance default protocols bgp group eBGP-underlay export-policy [ all ]
+set / network-instance default protocols bgp group eBGP-underlay import-policy [ all ]
+set / network-instance default protocols bgp group eBGP-underlay peer-as 102
+set / network-instance default protocols bgp group eBGP-underlay afi-safi ipv4-unicast admin-state enable
+set / network-instance default protocols bgp neighbor 192.168.11.2 peer-group eBGP-underlay
+set / network-instance default protocols bgp group iBGP-overlay export-policy [ all ]
+set / network-instance default protocols bgp group iBGP-overlay import-policy [ all ]
+set / network-instance default protocols bgp group iBGP-overlay peer-as 65199
+set / network-instance default protocols bgp group iBGP-overlay local-as as-number 65199
+set / network-instance default protocols bgp group iBGP-overlay afi-safi ipv4-unicast admin-state disable
+set / network-instance default protocols bgp group iBGP-overlay afi-safi evpn admin-state enable
+set / network-instance default protocols bgp neighbor 10.0.0.2 peer-group iBGP-overlay
+set / network-instance default protocols bgp neighbor 10.0.0.2 transport local-address 10.0.0.1
 
-set / network-instance vxlan-bridge type mac-vrf
-set / network-instance vxlan-bridge interface ethernet-1/2.0
-set / network-instance vxlan-bridge vxlan-interface vxlan1.100
-set / network-instance vxlan-bridge protocols bgp-evpn bgp-instance 1 admin-state enable
-set / network-instance vxlan-bridge protocols bgp-evpn bgp-instance 1 vxlan-interface vxlan1.100
+set / network-instance vrf-1 type mac-vrf
+set / network-instance vrf-1 admin-state enable
+set / network-instance vrf-1 interface ethernet-1/1.0
+set / network-instance vrf-1 vxlan-interface vxlan1.1
+set / network-instance vrf-1 protocols bgp-evpn bgp-instance 1 admin-state enable
+set / network-instance vrf-1 protocols bgp-evpn bgp-instance 1 vxlan-interface vxlan1.1
+set / network-instance vrf-1 protocols bgp-evpn bgp-instance 1 evi 111
+set / network-instance vrf-1 protocols bgp-vpn bgp-instance 1 route-target export-rt target:100:111
+set / network-instance vrf-1 protocols bgp-vpn bgp-instance 1 route-target import-rt target:100:111
 `},
-				{FilePath: "frr-daemons", NosKind: "frr", Content: `zebra=yes
-bgpd=yes
-ospfd=yes
-`},
-				{FilePath: "frr.conf", NosKind: "frr", Content: `hostname frr
-!
-interface lo
- ip address 10.255.0.2/32
- ip ospf area 0.0.0.0
-!
-interface eth1
- ip address 172.16.0.1/31
- ip ospf area 0.0.0.0
- ip ospf network point-to-point
-!
-router ospf
- ospf router-id 10.255.0.2
-!
-router bgp 65000
- bgp router-id 10.255.0.2
- no bgp ebgp-requires-policy
- neighbor 10.255.0.1 remote-as 65000
- neighbor 10.255.0.1 update-source lo
- !
- address-family l2vpn evpn
-  neighbor 10.255.0.1 activate
-  advertise-all-vni
- exit-address-family
-!
+				{FilePath: "leaf2.cfg", NosKind: "srl", Content: `set / interface ethernet-1/49 admin-state enable
+set / interface ethernet-1/49 subinterface 0 ipv4 admin-state enable
+set / interface ethernet-1/49 subinterface 0 ipv4 address 192.168.11.2/30
+
+set / interface ethernet-1/1 admin-state enable
+set / interface ethernet-1/1 vlan-tagging true
+set / interface ethernet-1/1 subinterface 0 type bridged
+set / interface ethernet-1/1 subinterface 0 admin-state enable
+set / interface ethernet-1/1 subinterface 0 vlan encap untagged
+
+set / interface system0 admin-state enable
+set / interface system0 subinterface 0 ipv4 admin-state enable
+set / interface system0 subinterface 0 ipv4 address 10.0.0.2/32
+
+set / routing-policy policy all default-action policy-result accept
+
+set / tunnel-interface vxlan1 vxlan-interface 1 type bridged
+set / tunnel-interface vxlan1 vxlan-interface 1 ingress vni 1
+
+set / network-instance default type default
+set / network-instance default interface ethernet-1/49.0
+set / network-instance default interface system0.0
+set / network-instance default protocols bgp autonomous-system 102
+set / network-instance default protocols bgp router-id 10.0.0.2
+set / network-instance default protocols bgp afi-safi ipv4-unicast admin-state enable
+set / network-instance default protocols bgp group eBGP-underlay export-policy [ all ]
+set / network-instance default protocols bgp group eBGP-underlay import-policy [ all ]
+set / network-instance default protocols bgp group eBGP-underlay peer-as 101
+set / network-instance default protocols bgp group eBGP-underlay afi-safi ipv4-unicast admin-state enable
+set / network-instance default protocols bgp neighbor 192.168.11.1 peer-group eBGP-underlay
+set / network-instance default protocols bgp group iBGP-overlay export-policy [ all ]
+set / network-instance default protocols bgp group iBGP-overlay import-policy [ all ]
+set / network-instance default protocols bgp group iBGP-overlay peer-as 65199
+set / network-instance default protocols bgp group iBGP-overlay local-as as-number 65199
+set / network-instance default protocols bgp group iBGP-overlay afi-safi ipv4-unicast admin-state disable
+set / network-instance default protocols bgp group iBGP-overlay afi-safi evpn admin-state enable
+set / network-instance default protocols bgp neighbor 10.0.0.1 peer-group iBGP-overlay
+set / network-instance default protocols bgp neighbor 10.0.0.1 transport local-address 10.0.0.2
+
+set / network-instance vrf-1 type mac-vrf
+set / network-instance vrf-1 admin-state enable
+set / network-instance vrf-1 interface ethernet-1/1.0
+set / network-instance vrf-1 vxlan-interface vxlan1.1
+set / network-instance vrf-1 protocols bgp-evpn bgp-instance 1 admin-state enable
+set / network-instance vrf-1 protocols bgp-evpn bgp-instance 1 vxlan-interface vxlan1.1
+set / network-instance vrf-1 protocols bgp-evpn bgp-instance 1 evi 111
+set / network-instance vrf-1 protocols bgp-vpn bgp-instance 1 route-target export-rt target:100:111
+set / network-instance vrf-1 protocols bgp-vpn bgp-instance 1 route-target import-rt target:100:111
 `},
 			},
 		},

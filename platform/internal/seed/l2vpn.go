@@ -128,8 +128,8 @@ topology:
 			},
 		},
 		{
-			Name: "SRL + FRR VXLAN Bridge",
-			Definition: `# SR Linux and FRR bridge remote LANs over static VXLAN with OSPF underlay
+			Name: "SRL + FRR EVPN-VXLAN Bridge",
+			Definition: `# SR Linux and FRR bridge remote LANs over EVPN-VXLAN with OSPF underlay + iBGP EVPN overlay
 name: srl-frr-vxlan
 topology:
   nodes:
@@ -144,7 +144,7 @@ topology:
         - frr-daemons:/etc/frr/daemons
         - frr.conf:/etc/frr/frr.conf
       exec:
-        - ip link add vxlan100 type vxlan id 100 local 10.255.0.2 remote 10.255.0.1 dstport 4789
+        - ip link add vxlan100 type vxlan id 100 local 10.255.0.2 dstport 4789 nolearning
         - ip link add br-cust type bridge
         - ip link set vxlan100 master br-cust
         - ip link set eth2 master br-cust
@@ -193,15 +193,26 @@ set / tunnel-interface vxlan1 vxlan-interface 100 type bridged
 set / tunnel-interface vxlan1 vxlan-interface 100 ingress vni 100
 set / tunnel-interface vxlan1 vxlan-interface 100 egress source-ip use-system-ipv4-address
 
+set / network-instance default protocols bgp autonomous-system 65000
+set / network-instance default protocols bgp router-id 10.255.0.1
+set / network-instance default protocols bgp afi-safi ipv4-unicast admin-state enable
+set / network-instance default protocols bgp afi-safi evpn admin-state enable
+set / network-instance default protocols bgp group overlay export-policy [ all ]
+set / network-instance default protocols bgp group overlay import-policy [ all ]
+set / network-instance default protocols bgp group overlay afi-safi ipv4-unicast admin-state disable
+set / network-instance default protocols bgp group overlay afi-safi evpn admin-state enable
+set / network-instance default protocols bgp group overlay local-as as-number 65000
+set / network-instance default protocols bgp group overlay peer-as 65000
+set / network-instance default protocols bgp neighbor 10.255.0.2 peer-group overlay
+
 set / network-instance vxlan-bridge type mac-vrf
 set / network-instance vxlan-bridge interface ethernet-1/2.0
 set / network-instance vxlan-bridge vxlan-interface vxlan1.100
-set / network-instance vxlan-bridge protocols bgp-evpn bgp-instance 1 admin-state disable
-set / network-instance vxlan-bridge bridge-table static-vxlan vtep 10.255.0.2
-
-set / system network-instance protocols evpn ethernet-segments admin-state disable
+set / network-instance vxlan-bridge protocols bgp-evpn bgp-instance 1 admin-state enable
+set / network-instance vxlan-bridge protocols bgp-evpn bgp-instance 1 vxlan-interface vxlan1.100
 `},
 				{FilePath: "frr-daemons", NosKind: "frr", Content: `zebra=yes
+bgpd=yes
 ospfd=yes
 `},
 				{FilePath: "frr.conf", NosKind: "frr", Content: `hostname frr
@@ -218,11 +229,23 @@ interface eth1
 router ospf
  ospf router-id 10.255.0.2
 !
+router bgp 65000
+ bgp router-id 10.255.0.2
+ no bgp ebgp-requires-policy
+ neighbor 10.255.0.1 remote-as 65000
+ neighbor 10.255.0.1 update-source lo
+ !
+ address-family l2vpn evpn
+  neighbor 10.255.0.1 activate
+  advertise-all-vni
+ exit-address-family
+!
 `},
 			},
 		},
 		{
-			Name: "SRL + RouterOS VXLAN Bridge",
+			Name:  "SRL + RouterOS VXLAN Bridge",
+			Draft: true, // SRL requires EVPN for VXLAN, RouterOS doesn't support EVPN
 			Definition: `# SR Linux and RouterOS bridge remote LANs over static VXLAN with OSPF underlay
 name: srl-ros-vxlan
 topology:
@@ -278,13 +301,23 @@ set / tunnel-interface vxlan1 vxlan-interface 100 type bridged
 set / tunnel-interface vxlan1 vxlan-interface 100 ingress vni 100
 set / tunnel-interface vxlan1 vxlan-interface 100 egress source-ip use-system-ipv4-address
 
+set / network-instance default protocols bgp autonomous-system 65000
+set / network-instance default protocols bgp router-id 10.255.0.1
+set / network-instance default protocols bgp afi-safi ipv4-unicast admin-state enable
+set / network-instance default protocols bgp afi-safi evpn admin-state enable
+set / network-instance default protocols bgp group overlay export-policy [ all ]
+set / network-instance default protocols bgp group overlay import-policy [ all ]
+set / network-instance default protocols bgp group overlay afi-safi ipv4-unicast admin-state disable
+set / network-instance default protocols bgp group overlay afi-safi evpn admin-state enable
+set / network-instance default protocols bgp group overlay local-as as-number 65000
+set / network-instance default protocols bgp group overlay peer-as 65000
+set / network-instance default protocols bgp neighbor 10.255.0.2 peer-group overlay
+
 set / network-instance vxlan-bridge type mac-vrf
 set / network-instance vxlan-bridge interface ethernet-1/2.0
 set / network-instance vxlan-bridge vxlan-interface vxlan1.100
-set / network-instance vxlan-bridge protocols bgp-evpn bgp-instance 1 admin-state disable
-set / network-instance vxlan-bridge bridge-table static-vxlan vtep 10.255.0.2
-
-set / system network-instance protocols evpn ethernet-segments admin-state disable
+set / network-instance vxlan-bridge protocols bgp-evpn bgp-instance 1 admin-state enable
+set / network-instance vxlan-bridge protocols bgp-evpn bgp-instance 1 vxlan-interface vxlan1.100
 `},
 				{FilePath: "ros.rsc", NosKind: "mikrotik_ros", Content: `# ros — VXLAN VTEP with OSPF underlay
 # Loopback for OSPF RID and VXLAN source
@@ -308,7 +341,8 @@ set / system network-instance protocols evpn ethernet-segments admin-state disab
 			},
 		},
 		{
-			Name: "SONiC + FRR VXLAN Bridge",
+			Name:  "SONiC + FRR VXLAN Bridge",
+			Draft: true, // SONiC-vs VXLAN config_db.json needs validation
 			Definition: `# SONiC-vs and FRR bridge remote LANs over static VXLAN with OSPF underlay
 name: sonic-frr-vxlan
 topology:

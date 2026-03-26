@@ -13,7 +13,7 @@ topology:
   nodes:
     srl:
       kind: srl
-      image: ghcr.io/nokia/srlinux:24.10.1
+      image: ghcr.io/vivek-dodia/mirror-srlinux:24.10.1
 
   links: []
 `,
@@ -26,11 +26,11 @@ topology:
   nodes:
     srl1:
       kind: srl
-      image: ghcr.io/nokia/srlinux:24.10.1
+      image: ghcr.io/vivek-dodia/mirror-srlinux:24.10.1
       startup-config: srl1.cfg
     srl2:
       kind: srl
-      image: ghcr.io/nokia/srlinux:24.10.1
+      image: ghcr.io/vivek-dodia/mirror-srlinux:24.10.1
       startup-config: srl2.cfg
 
   links:
@@ -93,11 +93,11 @@ topology:
   nodes:
     srl:
       kind: srl
-      image: ghcr.io/nokia/srlinux:24.10.1
+      image: ghcr.io/vivek-dodia/mirror-srlinux:24.10.1
       startup-config: srl.cfg
     frr:
       kind: linux
-      image: quay.io/frrouting/frr:10.3.1
+      image: ghcr.io/vivek-dodia/mirror-frr:10.3.1
       binds:
         - frr-daemons:/etc/frr/daemons
         - frr.conf:/etc/frr/frr.conf
@@ -162,11 +162,11 @@ topology:
   nodes:
     srl:
       kind: srl
-      image: ghcr.io/nokia/srlinux:24.10.1
+      image: ghcr.io/vivek-dodia/mirror-srlinux:24.10.1
       startup-config: srl.cfg
     sonic:
       kind: sonic-vs
-      image: netreplica/docker-sonic-vs:latest
+      image: ghcr.io/vivek-dodia/mirror-sonic-vs:latest
       startup-config: sonic.json
 
   links:
@@ -211,23 +211,23 @@ topology:
   nodes:
     spine1:
       kind: srl
-      image: ghcr.io/nokia/srlinux:24.10.1
+      image: ghcr.io/vivek-dodia/mirror-srlinux:24.10.1
       startup-config: spine1.cfg
     spine2:
       kind: srl
-      image: ghcr.io/nokia/srlinux:24.10.1
+      image: ghcr.io/vivek-dodia/mirror-srlinux:24.10.1
       startup-config: spine2.cfg
     leaf1:
       kind: srl
-      image: ghcr.io/nokia/srlinux:24.10.1
+      image: ghcr.io/vivek-dodia/mirror-srlinux:24.10.1
       startup-config: leaf1.cfg
     leaf2:
       kind: srl
-      image: ghcr.io/nokia/srlinux:24.10.1
+      image: ghcr.io/vivek-dodia/mirror-srlinux:24.10.1
       startup-config: leaf2.cfg
     leaf3:
       kind: srl
-      image: ghcr.io/nokia/srlinux:24.10.1
+      image: ghcr.io/vivek-dodia/mirror-srlinux:24.10.1
       startup-config: leaf3.cfg
     server1:
       kind: linux
@@ -292,19 +292,19 @@ topology:
   nodes:
     spine1:
       kind: sonic-vs
-      image: netreplica/docker-sonic-vs:latest
+      image: ghcr.io/vivek-dodia/mirror-sonic-vs:latest
       startup-config: spine1.json
     spine2:
       kind: sonic-vs
-      image: netreplica/docker-sonic-vs:latest
+      image: ghcr.io/vivek-dodia/mirror-sonic-vs:latest
       startup-config: spine2.json
     leaf1:
       kind: sonic-vs
-      image: netreplica/docker-sonic-vs:latest
+      image: ghcr.io/vivek-dodia/mirror-sonic-vs:latest
       startup-config: leaf1.json
     leaf2:
       kind: sonic-vs
-      image: netreplica/docker-sonic-vs:latest
+      image: ghcr.io/vivek-dodia/mirror-sonic-vs:latest
       startup-config: leaf2.json
     server1:
       kind: linux
@@ -368,21 +368,21 @@ topology:
   nodes:
     spine1:
       kind: srl
-      image: ghcr.io/nokia/srlinux:24.10.1
+      image: ghcr.io/vivek-dodia/mirror-srlinux:24.10.1
       startup-config: spine1.cfg
     spine2:
       kind: srl
-      image: ghcr.io/nokia/srlinux:24.10.1
+      image: ghcr.io/vivek-dodia/mirror-srlinux:24.10.1
       startup-config: spine2.cfg
     leaf1:
       kind: linux
-      image: quay.io/frrouting/frr:10.3.1
+      image: ghcr.io/vivek-dodia/mirror-frr:10.3.1
       binds:
         - leaf1-daemons:/etc/frr/daemons
         - leaf1.conf:/etc/frr/frr.conf
     leaf2:
       kind: linux
-      image: quay.io/frrouting/frr:10.3.1
+      image: ghcr.io/vivek-dodia/mirror-frr:10.3.1
       binds:
         - leaf2-daemons:/etc/frr/daemons
         - leaf2.conf:/etc/frr/frr.conf

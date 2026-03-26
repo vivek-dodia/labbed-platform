@@ -102,7 +102,7 @@ topology:
   nodes:
     lb:
       kind: linux
-      image: nginx:alpine
+      image: ghcr.io/vivek-dodia/mirror-nginx:alpine
       binds:
         - nginx.conf:/etc/nginx/nginx.conf
       exec:

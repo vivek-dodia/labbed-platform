@@ -1,0 +1,26 @@
+# External images mirrored to ghcr.io/vivek-dodia/mirror-*
+# This file is the source of truth for all external lab images.
+# The mirror-images workflow pushes these to GHCR on schedule and on change.
+# Seed templates reference the GHCR mirror, not upstream directly.
+
+images:
+  - source: ghcr.io/nokia/srlinux:24.10.1
+    target: ghcr.io/vivek-dodia/mirror-srlinux:24.10.1
+
+  - source: quay.io/frrouting/frr:10.3.1
+    target: ghcr.io/vivek-dodia/mirror-frr:10.3.1
+
+  - source: netreplica/docker-sonic-vs:latest
+    target: ghcr.io/vivek-dodia/mirror-sonic-vs:latest
+
+  - source: nginx:alpine
+    target: ghcr.io/vivek-dodia/mirror-nginx:alpine
+
+  - source: coredns/coredns:1.12.0
+    target: ghcr.io/vivek-dodia/mirror-coredns:1.12.0
+
+  - source: docker.cloudsmith.io/isc/docker/kea-dhcp4:2.6.1
+    target: ghcr.io/vivek-dodia/mirror-kea-dhcp4:2.6.1
+
+# vrnetlab images (mikrotik_ros, openwrt, freebsd) are built from vendor ISOs
+# and pushed to GHCR separately — they cannot be mirrored from a registry.

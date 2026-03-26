@@ -1,0 +1,79 @@
+name: Mirror External Images
+
+on:
+  # Run weekly to catch upstream updates
+  schedule:
+    - cron: "0 4 * * 0" # Sunday 4am UTC
+  # Run on changes to the mirror manifest
+  push:
+    branches: [main]
+    paths:
+      - "images/mirror/images.yaml"
+      - ".github/workflows/mirror-images.yml"
+  # Manual trigger
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Mirror images
+        run: |
+          set -euo pipefail
+          MANIFEST="images/mirror/images.yaml"
+          COUNT=$(yq '.images | length' "$MANIFEST")
+
+          echo "Mirroring $COUNT images..."
+          FAILED=0
+
+          for i in $(seq 0 $((COUNT - 1))); do
+            SOURCE=$(yq ".images[$i].source" "$MANIFEST")
+            TARGET=$(yq ".images[$i].target" "$MANIFEST")
+
+            echo ""
+            echo "━━━ [$((i+1))/$COUNT] $SOURCE → $TARGET ━━━"
+
+            if ! docker pull "$SOURCE" 2>&1; then
+              echo "::warning::Failed to pull $SOURCE"
+              FAILED=$((FAILED + 1))
+              continue
+            fi
+
+            docker tag "$SOURCE" "$TARGET"
+
+            if ! docker push "$TARGET" 2>&1; then
+              echo "::warning::Failed to push $TARGET"
+              FAILED=$((FAILED + 1))
+              continue
+            fi
+
+            echo "✓ Mirrored successfully"
+          done
+
+          echo ""
+          echo "═══════════════════════════════"
+          echo "  Mirrored: $((COUNT - FAILED))/$COUNT"
+          if [ $FAILED -gt 0 ]; then
+            echo "  Failed: $FAILED"
+            exit 1
+          fi
+          echo "═══════════════════════════════"

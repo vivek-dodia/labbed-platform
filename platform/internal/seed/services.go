@@ -224,7 +224,7 @@ topology:
   nodes:
     bng:
       kind: linux
-      image: ghcr.io/vivek-dodia/mirror-osvbng:0.3.1
+      image: ghcr.io/vivek-dodia/mirror-osvbng:latest
       binds:
         - osvbng.yaml:/etc/osvbng/osvbng.yaml
       env:

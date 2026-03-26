@@ -97,9 +97,9 @@ func SeedNosImages(db *gorm.DB) {
 		},
 		{
 			UUID:        uuid.New().String(),
-			Name:        "osvBNG 0.3.1",
+			Name:        "osvBNG",
 			ClabKind:    "linux",
-			DockerImage: "ghcr.io/vivek-dodia/mirror-osvbng:0.3.1",
+			DockerImage: "ghcr.io/vivek-dodia/mirror-osvbng:latest",
 			DefaultUser: "root",
 			DefaultPass: "",
 			IsSystem:    true,

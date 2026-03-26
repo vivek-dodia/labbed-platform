@@ -637,6 +637,63 @@ func sonicConfig(hostname, loopbackIP, asn string, neighbors []sonicNeighbor, in
 	return cfg
 }
 
+// sonicVxlanConfig generates a SONiC config_db.json for a VXLAN VTEP with OSPF underlay.
+// Ethernet0 = underlay (172.16.0.0/31), Ethernet4 = customer (bridged via VXLAN),
+// Loopback0 = 10.255.0.1 (VTEP source), VNI 100, static remote VTEP 10.255.0.2.
+// SONiC uses VXLAN_TUNNEL + VXLAN_TUNNEL_MAP + VXLAN_EVPN_NVO tables for the overlay.
+// OSPF underlay is handled by SONiC's internal FRR (configured via exec post-deploy).
+func sonicVxlanConfig() string {
+	return `{
+  "DEVICE_METADATA": {
+    "localhost": {
+      "hostname": "sonic",
+      "hwsku": "Force10-S6000",
+      "platform": "x86_64-kvm_x86_64-r0",
+      "type": "LeafRouter"
+    }
+  },
+  "LOOPBACK_INTERFACE": {
+    "Loopback0": {},
+    "Loopback0|10.255.0.1/32": {}
+  },
+  "INTERFACE": {
+    "Ethernet0": {},
+    "Ethernet0|172.16.0.0/31": {}
+  },
+  "PORT": {
+    "Ethernet0": { "admin_status": "up", "speed": "10000" },
+    "Ethernet4": { "admin_status": "up", "speed": "10000" }
+  },
+  "VLAN": {
+    "Vlan100": {
+      "vlanid": "100"
+    }
+  },
+  "VLAN_MEMBER": {
+    "Vlan100|Ethernet4": {
+      "tagging_mode": "untagged"
+    }
+  },
+  "VXLAN_TUNNEL": {
+    "vtep1": {
+      "src_ip": "10.255.0.1"
+    }
+  },
+  "VXLAN_TUNNEL_MAP": {
+    "vtep1|map_100": {
+      "vlan": "Vlan100",
+      "vni": "100"
+    }
+  },
+  "VXLAN_EVPN_NVO": {
+    "nvo1": {
+      "source_vtep": "vtep1"
+    }
+  }
+}
+`
+}
+
 func frrLeaf(name, routerID, as string, neighbors []frrNeighbor, serverAddr, serverIface string) string {
 	cfg := "frr version 10.3.1\n"
 	cfg += "frr defaults traditional\n"

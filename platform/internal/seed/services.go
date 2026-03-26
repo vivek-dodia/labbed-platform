@@ -4,18 +4,18 @@ var servicesCollection = CollectionDef{
 	Name: "Infrastructure Services",
 	Templates: []Template{
 		{
-			Name: "DHCP Server - Kea",
-			Definition: `# Kea DHCP server handing out addresses to clients via an L2 switch
-name: kea-dhcp
+			Name: "DHCP Server",
+			Definition: `# dnsmasq DHCP server handing out addresses to clients via an L2 switch
+name: dhcp-server
 topology:
   nodes:
     dhcp:
       kind: linux
-      image: docker.cloudsmith.io/isc/docker/kea-dhcp4:2.6
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       binds:
-        - kea-dhcp4.conf:/etc/kea/kea-dhcp4.conf
+        - dhcp-start.sh:/tmp/start.sh
       exec:
-        - ip addr add 10.10.1.2/24 dev eth1
+        - ash /tmp/start.sh
     switch:
       kind: linux
       image: ghcr.io/vivek-dodia/labbed-host:latest
@@ -40,39 +40,19 @@ topology:
     - endpoints: ["client2:eth1", "switch:eth3"]
 `,
 			BindFiles: []BindFile{
-				{FilePath: "kea-dhcp4.conf", Content: `{
-  "Dhcp4": {
-    "interfaces-config": {
-      "interfaces": ["eth1"]
-    },
-    "lease-database": {
-      "type": "memfile",
-      "persist": false
-    },
-    "subnet4": [
-      {
-        "id": 1,
-        "subnet": "10.10.1.0/24",
-        "pools": [{"pool": "10.10.1.100 - 10.10.1.200"}],
-        "option-data": [
-          {"name": "domain-name-servers", "data": "10.10.1.2"}
-        ]
-      }
-    ]
-  }
-}
+				{FilePath: "dhcp-start.sh", Content: `#!/bin/ash
+ip addr add 10.10.1.1/24 dev eth1
+dnsmasq --no-daemon --interface=eth1 --dhcp-range=10.10.1.100,10.10.1.200,255.255.255.0,12h --log-dhcp &
+echo "DHCP server ready on 10.10.1.1"
 `},
 				{FilePath: "switch-start.sh", Content: `#!/bin/ash
-
 brctl addbr br0
-
 for iface in eth1 eth2 eth3; do
   if ip link show "$iface" > /dev/null 2>&1; then
     brctl addif br0 "$iface"
     ip link set "$iface" up
   fi
 done
-
 ip link set br0 up
 echo "Switch ready:"
 brctl show br0
@@ -80,20 +60,19 @@ brctl show br0
 			},
 		},
 		{
-			Name: "DNS Server - CoreDNS",
-			Definition: `# CoreDNS serving a local zone with a multitool client for testing
-name: coredns
+			Name: "DNS Server",
+			Definition: `# dnsmasq DNS server serving a local zone with a client for testing
+name: dns-server
 topology:
   nodes:
     dns:
       kind: linux
-      image: coredns/coredns:1.12.0
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       binds:
-        - Corefile:/etc/coredns/Corefile
-        - hosts.db:/etc/coredns/hosts.db
-      cmd: "-conf /etc/coredns/Corefile"
+        - dns-start.sh:/tmp/start.sh
+        - hosts.db:/tmp/hosts.db
       exec:
-        - ip addr add 10.10.1.1/24 dev eth1
+        - ash /tmp/start.sh
     client:
       kind: linux
       image: ghcr.io/vivek-dodia/labbed-host:latest
@@ -105,15 +84,10 @@ topology:
     - endpoints: ["dns:eth1", "client:eth1"]
 `,
 			BindFiles: []BindFile{
-				{FilePath: "Corefile", Content: `lab.local {
-    hosts /etc/coredns/hosts.db
-    log
-}
-
-. {
-    forward . 8.8.8.8
-    log
-}
+				{FilePath: "dns-start.sh", Content: `#!/bin/ash
+ip addr add 10.10.1.1/24 dev eth1
+dnsmasq --no-daemon --interface=eth1 --no-dhcp-interface=eth1 --addn-hosts=/tmp/hosts.db --log-queries &
+echo "DNS server ready on 10.10.1.1"
 `},
 				{FilePath: "hosts.db", Content: `10.10.1.1  dns.lab.local
 10.10.1.10 client.lab.local
@@ -122,7 +96,7 @@ topology:
 		},
 		{
 			Name: "Load Balancer - Nginx",
-			Definition: `# Nginx reverse-proxy load balancing across two Alpine web servers
+			Definition: `# Nginx reverse-proxy load balancing across two web servers
 name: nginx-lb
 topology:
   nodes:

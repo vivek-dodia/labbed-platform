@@ -457,6 +457,8 @@ func resolveNosKind(clabKind, dockerImage string) string {
 	switch clabKind {
 	case "srl", "nokia_srlinux":
 		return "srl"
+	case "sonic-vs", "sonic-vm":
+		return "sonic-vs"
 	case "mikrotik_ros":
 		return "mikrotik_ros"
 	case "openwrt":
@@ -586,6 +588,8 @@ func rewriteNodeConfig(nodeData map[string]interface{}, nodeName, nosKind string
 	switch nosKind {
 	case "srl", "nokia_srlinux":
 		nodeData["startup-config"] = nodeName + ".cfg"
+	case "sonic-vs", "sonic-vm":
+		nodeData["startup-config"] = nodeName + ".json"
 	case "mikrotik_ros":
 		nodeData["startup-config"] = nodeName + ".rsc"
 	case "frr":
@@ -609,6 +613,7 @@ func isNodeConfigBind(bind, nodeName string) bool {
 		source = bind[:idx]
 	}
 	return source == nodeName+".cfg" ||
+		source == nodeName+".json" ||
 		source == nodeName+".rsc" ||
 		source == nodeName+"-daemons" ||
 		source == nodeName+".conf" ||

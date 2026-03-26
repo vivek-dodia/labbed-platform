@@ -139,22 +139,19 @@ topology:
       startup-config: dist.rsc
     dhcp:
       kind: linux
-      image: docker.cloudsmith.io/isc/docker/kea-dhcp4:2.6
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       binds:
-        - kea-dhcp4.conf:/etc/kea/kea-dhcp4.conf
+        - dhcp-start.sh:/tmp/start.sh
       exec:
-        - ip addr add 10.10.1.2/24 dev eth1
-        - ip route add default via 10.10.1.1
+        - ash /tmp/start.sh
     dns:
       kind: linux
-      image: coredns/coredns:1.12.0
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       binds:
-        - Corefile:/etc/coredns/Corefile
-        - hosts.db:/etc/coredns/hosts.db
-      cmd: "-conf /etc/coredns/Corefile"
+        - dns-start.sh:/tmp/start.sh
+        - hosts.db:/tmp/hosts.db
       exec:
-        - ip addr add 10.10.2.2/24 dev eth1
-        - ip route add default via 10.10.2.1
+        - ash /tmp/start.sh
     pc1:
       kind: linux
       image: ghcr.io/vivek-dodia/labbed-host:latest
@@ -195,38 +192,17 @@ topology:
 /routing/ospf/interface-template/add area=backbone interfaces=ether3,ether4,ether5,ether6
 `},
 				// Universal configs
-				{FilePath: "kea-dhcp4.conf", Content: `{
-  "Dhcp4": {
-    "interfaces-config": {
-      "interfaces": ["eth1"]
-    },
-    "lease-database": {
-      "type": "memfile",
-      "persist": false
-    },
-    "subnet4": [
-      {
-        "id": 1,
-        "subnet": "10.10.1.0/24",
-        "pools": [{"pool": "10.10.1.100 - 10.10.1.200"}],
-        "option-data": [
-          {"name": "routers", "data": "10.10.1.1"},
-          {"name": "domain-name-servers", "data": "10.10.2.2"}
-        ]
-      }
-    ]
-  }
-}
+				{FilePath: "dhcp-start.sh", Content: `#!/bin/ash
+ip addr add 10.10.1.2/24 dev eth1
+ip route add default via 10.10.1.1
+dnsmasq --no-daemon --interface=eth1 --dhcp-range=10.10.1.100,10.10.1.200,255.255.255.0,12h --dhcp-option=3,10.10.1.1 --dhcp-option=6,10.10.2.2 --log-dhcp &
+echo "DHCP server ready on 10.10.1.2"
 `},
-				{FilePath: "Corefile", Content: `campus.lab {
-    hosts /etc/coredns/hosts.db
-    log
-}
-
-. {
-    forward . 8.8.8.8
-    log
-}
+				{FilePath: "dns-start.sh", Content: `#!/bin/ash
+ip addr add 10.10.2.2/24 dev eth1
+ip route add default via 10.10.2.1
+dnsmasq --no-daemon --interface=eth1 --no-dhcp-interface=eth1 --addn-hosts=/tmp/hosts.db --log-queries &
+echo "DNS server ready on 10.10.2.2"
 `},
 				{FilePath: "hosts.db", Content: `10.10.1.2  dhcp.campus.lab
 10.10.2.2  dns.campus.lab
@@ -300,22 +276,19 @@ topology:
       startup-config: dist2.rsc
     dhcp:
       kind: linux
-      image: docker.cloudsmith.io/isc/docker/kea-dhcp4:2.6
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       binds:
-        - kea-dhcp4.conf:/etc/kea/kea-dhcp4.conf
+        - dhcp-start.sh:/tmp/start.sh
       exec:
-        - ip addr add 10.10.1.2/24 dev eth1
-        - ip route add default via 10.10.1.1
+        - ash /tmp/start.sh
     dns:
       kind: linux
-      image: coredns/coredns:1.12.0
+      image: ghcr.io/vivek-dodia/labbed-host:latest
       binds:
-        - Corefile:/etc/coredns/Corefile
-        - hosts.db:/etc/coredns/hosts.db
-      cmd: "-conf /etc/coredns/Corefile"
+        - dns-start.sh:/tmp/start.sh
+        - hosts.db:/tmp/hosts.db
       exec:
-        - ip addr add 10.10.2.2/24 dev eth1
-        - ip route add default via 10.10.2.1
+        - ash /tmp/start.sh
     pc1:
       kind: linux
       image: ghcr.io/vivek-dodia/labbed-host:latest
@@ -376,38 +349,17 @@ topology:
 /routing/ospf/interface-template/add area=backbone interfaces=ether3,ether4
 `},
 				// Universal configs
-				{FilePath: "kea-dhcp4.conf", Content: `{
-  "Dhcp4": {
-    "interfaces-config": {
-      "interfaces": ["eth1"]
-    },
-    "lease-database": {
-      "type": "memfile",
-      "persist": false
-    },
-    "subnet4": [
-      {
-        "id": 1,
-        "subnet": "10.10.1.0/24",
-        "pools": [{"pool": "10.10.1.100 - 10.10.1.200"}],
-        "option-data": [
-          {"name": "routers", "data": "10.10.1.1"},
-          {"name": "domain-name-servers", "data": "10.10.2.2"}
-        ]
-      }
-    ]
-  }
-}
+				{FilePath: "dhcp-start.sh", Content: `#!/bin/ash
+ip addr add 10.10.1.2/24 dev eth1
+ip route add default via 10.10.1.1
+dnsmasq --no-daemon --interface=eth1 --dhcp-range=10.10.1.100,10.10.1.200,255.255.255.0,12h --dhcp-option=3,10.10.1.1 --dhcp-option=6,10.10.2.2 --log-dhcp &
+echo "DHCP server ready on 10.10.1.2"
 `},
-				{FilePath: "Corefile", Content: `campus.lab {
-    hosts /etc/coredns/hosts.db
-    log
-}
-
-. {
-    forward . 8.8.8.8
-    log
-}
+				{FilePath: "dns-start.sh", Content: `#!/bin/ash
+ip addr add 10.10.2.2/24 dev eth1
+ip route add default via 10.10.2.1
+dnsmasq --no-daemon --interface=eth1 --no-dhcp-interface=eth1 --addn-hosts=/tmp/hosts.db --log-queries &
+echo "DNS server ready on 10.10.2.2"
 `},
 				{FilePath: "hosts.db", Content: `10.10.1.2  dhcp.campus.lab
 10.10.2.2  dns.campus.lab

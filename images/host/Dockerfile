@@ -6,6 +6,7 @@ RUN apk add --no-cache \
     bridge-utils \
     busybox-extras \
     curl \
+    dnsmasq \
     iperf3 \
     iptables \
     iproute2 \

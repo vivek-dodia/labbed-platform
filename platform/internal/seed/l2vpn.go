@@ -128,7 +128,8 @@ topology:
 			},
 		},
 		{
-			Name: "SRL + FRR EVPN-VXLAN Bridge",
+			Name:  "SRL + FRR EVPN-VXLAN Bridge",
+			Draft: true, // SRL EVPN-VXLAN config needs EVI + version-specific tuning
 			Definition: `# SR Linux and FRR bridge remote LANs over EVPN-VXLAN with OSPF underlay + iBGP EVPN overlay
 name: srl-frr-vxlan
 topology:

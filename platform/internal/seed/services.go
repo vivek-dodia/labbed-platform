@@ -216,5 +216,166 @@ interface eth2
 `},
 			},
 		},
+		{
+			Name: "BNG — IPoE Subscribers (osvBNG)",
+			Definition: `# osvBNG broadband network gateway with IPoE subscribers and core router
+name: osvbng-ipoe
+topology:
+  nodes:
+    bng:
+      kind: linux
+      image: ghcr.io/vivek-dodia/mirror-osvbng:0.3.1
+      binds:
+        - osvbng.yaml:/etc/osvbng/osvbng.yaml
+      env:
+        OSVBNG_NUM_INTERFACES: "2"
+      exec:
+        - sysctl -w vm.nr_hugepages=256
+    switch:
+      kind: linux
+      image: ghcr.io/vivek-dodia/labbed-host:latest
+      binds:
+        - switch-start.sh:/tmp/start.sh
+      exec:
+        - ash /tmp/start.sh
+    core:
+      kind: linux
+      image: ghcr.io/vivek-dodia/mirror-frr:10.3.1
+      binds:
+        - core-daemons:/etc/frr/daemons
+        - core.conf:/etc/frr/frr.conf
+    sub1:
+      kind: linux
+      image: ghcr.io/vivek-dodia/labbed-host:latest
+      exec:
+        - udhcpc -i eth1
+    sub2:
+      kind: linux
+      image: ghcr.io/vivek-dodia/labbed-host:latest
+      exec:
+        - udhcpc -i eth1
+
+  links:
+    # Subscriber access side
+    - endpoints: ["sub1:eth1", "switch:eth1"]
+    - endpoints: ["sub2:eth1", "switch:eth2"]
+    - endpoints: ["switch:eth3", "bng:eth1"]
+    # Core uplink
+    - endpoints: ["bng:eth2", "core:eth1"]
+`,
+			BindFiles: []BindFile{
+				{FilePath: "osvbng.yaml", Content: `interfaces:
+  loop0:
+    description: Control Plane Loopback
+    enabled: true
+    address:
+      ipv4:
+        - 10.254.0.1/32
+    lcp: true
+  eth1:
+    description: Access Interface
+    enabled: true
+    bng_mode: access
+  eth2:
+    description: Core Link
+    enabled: true
+    bng_mode: core
+    lcp: true
+    address:
+      ipv4:
+        - 10.0.0.1/30
+  loop100:
+    description: Subscriber Gateway
+    enabled: true
+    address:
+      ipv4:
+        - 10.255.0.1/32
+    lcp: true
+
+subscriber-groups:
+  groups:
+    default:
+      access-type: ipoe
+      ipv4-profile: default
+      vlans:
+        - interface: loop100
+      aaa-policy: default-policy
+
+ipv4-profiles:
+  default:
+    gateway: 10.255.0.1
+    dns:
+      - 8.8.8.8
+    pools:
+      - name: subscriber-pool
+        network: 10.255.0.0/16
+        priority: 1
+    dhcp:
+      lease-time: 3600
+
+dhcp:
+  provider: local
+
+protocols:
+  ospf:
+    enabled: true
+    router-id: 10.254.0.1
+    areas:
+      "0.0.0.0":
+        interfaces:
+          eth2:
+            network: point-to-point
+          loop0:
+            passive: true
+          loop100:
+            passive: true
+
+aaa:
+  auth_provider: local
+  nas_identifier: osvbng
+  policy:
+    - name: default-policy
+      format: $mac-address$
+      max_concurrent_sessions: 1
+
+plugins:
+  northbound.api:
+    enabled: true
+    listen_address: :8080
+  subscriber.auth.local:
+    allow_all: true
+    database_path: /tmp/osvbng.db
+
+logging:
+  format: text
+  level: info
+`},
+				{FilePath: "switch-start.sh", Content: `#!/bin/ash
+brctl addbr br0
+for iface in eth1 eth2 eth3; do
+  if ip link show "$iface" > /dev/null 2>&1; then
+    brctl addif br0 "$iface"
+    ip link set "$iface" up
+  fi
+done
+ip link set br0 up
+`},
+				{FilePath: "core-daemons", Content: `zebra=yes
+ospfd=yes
+`},
+				{FilePath: "core.conf", Content: `hostname core
+!
+interface eth1
+ ip address 10.0.0.2/30
+ ip ospf area 0.0.0.0
+ ip ospf network point-to-point
+!
+router ospf
+ ospf router-id 10.254.0.2
+ redistribute connected
+!
+`},
+			},
+		},
 	},
 }

@@ -547,5 +547,126 @@ router bgp 65002
 `},
 			},
 		},
+		{
+			Name: "GoBGP Route Reflector",
+			Definition: `# GoBGP route reflector with two FRR edge routers and hosts
+name: gobgp-rr
+topology:
+  nodes:
+    rr:
+      kind: linux
+      image: ghcr.io/vivek-dodia/mirror-gobgp:latest
+      binds:
+        - gobgpd.conf:/root/gobgpd.conf
+      exec:
+        - ip addr add 172.16.0.2/30 dev eth1
+        - ip addr add 172.16.0.6/30 dev eth2
+        - gobgpd -f /root/gobgpd.conf &
+    edge1:
+      kind: linux
+      image: ghcr.io/vivek-dodia/mirror-frr:10.3.1
+      binds:
+        - edge1-daemons:/etc/frr/daemons
+        - edge1.conf:/etc/frr/frr.conf
+    edge2:
+      kind: linux
+      image: ghcr.io/vivek-dodia/mirror-frr:10.3.1
+      binds:
+        - edge2-daemons:/etc/frr/daemons
+        - edge2.conf:/etc/frr/frr.conf
+    host1:
+      kind: linux
+      image: ghcr.io/vivek-dodia/labbed-host:latest
+      exec:
+        - ip addr add 10.1.1.10/24 dev eth1
+        - ip route add 10.2.2.0/24 via 10.1.1.1
+    host2:
+      kind: linux
+      image: ghcr.io/vivek-dodia/labbed-host:latest
+      exec:
+        - ip addr add 10.2.2.10/24 dev eth1
+        - ip route add 10.1.1.0/24 via 10.2.2.1
+
+  links:
+    - endpoints: ["host1:eth1", "edge1:eth2"]
+    - endpoints: ["edge1:eth1", "rr:eth1"]
+    - endpoints: ["rr:eth2", "edge2:eth1"]
+    - endpoints: ["edge2:eth2", "host2:eth1"]
+`,
+			BindFiles: []BindFile{
+				{FilePath: "gobgpd.conf", Content: `[global.config]
+  as = 65000
+  router-id = "10.255.0.1"
+
+[[neighbors]]
+  [neighbors.config]
+    neighbor-address = "172.16.0.1"
+    peer-as = 65000
+  [neighbors.transport.config]
+    passive-mode = true
+  [neighbors.route-reflector.config]
+    route-reflector-client = true
+    route-reflector-cluster-id = "10.255.0.1"
+  [[neighbors.afi-safis]]
+    [neighbors.afi-safis.config]
+      afi-safi-name = "ipv4-unicast"
+
+[[neighbors]]
+  [neighbors.config]
+    neighbor-address = "172.16.0.5"
+    peer-as = 65000
+  [neighbors.transport.config]
+    passive-mode = true
+  [neighbors.route-reflector.config]
+    route-reflector-client = true
+    route-reflector-cluster-id = "10.255.0.1"
+  [[neighbors.afi-safis]]
+    [neighbors.afi-safis.config]
+      afi-safi-name = "ipv4-unicast"
+`},
+				{FilePath: "edge1-daemons", Content: `zebra=yes
+bgpd=yes
+`},
+				{FilePath: "edge1.conf", Content: `hostname edge1
+!
+interface eth1
+ ip address 172.16.0.1/30
+!
+interface eth2
+ ip address 10.1.1.1/24
+!
+router bgp 65000
+ bgp router-id 10.255.0.11
+ no bgp ebgp-requires-policy
+ neighbor 172.16.0.2 remote-as 65000
+ neighbor 172.16.0.2 update-source eth1
+ address-family ipv4 unicast
+  network 10.1.1.0/24
+ exit-address-family
+!
+`},
+				{FilePath: "edge2-daemons", Content: `zebra=yes
+bgpd=yes
+`},
+				{FilePath: "edge2.conf", Content: `hostname edge2
+!
+interface eth1
+ ip address 172.16.0.5/30
+!
+interface eth2
+ ip address 10.2.2.1/24
+!
+router bgp 65000
+ bgp router-id 10.255.0.12
+ no bgp ebgp-requires-policy
+ neighbor 172.16.0.6 remote-as 65000
+ neighbor 172.16.0.6 update-source eth1
+ address-family ipv4 unicast
+  network 10.2.2.0/24
+ exit-address-family
+!
+`},
+			},
+		},
 	},
 }

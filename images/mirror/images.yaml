@@ -22,5 +22,11 @@ images:
   - source: docker.cloudsmith.io/isc/docker/kea-dhcp4:2.6.1
     target: ghcr.io/vivek-dodia/mirror-kea-dhcp4:2.6.1
 
+  - source: osrg/gobgp:latest
+    target: ghcr.io/vivek-dodia/mirror-gobgp:latest
+
+  - source: veesixnetworks/osvbng:0.3.1
+    target: ghcr.io/vivek-dodia/mirror-osvbng:0.3.1
+
 # vrnetlab images (mikrotik_ros, openwrt, freebsd) are built from vendor ISOs
 # and pushed to GHCR separately — they cannot be mirrored from a registry.

@@ -451,8 +451,7 @@ func srlIfaceName(short string) string {
 }
 
 func srlSpine(name, routerID, as string, neighbors []srlNeighbor, ifaces ...string) string {
-	cfg := "set / system information location \"Labbed DC Fabric\"\n"
-	cfg += "set / system information description \"" + name + "\"\n\n"
+	cfg := "set / system information location \"Labbed DC Fabric — " + name + "\"\n\n"
 	// Interfaces
 	for i, n := range neighbors {
 		iface := srlIfaceName(ifaces[i])
@@ -489,8 +488,7 @@ func srlSpine(name, routerID, as string, neighbors []srlNeighbor, ifaces ...stri
 }
 
 func srlLeaf(name, routerID, as string, neighbors []srlNeighbor, uplink1, uplink2, serverAddr, serverIface string) string {
-	cfg := "set / system information location \"Labbed DC Fabric\"\n"
-	cfg += "set / system information description \"" + name + "\"\n\n"
+	cfg := "set / system information location \"Labbed DC Fabric — " + name + "\"\n\n"
 	// Uplinks
 	ul1 := srlIfaceName(uplink1)
 	ul2 := srlIfaceName(uplink2)

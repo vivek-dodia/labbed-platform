@@ -39,6 +39,7 @@ var collections = []CollectionDef{
 	routingCollection,
 	campusCollection,
 	switchingCollection,
+	l2vpnCollection,
 	firewallCollection,
 	servicesCollection,
 	cloudCollection,

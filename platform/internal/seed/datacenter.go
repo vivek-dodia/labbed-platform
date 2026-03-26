@@ -204,7 +204,8 @@ set / network-instance default protocols bgp neighbor 10.1.0.1 peer-group sonic
 			},
 		},
 		{
-			Name: "Leaf-Spine eBGP Fabric (SR Linux)",
+			Name:  "Leaf-Spine eBGP Fabric (SR Linux)",
+			Draft: true, // Requires >8GB RAM (3 SRL nodes × ~2GB each)
 			Definition: `# 1 spine + 2 leafs with eBGP underlay and host endpoints
 name: srl-leaf-spine
 
@@ -309,7 +310,8 @@ set / network-instance default protocols bgp neighbor 10.10.2.0 peer-group spine
 			},
 		},
 		{
-			Name: "SONiC Leaf-Spine Fabric",
+			Name:  "SONiC Leaf-Spine Fabric",
+			Draft: true, // Requires >8GB RAM (3 SONiC nodes)
 			Definition: `# 1 spine + 2 leafs with eBGP underlay
 name: sonic-fabric
 

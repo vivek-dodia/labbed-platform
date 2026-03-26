@@ -18,6 +18,7 @@ type Template struct {
 	Type       string // "network" (default) | "cloud"
 	Definition string
 	BindFiles  []BindFile
+	Draft      bool // Draft templates are kept in code but not seeded
 }
 
 // BindFile represents a file to bind-mount into a topology node.
@@ -201,6 +202,9 @@ func SeedSampleTemplates(db *gorm.DB, orgID uint, creatorID uint) {
 		db.Create(member)
 
 		for _, t := range colDef.Templates {
+			if t.Draft {
+				continue
+			}
 			templateType := t.Type
 			if templateType == "" {
 				templateType = "network"

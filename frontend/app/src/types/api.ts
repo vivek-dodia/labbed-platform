@@ -277,3 +277,41 @@ export interface WSMessage {
   channel: string;
   data?: unknown;
 }
+
+// ── Guides ──
+export interface GuideStepValidation {
+  node: string;
+  command: string;
+  pattern: string;
+  nosVariants?: Record<string, { command: string; pattern: string }>;
+}
+
+export interface GuideStep {
+  title: string;
+  description: string;
+  hint: string;
+  validation?: GuideStepValidation;
+}
+
+export interface GuideResponse {
+  uuid: string;
+  templateId: string;
+  title: string;
+  description: string;
+  difficulty: string;
+  concepts: string[];
+  topologyNotes: string;
+  estimatedTime: string;
+  steps: GuideStep[];
+}
+
+export interface GuideProgressResponse {
+  completedSteps: number[];
+  totalSteps: number;
+}
+
+export interface ValidationResult {
+  passed: boolean;
+  output: string;
+  stepIndex: number;
+}

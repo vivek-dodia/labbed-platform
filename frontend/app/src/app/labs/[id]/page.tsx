@@ -14,8 +14,9 @@ import { getCompletions } from "@/lib/completions";
 import AwsCliTerminal from "@/components/AwsCliTerminal";
 import CloudTopologyCanvas from "@/components/CloudTopologyCanvas";
 import { useToast } from "@/components/ui/Toast";
-import type { LabResponse, NodeResponse, TemplateResponse, LabEventResponse, PaginatedResponse, BindFileResponse } from "@/types/api";
+import type { LabResponse, NodeResponse, TemplateResponse, LabEventResponse, PaginatedResponse, BindFileResponse, GuideResponse, GuideProgressResponse } from "@/types/api";
 import { nosDisplayName } from "@/lib/nos-display";
+import LabGuidePanel from "@/components/LabGuidePanel";
 
 /* ── Quick-command definitions ── */
 interface QuickCmd { label: string; cmd: string; description: string }
@@ -299,6 +300,9 @@ export default function LabDetailPage() {
 
   const [lab, setLab] = useState<LabResponse | null>(null);
   const [template, setTemplate] = useState<TemplateResponse | null>(null);
+  const [guide, setGuide] = useState<GuideResponse | null>(null);
+  const [guideProgress, setGuideProgress] = useState<GuideProgressResponse>({ completedSteps: [], totalSteps: 0 });
+  const [showGuide, setShowGuide] = useState(false);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState("");
   const [showDeployModal, setShowDeployModal] = useState(false);
@@ -566,7 +570,14 @@ export default function LabDetailPage() {
     if (!user) { router.push("/login"); return; }
     api.get<LabResponse>(`/api/v1/labs/${id}`).then((l) => {
       setLab(l);
-      api.get<TemplateResponse>(`/api/v1/templates/${l.templateId}`).then(setTemplate).catch(() => {});
+      api.get<TemplateResponse>(`/api/v1/templates/${l.templateId}`).then((tmpl) => {
+        setTemplate(tmpl);
+        // Fetch guide if exists
+        api.get<GuideResponse>(`/api/v1/templates/${tmpl.uuid}/guide`).then((g) => {
+          setGuide(g);
+          api.get<GuideProgressResponse>(`/api/v1/templates/${tmpl.uuid}/guide/progress`).then(setGuideProgress).catch(() => {});
+        }).catch(() => {}); // 404 = no guide, that's fine
+      }).catch(() => {});
     });
   }, [id, user, authLoading, router]);
 
@@ -1000,6 +1011,19 @@ export default function LabDetailPage() {
             <button onClick={handleDelete} style={{ ...pillStyle, borderStyle: "dashed", opacity: 0.5 }}>
               DELETE
             </button>
+            {guide && (
+              <button
+                onClick={() => setShowGuide(!showGuide)}
+                style={{
+                  ...pillStyle,
+                  background: showGuide ? BG : "transparent",
+                  color: showGuide ? INK : BG,
+                  borderColor: BG,
+                }}
+              >
+                GUIDE {showGuide ? "\u2715" : `(${guideProgress.completedSteps?.length || 0}/${guide.steps.length})`}
+              </button>
+            )}
           </div>
         </header>
 
@@ -1087,6 +1111,17 @@ export default function LabDetailPage() {
                   ))}
               </div>
             </div>
+
+            {/* Guide panel */}
+            {showGuide && guide && (
+              <LabGuidePanel
+                guide={guide}
+                progress={guideProgress}
+                labUUID={lab.uuid}
+                onProgressUpdate={setGuideProgress}
+                onClose={() => setShowGuide(false)}
+              />
+            )}
 
             {/* Node list sidebar */}
             <div style={{ width: 220, minWidth: 220, borderLeft: BORDER, display: "flex", flexDirection: "column", overflow: "hidden" }}>

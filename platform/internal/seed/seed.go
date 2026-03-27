@@ -6,7 +6,10 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	"encoding/json"
+
 	"github.com/labbed/platform/internal/domain/collection"
+	"github.com/labbed/platform/internal/domain/guide"
 	"github.com/labbed/platform/internal/domain/nosimage"
 	"github.com/labbed/platform/internal/domain/organization"
 	tmpl "github.com/labbed/platform/internal/domain/template"
@@ -18,7 +21,8 @@ type Template struct {
 	Type       string // "network" (default) | "cloud"
 	Definition string
 	BindFiles  []BindFile
-	Draft      bool // Draft templates are kept in code but not seeded
+	Guide      *Guide // optional learning guide
+	Draft      bool   // Draft templates are kept in code but not seeded
 }
 
 // BindFile represents a file to bind-mount into a topology node.
@@ -26,6 +30,39 @@ type BindFile struct {
 	FilePath string
 	Content  string
 	NosKind  string // "" = universal, "mikrotik_ros", "frr", "openwrt", "freebsd"
+}
+
+// Guide defines a step-by-step learning guide for a template.
+type Guide struct {
+	Title         string
+	Description   string
+	Difficulty    string // beginner, intermediate, advanced
+	Concepts      []string
+	TopologyNotes string
+	EstimatedTime string
+	Steps         []GuideStep
+}
+
+// GuideStep is a single step in a learning guide.
+type GuideStep struct {
+	Title       string
+	Description string
+	Hint        string
+	Validation  *StepValidation
+}
+
+// StepValidation defines how to verify a step is complete.
+type StepValidation struct {
+	Node        string
+	Command     string
+	Pattern     string
+	NosVariants map[string]NosVariant
+}
+
+// NosVariant provides NOS-specific command/pattern overrides.
+type NosVariant struct {
+	Command string
+	Pattern string
 }
 
 // CollectionDef groups templates under a named collection.
@@ -52,6 +89,7 @@ func SeedDefaults(db *gorm.DB, adminUserID uint) {
 	defaultOrgID := ensureDefaultOrg(db, adminUserID)
 	SeedSampleTemplates(db, defaultOrgID, adminUserID)
 	SeedNosImages(db)
+	SeedGuides(db)
 }
 
 // SeedNosImages creates system-level NOS images if they don't already exist.
@@ -275,4 +313,76 @@ func ensureDefaultOrg(db *gorm.DB, adminUserID uint) uint {
 	db.Table("labs").Where("org_id = 0").Update("org_id", org.ID)
 
 	return org.ID
+}
+
+// SeedGuides creates learning guides for templates that define them.
+// Looks up templates by name and upserts guides.
+func SeedGuides(db *gorm.DB) {
+	for _, col := range collections {
+		for _, t := range col.Templates {
+			if t.Guide == nil || t.Draft {
+				continue
+			}
+
+			// Find the template by name
+			var tpl tmpl.Template
+			if err := db.Where("name = ?", t.Name).First(&tpl).Error; err != nil {
+				continue
+			}
+
+			// Check if guide already exists
+			var count int64
+			db.Model(&guide.LabGuide{}).Where("template_id = ?", tpl.ID).Count(&count)
+			if count > 0 {
+				continue
+			}
+
+			stepsJSON, _ := json.Marshal(convertGuideSteps(t.Guide.Steps))
+			conceptsJSON, _ := json.Marshal(t.Guide.Concepts)
+
+			g := &guide.LabGuide{
+				UUID:          uuid.New().String(),
+				TemplateID:    tpl.ID,
+				Title:         t.Guide.Title,
+				Description:   t.Guide.Description,
+				Difficulty:    t.Guide.Difficulty,
+				Concepts:      string(conceptsJSON),
+				TopologyNotes: t.Guide.TopologyNotes,
+				EstimatedTime: t.Guide.EstimatedTime,
+				Steps:         string(stepsJSON),
+			}
+
+			if err := db.Create(g).Error; err != nil {
+				log.Printf("seed: failed to create guide for %q: %v", t.Name, err)
+			} else {
+				log.Printf("seed: created guide %q for template %q", t.Guide.Title, t.Name)
+			}
+		}
+	}
+}
+
+func convertGuideSteps(steps []GuideStep) []guide.GuideStep {
+	result := make([]guide.GuideStep, len(steps))
+	for i, s := range steps {
+		result[i] = guide.GuideStep{
+			Title:       s.Title,
+			Description: s.Description,
+			Hint:        s.Hint,
+		}
+		if s.Validation != nil {
+			v := &guide.StepValidation{
+				Node:    s.Validation.Node,
+				Command: s.Validation.Command,
+				Pattern: s.Validation.Pattern,
+			}
+			if s.Validation.NosVariants != nil {
+				v.NosVariants = make(map[string]guide.NosVariant)
+				for k, nv := range s.Validation.NosVariants {
+					v.NosVariants[k] = guide.NosVariant{Command: nv.Command, Pattern: nv.Pattern}
+				}
+			}
+			result[i].Validation = v
+		}
+	}
+	return result
 }

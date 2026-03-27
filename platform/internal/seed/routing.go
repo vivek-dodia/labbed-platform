@@ -93,6 +93,70 @@ router bgp 65002
 !
 `},
 			},
+			Guide: &Guide{
+				Title:         "eBGP Peering Fundamentals",
+				Description:   "Learn how two routers in different autonomous systems establish eBGP peering, exchange routes, and enable end-to-end connectivity between hosts.",
+				Difficulty:    "beginner",
+				Concepts:      []string{"BGP", "eBGP", "Autonomous Systems", "Route Advertisement", "Peering"},
+				EstimatedTime: "15 min",
+				TopologyNotes: `Two routers in separate autonomous systems (AS 65001 and AS 65002) are connected via a /30 transit link (172.16.0.0/30). Each router has a LAN with a host behind it.
+
+**Router1** (AS 65001): LAN 10.1.1.0/24, transit 172.16.0.1/30
+**Router2** (AS 65002): LAN 10.2.2.0/24, transit 172.16.0.2/30
+
+The routers exchange routes via eBGP so that host1 (10.1.1.10) can reach host2 (10.2.2.10) and vice versa.`,
+				Steps: []GuideStep{
+					{
+						Title:       "Verify interface addressing on Router1",
+						Description: "Confirm that Router1 has the correct IP addresses: 10.1.1.1/24 on its LAN interface and 172.16.0.1/30 on the transit link.",
+						Hint:        "Each router needs two interfaces configured: one for the local LAN segment and one for the point-to-point transit link to its BGP peer. The /30 prefix on the transit link provides exactly 2 usable host addresses — one per router.",
+						Validation: &StepValidation{
+							Node: "router1", Command: "/ip/address/print", Pattern: `172\.16\.0\.1`,
+							NosVariants: map[string]NosVariant{
+								"frr": {Command: "vtysh -c 'show ip interface brief'", Pattern: `172\.16\.0\.1`},
+							},
+						},
+					},
+					{
+						Title:       "Check BGP session status",
+						Description: "Verify that the eBGP session between Router1 (AS 65001) and Router2 (AS 65002) has reached the 'established' state.",
+						Hint:        "BGP peers must complete a TCP handshake on port 179 before exchanging routes. The session progresses through states: Idle → Connect → OpenSent → OpenConfirm → Established. If it's stuck in 'connect' or 'active', check that the peering IPs are reachable.",
+						Validation: &StepValidation{
+							Node: "router1", Command: "/routing/bgp/session/print", Pattern: `(?i)established`,
+							NosVariants: map[string]NosVariant{
+								"frr": {Command: "vtysh -c 'show bgp summary'", Pattern: `65002`},
+							},
+						},
+					},
+					{
+						Title:       "Examine received BGP routes",
+						Description: "Check what routes Router1 has learned from Router2 via BGP. You should see the 10.2.2.0/24 network.",
+						Hint:        "When BGP peers establish, they exchange their routing tables according to the export policies. Router2 advertises its connected networks (including 10.2.2.0/24) to Router1. These appear in Router1's routing table as BGP routes with the next-hop being 172.16.0.2.",
+						Validation: &StepValidation{
+							Node: "router1", Command: "/ip/route/print where bgp", Pattern: `10\.2\.2\.0`,
+							NosVariants: map[string]NosVariant{
+								"frr": {Command: "vtysh -c 'show ip route bgp'", Pattern: `10\.2\.2\.0`},
+							},
+						},
+					},
+					{
+						Title:       "Test end-to-end connectivity",
+						Description: "Ping from host1 (10.1.1.10) to host2 (10.2.2.10) to verify that BGP route exchange has enabled full connectivity across both autonomous systems.",
+						Hint:        "The ping traverses: host1 → router1 (LAN) → router1 (transit) → router2 (transit) → router2 (LAN) → host2. This works because Router1 has a BGP route to 10.2.2.0/24 via 172.16.0.2, and Router2 has a BGP route to 10.1.1.0/24 via 172.16.0.1.",
+						Validation: &StepValidation{
+							Node: "host1", Command: "ping -c 3 -W 2 10.2.2.10", Pattern: `bytes from 10\.2\.2\.10`,
+						},
+					},
+					{
+						Title:       "Trace the path between hosts",
+						Description: "Run a traceroute from host1 to host2 to see the full path: host1 → router1 → router2 → host2.",
+						Hint:        "Traceroute sends packets with increasing TTL values. Each router that decrements the TTL to 0 responds with an ICMP Time Exceeded message, revealing itself as a hop in the path. You should see 2 intermediate hops (the two routers).",
+						Validation: &StepValidation{
+							Node: "host1", Command: "traceroute -n -w 2 10.2.2.10", Pattern: `172\.16\.0`,
+						},
+					},
+				},
+			},
 		},
 		{
 			Name: "OSPF Triangle",
@@ -240,6 +304,50 @@ router ospf
  ospf router-id 3.3.3.3
 !
 `},
+			},
+			Guide: &Guide{
+				Title:         "OSPF Triangle — Dynamic Routing Basics",
+				Description:   "Learn how three OSPF routers form adjacencies, exchange link-state advertisements, and build a shortest-path routing table.",
+				Difficulty:    "beginner",
+				Concepts:      []string{"OSPF", "Link-State Routing", "SPF Algorithm", "Adjacency", "Area 0"},
+				EstimatedTime: "15 min",
+				TopologyNotes: `Three routers (R1, R2, R3) form a triangle in OSPF area 0. Each router has a host on its LAN side. OSPF dynamically discovers neighbors, exchanges LSAs, and computes shortest paths.
+
+**R1**: LAN 10.1.1.0/24, links to R2 (172.16.1.0/30) and R3 (172.16.3.0/30)
+**R2**: LAN 10.2.2.0/24, links to R1 (172.16.1.0/30) and R3 (172.16.2.0/30)
+**R3**: LAN 10.3.3.0/24, links to R2 (172.16.2.0/30) and R1 (172.16.3.0/30)`,
+				Steps: []GuideStep{
+					{
+						Title:       "Verify OSPF neighbor adjacencies on R1",
+						Description: "Check that R1 has formed Full adjacencies with both R2 and R3.",
+						Hint:        "OSPF adjacencies go through states: Down → Init → 2-Way → ExStart → Exchange → Loading → Full. 'Full' means the routers have synchronized their link-state databases. On point-to-point links, adjacency forms directly without DR/BDR election.",
+						Validation: &StepValidation{
+							Node: "r1", Command: "/routing/ospf/neighbor/print", Pattern: `(?i)full`,
+							NosVariants: map[string]NosVariant{
+								"frr": {Command: "vtysh -c 'show ip ospf neighbor'", Pattern: `Full`},
+							},
+						},
+					},
+					{
+						Title:       "Examine the OSPF routing table",
+						Description: "Check the IP routing table on R1 to see OSPF-learned routes to the other LANs (10.2.2.0/24 and 10.3.3.0/24).",
+						Hint:        "OSPF routes in the routing table show the protocol's SPF calculation result. Each route has a cost (metric) based on interface bandwidth. In a triangle topology, there are two paths to each destination — OSPF picks the lowest-cost one.",
+						Validation: &StepValidation{
+							Node: "r1", Command: "/ip/route/print where ospf", Pattern: `10\.(2\.2|3\.3)\.0`,
+							NosVariants: map[string]NosVariant{
+								"frr": {Command: "vtysh -c 'show ip route ospf'", Pattern: `10\.(2\.2|3\.3)\.0`},
+							},
+						},
+					},
+					{
+						Title:       "Test connectivity across the triangle",
+						Description: "Ping from PC1 (behind R1) to PC3 (behind R3) to verify OSPF routing works.",
+						Hint:        "The ping goes from PC1 → R1 → R3 → PC3 (direct path) because OSPF computes R1-R3 as the shortest path. If the R1-R3 link were to fail, OSPF would reconverge and route via R2 instead.",
+						Validation: &StepValidation{
+							Node: "pc1", Command: "ping -c 3 -W 2 10.3.3.10", Pattern: `bytes from 10\.3\.3\.10`,
+						},
+					},
+				},
 			},
 		},
 		{

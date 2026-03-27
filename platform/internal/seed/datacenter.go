@@ -84,6 +84,62 @@ set / network-instance default protocols bgp neighbor 10.0.0.0 peer-as 65001
 set / network-instance default protocols bgp neighbor 10.0.0.0 peer-group peer
 `},
 			},
+			Guide: &Guide{
+				Title:         "SR Linux eBGP Peering",
+				Description:   "Learn Nokia SR Linux CLI, configure interfaces and BGP, and establish eBGP peering between two SR Linux nodes.",
+				Difficulty:    "intermediate",
+				Concepts:      []string{"SR Linux", "Nokia CLI", "eBGP", "Network Instances", "Address Families"},
+				EstimatedTime: "20 min",
+				TopologyNotes: `Two SR Linux nodes (SRL1 in AS 65001, SRL2 in AS 65002) connected via ethernet-1/1 using a /31 point-to-point link (10.0.0.0/31). Each has a loopback for its router-id.
+
+SR Linux uses a different CLI model than traditional routers:
+- Interfaces must be explicitly enabled (admin-state enable)
+- IPv4 requires enabling the afi-safi on both BGP and peer-groups
+- Routing policies must be defined before they're referenced
+- Network instances are like VRFs — the 'default' instance is the global table`,
+				Steps: []GuideStep{
+					{
+						Title:       "Check SR Linux interface status",
+						Description: "Verify that ethernet-1/1 is admin-enabled and operationally up on SRL1.",
+						Hint:        "SR Linux interfaces are admin-disabled by default — unlike most NOS platforms. The startup-config explicitly enables them with 'set / interface ethernet-1/1 admin-state enable'. The oper-state depends on the physical link being connected (which containerlab handles).",
+						Validation: &StepValidation{
+							Node: "srl1", Command: "show interface ethernet-1/1 brief", Pattern: `enable\s+\|\s+up`,
+						},
+					},
+					{
+						Title:       "Verify IP addressing",
+						Description: "Check that SRL1 has 10.0.0.0/31 on ethernet-1/1 and 10.0.0.11/32 on loopback.",
+						Hint:        "SR Linux uses subinterfaces (like Cisco IOS-XR). The IP is on 'ethernet-1/1.0' (subinterface 0), not directly on the parent interface. Loopbacks (lo0.0) are used for router-id and as stable BGP source addresses.",
+						Validation: &StepValidation{
+							Node: "srl1", Command: "show interface ethernet-1/1 subinterface 0", Pattern: `10\.0\.0\.0/31`,
+						},
+					},
+					{
+						Title:       "Check the default network-instance",
+						Description: "Verify that the default network-instance has both interfaces attached.",
+						Hint:        "In SR Linux, interfaces don't participate in routing until added to a network-instance. The default network-instance is equivalent to the global routing table. Interfaces are referenced as 'ethernet-1/1.0' (interface.subinterface).",
+						Validation: &StepValidation{
+							Node: "srl1", Command: "show network-instance default interfaces", Pattern: `ethernet-1/1\.0`,
+						},
+					},
+					{
+						Title:       "Verify BGP peering is established",
+						Description: "Check that SRL1 has an established eBGP session with SRL2 (AS 65002).",
+						Hint:        "SR Linux requires explicit AFI/SAFI enablement for BGP. Without 'afi-safi ipv4-unicast admin-state enable' on both the BGP instance and the peer-group, the session will fail with a 'FailedPrecondition' error. This is stricter than most NOS platforms.",
+						Validation: &StepValidation{
+							Node: "srl1", Command: "show network-instance default protocols bgp neighbor", Pattern: `established`,
+						},
+					},
+					{
+						Title:       "Examine BGP received routes",
+						Description: "Check what routes SRL1 has learned from SRL2. You should see SRL2's loopback (10.0.0.12/32).",
+						Hint:        "SR Linux BGP route display uses 'show network-instance default protocols bgp routes ipv4 summary'. The [Rx/Active/Tx] counters show received, active (installed in RIB), and transmitted routes.",
+						Validation: &StepValidation{
+							Node: "srl1", Command: "show network-instance default protocols bgp routes ipv4 summary", Pattern: `10\.0\.0\.12`,
+						},
+					},
+				},
+			},
 		},
 		{
 			Name: "SR Linux + FRR Peering",

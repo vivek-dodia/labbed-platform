@@ -19,6 +19,7 @@ import (
 	"github.com/labbed/platform/internal/auth"
 	"github.com/labbed/platform/internal/config"
 	"github.com/labbed/platform/internal/domain/collection"
+	"github.com/labbed/platform/internal/domain/guide"
 	"github.com/labbed/platform/internal/domain/lab"
 	"github.com/labbed/platform/internal/domain/nosimage"
 	"github.com/labbed/platform/internal/plan"
@@ -81,6 +82,8 @@ func main() {
 		&lab.LabNode{},
 		&lab.LabEvent{},
 		&nosimage.NosImage{},
+		&guide.LabGuide{},
+		&guide.GuideProgress{},
 	); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
@@ -204,6 +207,35 @@ func main() {
 	labHandler := lab.NewHandler(labService, hub, resolveUserID, getUserCollectionIDs)
 	workerHandler := worker.NewHandler(workerService)
 	nosImageHandler := nosimage.NewHandler(nosImageService)
+
+	// Guide domain
+	guideRepo := guide.NewRepository(db)
+	guideService := guide.NewService(
+		guideRepo,
+		func(uuid string) (uint, error) {
+			t, err := templateRepo.GetByUUID(uuid)
+			if err != nil {
+				return 0, err
+			}
+			return t.ID, nil
+		},
+		func(uuid string) (*lab.Response, error) {
+			r, err := labService.GetByUUID(uuid)
+			if err != nil {
+				return nil, err
+			}
+			return &r, nil
+		},
+		func(uuid string) (*lab.Lab, error) {
+			return labRepo.GetByUUID(uuid)
+		},
+		func(id uint) (*worker.Worker, error) {
+			return workerService.GetWorkerByID(id)
+		},
+		workerHTTPClient,
+		resolveUserID,
+	)
+	guideHandler := guide.NewHandler(guideService)
 
 	// Wire shell exec handler: channel format is "shell:{labUuid}:{nodeName}"
 	hub.SetShellHandler(func(channel string, input string) (string, error) {
@@ -346,9 +378,12 @@ func main() {
 			// Templates
 			templates := orgScoped.Group("/templates")
 			tmpl.RegisterRoutes(templates, templateHandler)
+			guide.RegisterTemplateRoutes(templates, guideHandler)
 
 			// Labs
+			labs := orgScoped.Group("/labs")
 			lab.RegisterRoutes(orgScoped, labHandler)
+			guide.RegisterLabRoutes(labs, guideHandler)
 
 			// NOS Images
 			nosimage.RegisterRoutes(orgScoped, nosImageHandler)

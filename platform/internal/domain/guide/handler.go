@@ -50,7 +50,7 @@ func (h *Handler) HandleValidateStep(c *gin.Context) {
 		return
 	}
 
-	result, err := h.service.ValidateStep(labUUID, userUUID, req.StepIndex)
+	result, err := h.service.ValidateStep(labUUID, userUUID, *req.StepIndex)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -69,7 +69,7 @@ func (h *Handler) HandleCompleteStep(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.MarkStepComplete(userUUID, templateUUID, req.StepIndex); err != nil {
+	if err := h.service.MarkStepComplete(userUUID, templateUUID, *req.StepIndex); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

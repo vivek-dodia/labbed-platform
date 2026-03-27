@@ -71,7 +71,7 @@ type ProgressResponse struct {
 }
 
 type ValidateStepRequest struct {
-	StepIndex int `json:"stepIndex" binding:"required"`
+	StepIndex *int `json:"stepIndex" binding:"required"`
 }
 
 type ValidationResult struct {

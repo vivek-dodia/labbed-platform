@@ -1016,9 +1016,9 @@ export default function LabDetailPage() {
                 onClick={() => setShowGuide(!showGuide)}
                 style={{
                   ...pillStyle,
-                  background: showGuide ? BG : "transparent",
-                  color: showGuide ? INK : BG,
-                  borderColor: BG,
+                  background: showGuide ? INK : "transparent",
+                  color: showGuide ? BG : INK,
+                  borderColor: INK,
                 }}
               >
                 GUIDE {showGuide ? "\u2715" : `(${guideProgress.completedSteps?.length || 0}/${guide.steps.length})`}

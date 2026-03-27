@@ -13,6 +13,7 @@ import type {
   TemplateResponse,
   BindFileResponse,
   LabResponse,
+  GuideResponse,
 } from "@/types/api";
 
 export default function TopologyEditorPage() {
@@ -32,6 +33,8 @@ export default function TopologyEditorPage() {
   const [showFileEdit, setShowFileEdit] = useState<BindFileResponse | null>(null);
   const [editContent, setEditContent] = useState("");
   const [showDeployModal, setShowDeployModal] = useState(false);
+  const [guide, setGuide] = useState<GuideResponse | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -42,6 +45,7 @@ export default function TopologyEditorPage() {
     api.get<TemplateResponse>(`/api/v1/templates/${id}`).then((t) => {
       setTemplate(t);
       setDefinition(t.definition);
+      api.get<GuideResponse>(`/api/v1/templates/${id}/guide`).then(setGuide).catch(() => {});
     });
   }, [id, user, authLoading, router]);
 
@@ -239,6 +243,68 @@ export default function TopologyEditorPage() {
               </button>
             </div>
           </div>
+
+          {/* Guide banner */}
+          {guide && (
+            <div style={{ borderBottom: "1px solid #000", padding: "0.6rem 2rem", display: "flex", alignItems: "center", gap: 12, background: "rgba(121,246,115,0.05)" }}>
+              <span style={{ fontSize: "0.6rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: "#000", fontFamily: "'Manrope', sans-serif" }}>GUIDED LAB</span>
+              <span style={{ fontSize: "0.75rem", fontWeight: 600, fontFamily: "'Manrope', sans-serif" }}>{guide.title}</span>
+              <span style={{
+                fontSize: "0.5rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em",
+                padding: "2px 8px", borderRadius: 99,
+                border: `1px solid ${guide.difficulty === "beginner" ? "#79f673" : guide.difficulty === "intermediate" ? "#ffbd2e" : "#ff5f56"}`,
+                color: guide.difficulty === "beginner" ? "#79f673" : guide.difficulty === "intermediate" ? "#ffbd2e" : "#ff5f56",
+                background: "#000",
+              }}>{guide.difficulty}</span>
+              {guide.estimatedTime && <span style={{ fontSize: "0.55rem", opacity: 0.5, fontFamily: "'Space Mono', monospace" }}>{guide.estimatedTime}</span>}
+              <span style={{ fontSize: "0.6rem", opacity: 0.4, fontFamily: "'Space Mono', monospace" }}>{guide.steps.length} steps</span>
+              <div style={{ flex: 1 }} />
+              <button
+                onClick={() => setShowGuide(!showGuide)}
+                style={{
+                  fontSize: "0.55rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em",
+                  padding: "4px 12px", borderRadius: 99, cursor: "pointer",
+                  border: "1px solid #000", fontFamily: "'Manrope', sans-serif",
+                  background: showGuide ? "#000" : "transparent",
+                  color: showGuide ? "#79f673" : "#000",
+                }}
+              >
+                {showGuide ? "HIDE STEPS" : "VIEW STEPS"}
+              </button>
+            </div>
+          )}
+
+          {/* Guide steps preview */}
+          {showGuide && guide && (
+            <div style={{ borderBottom: "1px solid #000", padding: "1rem 2rem", maxHeight: 300, overflowY: "auto", background: "rgba(0,0,0,0.02)" }}>
+              <p style={{ fontSize: "0.7rem", lineHeight: 1.6, marginBottom: 12, opacity: 0.6, fontFamily: "'Manrope', sans-serif" }}>{guide.description}</p>
+              {guide.topologyNotes && (
+                <pre style={{ fontSize: "0.6rem", lineHeight: 1.5, marginBottom: 12, opacity: 0.4, fontFamily: "'Space Mono', monospace", whiteSpace: "pre-wrap" }}>{guide.topologyNotes}</pre>
+              )}
+              <div style={{ fontSize: "0.55rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8, opacity: 0.4, fontFamily: "'Manrope', sans-serif" }}>STEPS</div>
+              {guide.steps.map((step, i) => (
+                <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, alignItems: "flex-start" }}>
+                  <span style={{ width: 18, height: 18, borderRadius: "50%", border: "1px solid rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.5rem", fontWeight: 700, fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{i + 1}</span>
+                  <div>
+                    <div style={{ fontSize: "0.7rem", fontWeight: 600, fontFamily: "'Manrope', sans-serif" }}>{step.title}</div>
+                    <div style={{ fontSize: "0.6rem", opacity: 0.5, fontFamily: "'Manrope', sans-serif", lineHeight: 1.4 }}>{step.description}</div>
+                  </div>
+                </div>
+              ))}
+              <div style={{ marginTop: 12, fontSize: "0.6rem", opacity: 0.4, fontStyle: "italic", fontFamily: "'Manrope', sans-serif" }}>
+                Deploy this lab to start the guided walkthrough with interactive validation.
+              </div>
+            </div>
+          )}
+
+          {/* Concepts */}
+          {guide && (
+            <div style={{ borderBottom: "1px solid #000", padding: "0.4rem 2rem", display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {guide.concepts?.map((c, i) => (
+                <span key={i} style={{ fontSize: "0.5rem", fontFamily: "'Space Mono', monospace", padding: "2px 6px", border: "1px solid rgba(0,0,0,0.15)", borderRadius: 2, opacity: 0.5 }}>{c}</span>
+              ))}
+            </div>
+          )}
 
           {/* 2-column: canvas+editor | properties */}
           <div style={{ display: "grid", gridTemplateColumns: template.type === "cloud" ? "1fr" : "1fr 320px", flexGrow: 1 }}>

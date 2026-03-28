@@ -127,6 +127,44 @@ func (c *Client) Capture(ctx context.Context, workerAddr, workerSecret string, r
 	return &resp, nil
 }
 
+// MetricsRequest is sent to a worker to collect interface metrics.
+type MetricsRequest struct {
+	Nodes []string `json:"nodes"`
+}
+
+// InterfaceMetrics holds counters for a single interface.
+type InterfaceMetrics struct {
+	Name      string `json:"name"`
+	RxBytes   uint64 `json:"rxBytes"`
+	TxBytes   uint64 `json:"txBytes"`
+	RxPackets uint64 `json:"rxPackets"`
+	TxPackets uint64 `json:"txPackets"`
+	RxErrors  uint64 `json:"rxErrors"`
+	TxErrors  uint64 `json:"txErrors"`
+	RxDrops   uint64 `json:"rxDrops"`
+	TxDrops   uint64 `json:"txDrops"`
+}
+
+// NodeMetrics holds all interface metrics for a container.
+type NodeMetrics struct {
+	Name       string             `json:"name"`
+	Interfaces []InterfaceMetrics `json:"interfaces"`
+}
+
+// MetricsResponse is the worker's response to a metrics call.
+type MetricsResponse struct {
+	Nodes []NodeMetrics `json:"nodes"`
+}
+
+// Metrics collects interface counters from containers.
+func (c *Client) Metrics(ctx context.Context, workerAddr, workerSecret string, req MetricsRequest) (*MetricsResponse, error) {
+	var resp MetricsResponse
+	if err := c.post(ctx, workerAddr+"/api/v1/labs/metrics", workerSecret, req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 // AwsExecRequest is sent to a worker to run AWS CLI commands against Moto.
 type AwsExecRequest struct {
 	LabID   string `json:"labId"`

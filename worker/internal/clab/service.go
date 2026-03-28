@@ -478,6 +478,81 @@ func (s *Service) Capture(ctx context.Context, containerName, iface string, coun
 	return output, nil
 }
 
+// InterfaceMetrics holds counters for a single interface.
+type InterfaceMetrics struct {
+	Name      string `json:"name"`
+	RxBytes   uint64 `json:"rxBytes"`
+	TxBytes   uint64 `json:"txBytes"`
+	RxPackets uint64 `json:"rxPackets"`
+	TxPackets uint64 `json:"txPackets"`
+	RxErrors  uint64 `json:"rxErrors"`
+	TxErrors  uint64 `json:"txErrors"`
+	RxDrops   uint64 `json:"rxDrops"`
+	TxDrops   uint64 `json:"txDrops"`
+}
+
+// NodeMetrics holds all interface metrics for a container.
+type NodeMetrics struct {
+	Name       string             `json:"name"`
+	Interfaces []InterfaceMetrics `json:"interfaces"`
+}
+
+// GetMetrics reads /proc/net/dev via nsenter for each container, returning interface counters.
+func (s *Service) GetMetrics(ctx context.Context, containerNames []string) ([]NodeMetrics, error) {
+	dockerBin := findDockerBin()
+	var results []NodeMetrics
+
+	for _, container := range containerNames {
+		pidCmd := exec.CommandContext(ctx, dockerBin, "inspect", "--format", "{{.State.Pid}}", container)
+		pidOut, err := pidCmd.Output()
+		if err != nil {
+			continue
+		}
+		pid := strings.TrimSpace(string(pidOut))
+		if pid == "" || pid == "0" {
+			continue
+		}
+
+		cmd := exec.CommandContext(ctx, "nsenter", "-t", pid, "-n", "cat", "/proc/net/dev")
+		out, err := cmd.Output()
+		if err != nil {
+			continue
+		}
+
+		node := NodeMetrics{Name: container}
+		for _, line := range strings.Split(string(out), "\n") {
+			line = strings.TrimSpace(line)
+			if !strings.Contains(line, ":") || strings.HasPrefix(line, "Inter") || strings.HasPrefix(line, " face") {
+				continue
+			}
+			parts := strings.SplitN(line, ":", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			ifName := strings.TrimSpace(parts[0])
+			if ifName == "lo" {
+				continue
+			}
+			fields := strings.Fields(parts[1])
+			if len(fields) < 16 {
+				continue
+			}
+			m := InterfaceMetrics{Name: ifName}
+			fmt.Sscanf(fields[0], "%d", &m.RxBytes)
+			fmt.Sscanf(fields[1], "%d", &m.RxPackets)
+			fmt.Sscanf(fields[2], "%d", &m.RxErrors)
+			fmt.Sscanf(fields[3], "%d", &m.RxDrops)
+			fmt.Sscanf(fields[8], "%d", &m.TxBytes)
+			fmt.Sscanf(fields[9], "%d", &m.TxPackets)
+			fmt.Sscanf(fields[10], "%d", &m.TxErrors)
+			fmt.Sscanf(fields[11], "%d", &m.TxDrops)
+			node.Interfaces = append(node.Interfaces, m)
+		}
+		results = append(results, node)
+	}
+	return results, nil
+}
+
 // Deploy deploys a lab using the containerlab library.
 // After clab.Deploy returns (or times out waiting for post-deploy steps),
 // we use Inspect to gather actual container info since Deploy can block

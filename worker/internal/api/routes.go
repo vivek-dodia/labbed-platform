@@ -20,6 +20,7 @@ func SetupRoutes(router *gin.Engine, handler *Handler, workerSecret string) {
 			labs.POST("/inspect", handler.HandleInspect)
 			labs.POST("/exec", handler.HandleExec)
 			labs.POST("/capture", handler.HandleCapture)
+			labs.POST("/metrics", handler.HandleMetrics)
 			labs.POST("/aws-exec", handler.HandleAwsExec)
 		}
 	}

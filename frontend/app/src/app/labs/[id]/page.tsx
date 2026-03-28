@@ -14,7 +14,7 @@ import { getCompletions } from "@/lib/completions";
 import AwsCliTerminal from "@/components/AwsCliTerminal";
 import CloudTopologyCanvas from "@/components/CloudTopologyCanvas";
 import { useToast } from "@/components/ui/Toast";
-import type { LabResponse, NodeResponse, TemplateResponse, LabEventResponse, PaginatedResponse, BindFileResponse, GuideResponse, GuideProgressResponse } from "@/types/api";
+import type { LabResponse, NodeResponse, TemplateResponse, LabEventResponse, PaginatedResponse, BindFileResponse, GuideResponse, GuideProgressResponse, MetricsResponse, NodeMetrics, InterfaceMetrics } from "@/types/api";
 import { nosDisplayName } from "@/lib/nos-display";
 import LabGuidePanel from "@/components/LabGuidePanel";
 
@@ -284,7 +284,7 @@ const FONT = "'Manrope', -apple-system, sans-serif";
 const MONO = "'Space Mono', monospace";
 const LABEL: React.CSSProperties = { fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 };
 
-type BottomTab = "terminal" | "logs" | "events" | "yaml" | "bulk" | "capture" | "aws";
+type BottomTab = "terminal" | "logs" | "events" | "yaml" | "bulk" | "capture" | "metrics" | "aws";
 
 /* ── Terminal line type ── */
 interface TermLine { type: "input" | "output"; text: string }
@@ -382,6 +382,12 @@ export default function LabDetailPage() {
   const [captureLines, setCaptureLines] = useState<string[]>([]);
   const [captureCount, setCaptureCount] = useState(50);
   const captureScrollRef = useRef<HTMLDivElement>(null);
+
+  /* Metrics state */
+  const [metrics, setMetrics] = useState<NodeMetrics[]>([]);
+  const [prevMetrics, setPrevMetrics] = useState<NodeMetrics[]>([]);
+  const [metricsRates, setMetricsRates] = useState<Record<string, Record<string, { rxBps: number; txBps: number }>>>({});
+  const metricsInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const shellChannel = lab && selectedNode ? `shell:${lab.uuid}:${selectedNode}` : null;
 
@@ -911,6 +917,42 @@ export default function LabDetailPage() {
     return parseContainerlabYAML(template.definition).links;
   }, [template]);
 
+  // Metrics polling — every 5s when lab is running
+  useEffect(() => {
+    if (!lab || lab.state !== "running" || lab.type === "cloud") {
+      if (metricsInterval.current) { clearInterval(metricsInterval.current); metricsInterval.current = null; }
+      return;
+    }
+    const poll = () => {
+      api.get<MetricsResponse>(`/api/v1/labs/${lab.uuid}/metrics`).then((resp) => {
+        setPrevMetrics(metrics);
+        setMetrics(resp.nodes || []);
+        // Compute rates (delta / 5s)
+        if (metrics.length > 0 && resp.nodes) {
+          const rates: Record<string, Record<string, { rxBps: number; txBps: number }>> = {};
+          for (const node of resp.nodes) {
+            const prevNode = metrics.find((n) => n.name === node.name);
+            if (!prevNode) continue;
+            rates[node.name] = {};
+            for (const iface of node.interfaces) {
+              const prev = prevNode.interfaces.find((i) => i.name === iface.name);
+              if (!prev) continue;
+              rates[node.name][iface.name] = {
+                rxBps: Math.max(0, (iface.rxBytes - prev.rxBytes) / 5),
+                txBps: Math.max(0, (iface.txBytes - prev.txBytes) / 5),
+              };
+            }
+          }
+          setMetricsRates(rates);
+        }
+      }).catch(() => {});
+    };
+    poll(); // initial fetch
+    metricsInterval.current = setInterval(poll, 5000);
+    return () => { if (metricsInterval.current) clearInterval(metricsInterval.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lab?.uuid, lab?.state]);
+
   /* Loading */
   if (!lab) {
     return (
@@ -1318,7 +1360,7 @@ export default function LabDetailPage() {
               <div style={{ borderBottom: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", flexShrink: 0 }}>
                 {(lab.type === "cloud"
                   ? ["aws", "logs", "events", "yaml"] as BottomTab[]
-                  : ["terminal", "capture", "logs", "events", "yaml", "bulk"] as BottomTab[]
+                  : ["terminal", "capture", "metrics", "logs", "events", "yaml", "bulk"] as BottomTab[]
                 ).map((tab) => (
                   <button
                     key={tab}
@@ -1338,7 +1380,7 @@ export default function LabDetailPage() {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {tab === "bulk" ? "BULK CMD" : tab === "aws" ? "AWS CLI" : tab === "capture" ? "SNIFFER" : tab}
+                    {tab === "bulk" ? "BULK CMD" : tab === "aws" ? "AWS CLI" : tab === "capture" ? "SNIFFER" : tab === "metrics" ? "METRICS" : tab}
                     {tab === "capture" && captureActive && (
                       <span style={{ marginLeft: 4, color: "#ff5f56", fontSize: "0.55rem" }}>{"\u25CF"}</span>
                     )}
@@ -2033,6 +2075,70 @@ export default function LabDetailPage() {
                       </>
                     )}
                   </div>
+                </div>
+              )}
+
+              {/* METRICS TAB */}
+              {bottomTab === "metrics" && (
+                <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0.5rem 1.25rem" }}>
+                  {metrics.length === 0 ? (
+                    <div style={{ opacity: 0.2, textAlign: "center", marginTop: "2rem" }}>
+                      <span style={{ ...LABEL, fontSize: "0.8rem" }}>
+                        {isLive ? "COLLECTING METRICS..." : "DEPLOY LAB TO VIEW METRICS"}
+                      </span>
+                    </div>
+                  ) : (
+                    metrics.map((node) => {
+                      const short = shortName(node.name);
+                      const nodeRates = metricsRates[node.name] || {};
+                      return (
+                        <div key={node.name} style={{ marginBottom: "1rem" }}>
+                          <div style={{ ...LABEL, fontSize: "0.6rem", marginBottom: "0.3rem", display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ textTransform: "uppercase" }}>{short}</span>
+                            {node.interfaces.some((i) => (nodeRates[i.name]?.rxBps || 0) > 0 || (nodeRates[i.name]?.txBps || 0) > 0) && (
+                              <span style={{ fontSize: "0.5rem", color: BG, fontWeight: 400 }}>ACTIVE</span>
+                            )}
+                          </div>
+                          <div style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "100px 80px 80px 80px 80px 60px 60px", gap: 4, padding: "0.2rem 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                              <span style={{ ...LABEL, fontSize: "0.45rem", opacity: 0.3 }}>INTERFACE</span>
+                              <span style={{ ...LABEL, fontSize: "0.45rem", opacity: 0.3 }}>RX RATE</span>
+                              <span style={{ ...LABEL, fontSize: "0.45rem", opacity: 0.3 }}>TX RATE</span>
+                              <span style={{ ...LABEL, fontSize: "0.45rem", opacity: 0.3 }}>RX PKTS</span>
+                              <span style={{ ...LABEL, fontSize: "0.45rem", opacity: 0.3 }}>TX PKTS</span>
+                              <span style={{ ...LABEL, fontSize: "0.45rem", opacity: 0.3 }}>ERR</span>
+                              <span style={{ ...LABEL, fontSize: "0.45rem", opacity: 0.3 }}>DROP</span>
+                            </div>
+                            {node.interfaces.map((iface) => {
+                              const rate = nodeRates[iface.name];
+                              const formatRate = (bps: number) => {
+                                if (bps > 1e6) return `${(bps / 1e6).toFixed(1)} Mbps`;
+                                if (bps > 1e3) return `${(bps / 1e3).toFixed(1)} Kbps`;
+                                return `${Math.round(bps * 8)} bps`;
+                              };
+                              const hasTraffic = rate && (rate.rxBps > 0 || rate.txBps > 0);
+                              return (
+                                <div key={iface.name} style={{
+                                  display: "grid", gridTemplateColumns: "100px 80px 80px 80px 80px 60px 60px", gap: 4,
+                                  padding: "0.2rem 0", fontFamily: MONO, fontSize: "0.6rem",
+                                  color: hasTraffic ? BG : "rgba(255,255,255,0.4)",
+                                  borderBottom: "1px solid rgba(255,255,255,0.03)",
+                                }}>
+                                  <span style={{ fontWeight: 600 }}>{iface.name}</span>
+                                  <span>{rate ? formatRate(rate.rxBps) : "--"}</span>
+                                  <span>{rate ? formatRate(rate.txBps) : "--"}</span>
+                                  <span>{iface.rxPackets.toLocaleString()}</span>
+                                  <span>{iface.txPackets.toLocaleString()}</span>
+                                  <span style={{ color: iface.rxErrors > 0 ? "#ff5f56" : undefined }}>{iface.rxErrors + iface.txErrors}</span>
+                                  <span style={{ color: iface.rxDrops > 0 ? "#ffbd2e" : undefined }}>{iface.rxDrops + iface.txDrops}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               )}
             </div>

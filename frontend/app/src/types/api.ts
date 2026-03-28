@@ -315,3 +315,25 @@ export interface ValidationResult {
   output: string;
   stepIndex: number;
 }
+
+// ── Metrics ──
+export interface InterfaceMetrics {
+  name: string;
+  rxBytes: number;
+  txBytes: number;
+  rxPackets: number;
+  txPackets: number;
+  rxErrors: number;
+  txErrors: number;
+  rxDrops: number;
+  txDrops: number;
+}
+
+export interface NodeMetrics {
+  name: string;
+  interfaces: InterfaceMetrics[];
+}
+
+export interface MetricsResponse {
+  nodes: NodeMetrics[];
+}

@@ -1,12 +1,16 @@
 package lab
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/labbed/platform/internal/auth"
+	"github.com/labbed/platform/internal/domain/worker"
+	"github.com/labbed/platform/internal/workerclient"
 	"github.com/labbed/platform/internal/ws"
 )
 
@@ -28,6 +32,8 @@ type LabHandler struct {
 	hub                  *ws.Hub
 	resolveUserID        func(uuid string) (uint, error)
 	getUserCollectionIDs func(userID uint, isAdmin bool) ([]uint, error)
+	workerClient         *workerclient.Client
+	getWorker            func(id uint) (*worker.Worker, error)
 }
 
 func NewHandler(
@@ -41,6 +47,10 @@ func NewHandler(
 		hub:                  hub,
 		resolveUserID:        resolveUserID,
 		getUserCollectionIDs: getUserCollectionIDs,
+		workerClient:         service.workerClient,
+		getWorker: func(id uint) (*worker.Worker, error) {
+			return service.workerSelector.GetWorkerByID(id)
+		},
 	}
 }
 
@@ -399,4 +409,44 @@ func (h *LabHandler) HandleLogPush(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+// HandleGetMetrics collects interface metrics from all nodes in a running lab.
+func (h *LabHandler) HandleGetMetrics(c *gin.Context) {
+	labUUID := c.Param("id")
+	labResp, err := h.service.GetByUUID(labUUID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "lab not found"})
+		return
+	}
+
+	labEntity, err := h.service.repo.GetByUUID(labUUID)
+	if err != nil || labEntity.WorkerID == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "lab has no worker"})
+		return
+	}
+
+	w, err := h.getWorker(*labEntity.WorkerID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "worker not found"})
+		return
+	}
+
+	var nodeNames []string
+	for _, n := range labResp.Nodes {
+		nodeNames = append(nodeNames, n.Name)
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+
+	resp, err := h.workerClient.Metrics(ctx, w.Address, w.Secret, workerclient.MetricsRequest{
+		Nodes: nodeNames,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
 }

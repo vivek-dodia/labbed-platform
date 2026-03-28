@@ -372,6 +372,31 @@ func (h *Handler) HandleCapture(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"output": output})
 }
 
+// MetricsRequest is received from the platform to collect interface metrics.
+type MetricsRequest struct {
+	Nodes []string `json:"nodes" binding:"required"` // container names
+}
+
+// HandleMetrics collects interface counters from containers via nsenter + /proc/net/dev.
+func (h *Handler) HandleMetrics(c *gin.Context) {
+	var req MetricsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+
+	metrics, err := h.clabService.GetMetrics(ctx, req.Nodes)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"nodes": metrics})
+}
+
 // deployCloudAsync deploys a cloud lab using Moto + Terraform.
 func (h *Handler) deployCloudAsync(labID, clabName, hcl string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
